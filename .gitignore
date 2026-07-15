@@ -1,0 +1,12 @@
+node_modules/
+.expo/
+dist/
+dist-test/
+coverage/
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
+graphify-out/.graphify_*
+graphify-out/cache/

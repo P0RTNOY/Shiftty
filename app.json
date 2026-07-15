@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Shifty",
+    "slug": "shifty",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "shifty",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-notifications",
+      [
+        "expo-localization",
+        {
+          "supportedLocales": {
+            "ios": ["he", "en"],
+            "android": ["he", "en"]
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.shifty.app"
+    },
+    "android": {
+      "package": "com.shifty.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#E8F3EE"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    }
+  }
+}
