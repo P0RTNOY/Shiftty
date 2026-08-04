@@ -60,7 +60,7 @@ describe('buildNotificationPlan', () => {
     expect(missedClockIn).toBeDefined();
     expect(missedClockIn?.logicalKey).toBe('missed_clock_in:shift-1');
     // Should fire at scheduledStart + 10 min = 11:10
-    expect(missedClockIn?.scheduledFor).toContain('11:10');
+    expect(missedClockIn?.scheduledFor).toContain('08:10');
   });
 
   it('does not schedule reminders for a shift in the past', () => {

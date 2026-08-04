@@ -51,9 +51,21 @@ it('performs CRUD operations on shift templates', async () => {
   // update
   db.runAsync.mockResolvedValueOnce(undefined);
   db.getFirstAsync.mockResolvedValueOnce({
-    ...created,
+    id: 't-1',
     name: 'בוקר מעודכן',
+    default_start_time: '08:00',
+    default_end_time: '16:00',
+    expected_break_minutes: 30,
+    expected_break_type: 'unpaid',
     valid_weekdays: '[1,2,3]',
+    expected_duration_minutes: 480,
+    color_token: '#f00',
+    workplace_id: 'wp-1',
+    role_id: null,
+    salary_profile_id: null,
+    is_archived: 0,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
   });
 
   const updated = await repo.update('t-1', {
@@ -79,8 +91,7 @@ it('performs CRUD operations on shift templates', async () => {
   db.getAllAsync.mockResolvedValueOnce([]);
   await repo.listActive();
   expect(db.getAllAsync).toHaveBeenCalledWith(
-    expect.stringContaining('WHERE is_archived = 0'),
-    undefined
+    expect.stringContaining('WHERE is_archived = 0')
   );
 
   // duplicate

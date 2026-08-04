@@ -11,6 +11,7 @@ jest.mock('@/features/shifts/hooks/use-shift-templates', () => ({ useShiftTempla
 jest.mock('@/features/workplaces/hooks/use-workplaces', () => ({ useWorkplaces: () => ({ workplaces: [{ id: 'workplace-1', name: 'קפה העיר' }], roles: [] }) }));
 jest.mock('@/features/pay-rules', () => ({ useSalaryDashboard: () => mockSalaryHook() }));
 jest.mock('@/shared/hooks', () => ({ useLiveNow: () => new Date('2026-07-15T17:00:00+03:00') }));
+jest.mock('@/features/shifts/hooks/use-shift-prediction', () => ({ useShiftPrediction: () => [null, jest.fn()] }));
 
 const emptyActive = { activeShift: null, breaks: [], busy: false, error: null, startBreak: jest.fn(), endBreak: jest.fn() };
 

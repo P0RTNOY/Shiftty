@@ -30,7 +30,7 @@ it('records and lists prediction feedback', async () => {
     id: 'f-1',
     feedback_type: 'accepted_partial',
     engine_version: 'v1',
-    candidate_source: 'historical',
+    candidate_source: 'historical_pattern',
     candidate_source_id: 'hist-1',
     score: 60,
     accepted_fields_json: '["scheduledStart"]',
@@ -52,7 +52,6 @@ it('records and lists prediction feedback', async () => {
   db.runAsync.mockResolvedValueOnce(undefined);
   await repo.clearAll();
   expect(db.runAsync).toHaveBeenCalledWith(
-    expect.stringContaining('DELETE FROM prediction_feedback;'),
-    undefined
+    expect.stringContaining('DELETE FROM prediction_feedback;')
   );
 });

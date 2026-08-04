@@ -25,16 +25,16 @@ describe('NotificationReconciler', () => {
       listByShiftId: jest.fn(),
       getByLogicalKey: jest.fn(),
       upsert: jest.fn(),
-      deleteByLogicalKey: jest.fn(),
-      deleteByShiftId: jest.fn(),
+      deleteByLogicalKey: jest.fn().mockResolvedValue(undefined),
+      deleteByShiftId: jest.fn().mockResolvedValue(undefined),
       updateNativeId: jest.fn(),
     };
     adapter = {
       getPermissionStatus: jest.fn(),
       requestPermission: jest.fn(),
       scheduleNotification: jest.fn(),
-      cancelNotification: jest.fn(),
-      cancelAllByOwner: jest.fn(),
+      cancelNotification: jest.fn().mockResolvedValue(undefined),
+      cancelAllByOwner: jest.fn().mockResolvedValue(undefined),
     };
     resolveText = jest.fn((key) => key);
     reconciler = new NotificationReconciler(settingsRepo, scheduledRepo, adapter, resolveText);

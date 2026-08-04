@@ -2,8 +2,8 @@ import { addDays, format } from 'date-fns';
 import { checkRollingWindow, MIN_HORIZON_DAYS, TARGET_HORIZON_DAYS } from '@/domain/services/recurrence-window-service';
 import type { RecurrenceSeries } from '@/domain/entities';
 
-const NOW = new Date('2026-08-04T12:00:00Z');
-const NOW_DATE_STR = '2026-08-04';
+const NOW = new Date('2026-08-03T12:00:00Z');
+const NOW_DATE_STR = '2026-08-03';
 
 const BASE_SERIES: RecurrenceSeries = {
   id: 'series-1',

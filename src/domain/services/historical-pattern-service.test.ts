@@ -23,10 +23,10 @@ function makeShift(id: string, actualStart: string, actualEnd: string, workplace
 
 // All on Monday (weekday = 1)
 const MONDAY_SHIFTS = [
-  makeShift('s1', '2026-07-28T08:05:00+03:00', '2026-07-28T16:10:00+03:00'),
-  makeShift('s2', '2026-07-21T08:00:00+03:00', '2026-07-21T15:58:00+03:00'),
-  makeShift('s3', '2026-07-14T08:15:00+03:00', '2026-07-14T16:05:00+03:00'),
-  makeShift('s4', '2026-07-07T07:55:00+03:00', '2026-07-07T16:00:00+03:00'),
+  makeShift('s1', '2026-07-27T08:05:00+03:00', '2026-07-27T16:10:00+03:00'),
+  makeShift('s2', '2026-07-20T08:00:00+03:00', '2026-07-20T15:58:00+03:00'),
+  makeShift('s3', '2026-07-13T08:15:00+03:00', '2026-07-13T16:05:00+03:00'),
+  makeShift('s4', '2026-07-06T07:55:00+03:00', '2026-07-06T16:00:00+03:00'),
 ];
 
 describe('detectHistoricalPatterns', () => {
