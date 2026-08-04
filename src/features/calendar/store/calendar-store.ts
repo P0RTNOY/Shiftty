@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-type CalendarMode = 'month' | 'agenda';
+type CalendarMode = 'month' | 'week' | 'agenda';
 
 interface CalendarState {
   selectedDate: string;

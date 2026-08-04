@@ -66,4 +66,21 @@ describe('database migrations', () => {
     expect(migration?.sql).toContain('UPDATE salary_profiles SET workplace_id');
     expect(migration?.sql).not.toContain("salary_calculation_status TEXT NOT NULL DEFAULT 'finalized'");
   });
+
+  it('adds Phase 5 smart assistance tables and extends shift_templates', () => {
+    const migration = DATABASE_MIGRATIONS.find((item) => item.version === 5);
+    expect(migration?.name).toBe('smart_assistance');
+    expect(migration?.sql).toContain('ALTER TABLE shift_templates ADD COLUMN valid_weekdays');
+    expect(migration?.sql).toContain('ALTER TABLE shift_templates ADD COLUMN expected_break_type');
+    expect(migration?.sql).toContain('ALTER TABLE shift_templates ADD COLUMN color_token');
+    expect(migration?.sql).toContain('ALTER TABLE shift_templates ADD COLUMN is_archived');
+    expect(migration?.sql).toContain('ALTER TABLE shift_templates ADD COLUMN expected_duration_minutes');
+    expect(migration?.sql).toContain('CREATE TABLE prediction_feedback');
+    expect(migration?.sql).toContain('CREATE TABLE workplace_notification_overrides');
+    expect(migration?.sql).toContain('CREATE TABLE scheduled_notification_records');
+    expect(migration?.sql).toContain("feedback_type TEXT NOT NULL CHECK (feedback_type IN ('accepted_all', 'accepted_partial', 'rejected', 'edited_after_acceptance'))");
+    expect(migration?.sql).toContain("type TEXT NOT NULL CHECK (type IN ('shift_reminder', 'missed_clock_in', 'expected_end_soon', 'expected_end', 'overdue_shift', 'long_break', 'daily_summary'))");
+    expect(migration?.sql).toContain('shift_templates_active');
+    expect(migration?.sql).toContain('json_valid(accepted_fields_json)');
+  });
 });

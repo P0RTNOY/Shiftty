@@ -9,6 +9,7 @@ export interface RecurrenceMutation {
 }
 
 export interface RecurrenceRepository {
+  listAll(): Promise<RecurrenceSeries[]>;
   getSeries(id: string): Promise<RecurrenceSeries | null>;
   saveSeries(series: RecurrenceSeries): Promise<void>;
   listExceptions(seriesId: string): Promise<RecurrenceException[]>;

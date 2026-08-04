@@ -10,8 +10,8 @@ export const recurrenceRuleSchema = z
     id: z.string().min(1),
     frequency: recurrenceFrequencySchema,
     weekdays: z.array(z.number().int().min(0).max(6)).min(1),
-    startsOn: z.iso.date(),
-    endsOn: z.iso.date().optional(),
+    startsOn: z.string().date(),
+    endsOn: z.string().date().optional(),
     occurrenceLimit: z.number().int().positive().max(520).optional(),
     timezone: z.string().min(1),
   })
@@ -44,9 +44,9 @@ export const recurrenceSeriesSchema = z.object({
   id: z.string().min(1),
   rule: recurrenceRuleSchema,
   template: recurringShiftTemplateSchema,
-  disabledFrom: z.iso.date().optional(),
-  createdAt: z.iso.datetime({ offset: true }),
-  updatedAt: z.iso.datetime({ offset: true }),
+  disabledFrom: z.string().date().optional(),
+  createdAt: z.string().datetime({ offset: true }),
+  updatedAt: z.string().datetime({ offset: true }),
 });
 
 export type RecurrenceSeries = z.infer<typeof recurrenceSeriesSchema>;
@@ -54,10 +54,10 @@ export type RecurrenceSeries = z.infer<typeof recurrenceSeriesSchema>;
 export const recurrenceExceptionSchema = z.object({
   id: z.string().min(1),
   seriesId: z.string().min(1),
-  localDate: z.iso.date(),
+  localDate: z.string().date(),
   type: z.enum(['deleted', 'modified']),
   shiftId: z.string().min(1).optional(),
-  createdAt: z.iso.datetime({ offset: true }),
+  createdAt: z.string().datetime({ offset: true }),
 });
 
 export type RecurrenceException = z.infer<typeof recurrenceExceptionSchema>;

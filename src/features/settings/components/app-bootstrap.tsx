@@ -2,7 +2,7 @@ import { useEffect, type PropsWithChildren } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 
-import { SqliteShiftRepository } from '@/data/repositories';
+import { SqliteShiftRepository, SqliteRecurrenceRepository, SqliteShiftTemplateRepository } from '@/data/repositories';
 import { useAppStore } from '@/features/settings/store/app-store';
 import { PrimaryButton } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
@@ -17,7 +17,11 @@ export function AppBootstrap({ children }: PropsWithChildren) {
 
   useEffect(() => {
     if (bootstrapStatus === 'idle') {
-      void bootstrap(new SqliteShiftRepository(database));
+      void bootstrap({
+        shifts: new SqliteShiftRepository(database),
+        recurrence: new SqliteRecurrenceRepository(database),
+        templates: new SqliteShiftTemplateRepository(database),
+      });
     }
   }, [bootstrap, bootstrapStatus, database]);
 
@@ -33,7 +37,11 @@ export function AppBootstrap({ children }: PropsWithChildren) {
         </Text>
         <PrimaryButton
           label={t('bootstrap.retry')}
-          onPress={() => void bootstrap(new SqliteShiftRepository(database))}
+          onPress={() => void bootstrap({
+            shifts: new SqliteShiftRepository(database),
+            recurrence: new SqliteRecurrenceRepository(database),
+            templates: new SqliteShiftTemplateRepository(database),
+          })}
         />
       </View>
     );

@@ -9,7 +9,7 @@ interface I18nValue {
   locale: SupportedLocale;
   isRtl: boolean;
   setLocale: (locale: SupportedLocale) => void;
-  t: (key: TranslationKey) => string;
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string;
   formatCurrency: (minorUnits: number, currency?: string) => string;
   formatDate: (value: Date | string, options?: Intl.DateTimeFormatOptions) => string;
 }
@@ -31,7 +31,15 @@ export function I18nProvider({ children }: PropsWithChildren) {
         configureNativeRtl(nextLocale);
         setLocaleState(nextLocale);
       },
-      t: (key) => messages[key],
+      t: (key, params) => {
+        let text = messages[key] ?? key;
+        if (params) {
+          Object.entries(params).forEach(([k, v]) => {
+            text = text.replace(new RegExp(`{{${k}}}`, 'g'), String(v));
+          });
+        }
+        return text;
+      },
       formatCurrency: (minorUnits, currency = 'ILS') =>
         new Intl.NumberFormat(intlLocale, {
           style: 'currency',

@@ -8,9 +8,15 @@ export const shiftTemplateSchema = z.object({
   defaultStartTime: localTimeSchema,
   defaultEndTime: localTimeSchema,
   expectedBreakMinutes: z.number().int().min(0),
+  expectedBreakType: z.enum(['paid', 'unpaid']).optional(),
+  /** ISO weekday numbers 0=Sun…6=Sat. Absent means all weekdays valid. */
+  validWeekdays: z.array(z.number().int().min(0).max(6)).optional(),
+  expectedDurationMinutes: z.number().int().positive().optional(),
+  colorToken: z.string().max(30).optional(),
   workplaceId: z.string().min(1).optional(),
   roleId: z.string().min(1).optional(),
   salaryProfileId: z.string().min(1).optional(),
+  isArchived: z.boolean().default(false),
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
 });

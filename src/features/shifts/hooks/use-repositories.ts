@@ -1,7 +1,19 @@
 import { useMemo } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 
-import { SqliteActiveShiftRepository, SqlitePayRuleRepository, SqliteRecurrenceRepository, SqliteSalaryCalculationRepository, SqliteSalaryProfileRepository, SqliteShiftRepository, SqliteShiftTemplateRepository, SqliteWorkplaceRepository } from '@/data/repositories';
+import {
+  SqliteActiveShiftRepository,
+  SqliteNotificationSettingsRepository,
+  SqlitePayRuleRepository,
+  SqlitePredictionFeedbackRepository,
+  SqliteRecurrenceRepository,
+  SqliteSalaryCalculationRepository,
+  SqliteSalaryProfileRepository,
+  SqliteScheduledNotificationRepository,
+  SqliteShiftRepository,
+  SqliteShiftTemplateRepository,
+  SqliteWorkplaceRepository,
+} from '@/data/repositories';
 
 export function useRepositories() {
   const database = useSQLiteContext();
@@ -14,5 +26,8 @@ export function useRepositories() {
     salaryProfiles: new SqliteSalaryProfileRepository(database),
     payRules: new SqlitePayRuleRepository(database),
     salaryCalculations: new SqliteSalaryCalculationRepository(database),
+    notificationSettings: new SqliteNotificationSettingsRepository(database),
+    predictionFeedback: new SqlitePredictionFeedbackRepository(database),
+    scheduledNotifications: new SqliteScheduledNotificationRepository(database),
   }), [database]);
 }

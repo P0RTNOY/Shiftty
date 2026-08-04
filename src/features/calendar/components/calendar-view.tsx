@@ -8,7 +8,10 @@ import { DEFAULT_TIMEZONE } from '@/shared/constants/app';
 import { useTranslation } from '@/shared/i18n';
 import { radius, spacing, typography, useAppTheme } from '@/shared/theme';
 
-export type CalendarDisplayMode = 'month' | 'agenda';
+import { WeekCalendarView } from '@/features/calendar/components/week-calendar-view';
+import { getPreviousWeek, getNextWeek } from '@/domain/services/week-calendar-service';
+
+export type CalendarDisplayMode = 'month' | 'week' | 'agenda';
 
 interface WorkplaceSummary { id: string; name: string }
 interface RoleSummary { id: string; name: string }
@@ -47,6 +50,7 @@ export function CalendarView(props: Props) {
   return <View style={styles.container}>
     <View style={[styles.modeBar, { backgroundColor: colors.surfaceMuted, flexDirection: direction }]}>
       <ModeButton active={props.mode === 'month'} label={t('calendar.month')} onPress={() => props.onModeChange('month')} />
+      <ModeButton active={props.mode === 'week'} label={t('calendar.week')} onPress={() => props.onModeChange('week')} />
       <ModeButton active={props.mode === 'agenda'} label={t('calendar.agenda')} onPress={() => props.onModeChange('agenda')} />
     </View>
     <View style={[styles.monthHeader, { flexDirection: direction }]}>
@@ -55,7 +59,19 @@ export function CalendarView(props: Props) {
       <Pressable accessibilityLabel={t('calendar.nextMonth')} accessibilityRole="button" hitSlop={8} onPress={props.onNextMonth} style={styles.navButton}><Text style={[styles.navText, { color: colors.primary }]}>›</Text></Pressable>
     </View>
 
-    {props.mode === 'month' ? <>
+    {props.mode === 'week' ? (
+      <WeekCalendarView
+        weekOf={new Date(`${props.selectedDate}T12:00:00`)}
+        shifts={props.shifts}
+        timezone={timezone}
+        locale={locale}
+        isRtl={isRtl}
+        onNavigatePrev={() => props.onSelectDate(getPreviousWeek(new Date(`${props.selectedDate}T12:00:00`)).toISOString().slice(0, 10))}
+        onNavigateNext={() => props.onSelectDate(getNextWeek(new Date(`${props.selectedDate}T12:00:00`)).toISOString().slice(0, 10))}
+        onNavigateToday={() => props.onSelectDate(new Date().toISOString().slice(0, 10))}
+        onPressShift={props.onOpenShift}
+      />
+    ) : props.mode === 'month' ? <>
       <View style={[styles.weekRow, { flexDirection: direction }]}>{weekdayKeys.map((key) => <Text key={key} style={[styles.weekday, { color: colors.textMuted }]}>{t(`calendar.day.${key}`)}</Text>)}</View>
       {Array.from({ length: 6 }, (_, row) => <View key={row} style={[styles.weekRow, { flexDirection: direction }]}>
         {grid.slice(row * 7, row * 7 + 7).map((day) => {

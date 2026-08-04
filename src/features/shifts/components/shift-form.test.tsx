@@ -47,7 +47,7 @@ describe('ShiftForm', () => {
   });
 
   it('applies an existing shift template without coupling it to salary logic', () => {
-    renderApp(<ShiftForm initialDate="2026-08-10" mode="scheduled" onSave={jest.fn()} templates={[{ id: 'night', name: 'לילה', defaultStartTime: '22:00', defaultEndTime: '06:00', expectedBreakMinutes: 45, workplaceId: 'work-1', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }]} workplaces={[workplace]} />);
+    renderApp(<ShiftForm initialDate="2026-08-10" mode="scheduled" onSave={jest.fn()} templates={[{ id: 'night', name: 'לילה', defaultStartTime: '22:00', defaultEndTime: '06:00', expectedBreakMinutes: 45, isArchived: false, workplaceId: 'work-1', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }]} workplaces={[workplace]} />);
     fireEvent.press(screen.getByRole('radio', { name: 'לילה' }));
     expect(screen.getByLabelText('שעת התחלה מתוכננת')).toHaveProp('value', '22:00');
     expect(screen.getByLabelText('שעת סיום מתוכננת')).toHaveProp('value', '06:00');

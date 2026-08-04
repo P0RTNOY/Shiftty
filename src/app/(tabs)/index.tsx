@@ -11,6 +11,8 @@ import { useShifts } from '@/features/shifts/hooks/use-shifts';
 import { useShiftTemplates } from '@/features/shifts/hooks/use-shift-templates';
 import { useWorkplaces } from '@/features/workplaces/hooks/use-workplaces';
 import { useSalaryDashboard } from '@/features/pay-rules';
+import { useShiftPrediction } from '@/features/shifts/hooks/use-shift-prediction';
+import { SmartSuggestionCard } from '@/features/shifts/components/smart-suggestion-card';
 import { AppScreen, EmptyState, MetricCard, PrimaryButton, SecondaryButton } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { spacing, typography, useAppTheme } from '@/shared/theme';
@@ -31,6 +33,7 @@ export default function HomeScreen() {
   const { templates } = useShiftTemplates();
   const active = useActiveShift();
   const now = useLiveNow();
+  const { result: prediction, loading: predictionLoading } = useShiftPrediction();
   const [calculatedAt] = useState(() => new Date().toISOString());
   const [staleDismissed, setStaleDismissed] = useState<string | null>(null);
   const summary = summarizeShifts(shifts);
@@ -74,6 +77,17 @@ export default function HomeScreen() {
       <PrimaryButton accessibilityHint={t('accessibility.opensScreen')} label={t('home.addFuture')} onPress={() => router.push('/shifts/new?mode=scheduled')} />
       <PrimaryButton accessibilityHint={t('accessibility.opensScreen')} label={t('active.startNow')} onPress={() => router.push('/shifts/start')} />
       <SecondaryButton label={t('home.addCompleted')} onPress={() => router.push('/shifts/new?mode=completed')} />
+
+      {!loading && !predictionLoading && prediction?.recommended && (
+        <View style={styles.section}>
+          <SmartSuggestionCard
+            candidate={prediction.recommended}
+            onApplyAll={() => router.push('/shifts/apply-suggestion')}
+            onApplySelected={() => router.push('/shifts/apply-suggestion')}
+            onReject={() => void 0} // Store rejection later if needed, but orchestrator handles feedback in the hook/screen.
+          />
+        </View>
+      )}
 
       <View style={styles.section}>
         <Text

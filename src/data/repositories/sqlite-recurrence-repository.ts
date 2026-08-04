@@ -17,6 +17,11 @@ interface ExceptionRow { id: string; series_id: string; local_date: string; type
 export class SqliteRecurrenceRepository implements RecurrenceRepository {
   constructor(private readonly database: SQLiteDatabase) {}
 
+  async listAll(): Promise<RecurrenceSeries[]> {
+    const rows = await this.database.getAllAsync<SeriesRow>('SELECT * FROM recurrence_series;');
+    return rows.map(mapSeries);
+  }
+
   async getSeries(id: string): Promise<RecurrenceSeries | null> {
     const row = await this.database.getFirstAsync<SeriesRow>('SELECT * FROM recurrence_series WHERE id = ?;', id);
     return row ? mapSeries(row) : null;

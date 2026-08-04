@@ -538,4 +538,65 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       END;
     `,
   },
+  {
+    version: 5,
+    name: 'smart_assistance',
+    sql: `
+      -- Extend shift_templates with Phase 5 fields
+      ALTER TABLE shift_templates ADD COLUMN valid_weekdays TEXT;
+      ALTER TABLE shift_templates ADD COLUMN expected_break_type TEXT CHECK (expected_break_type IN ('paid', 'unpaid'));
+      ALTER TABLE shift_templates ADD COLUMN color_token TEXT;
+      ALTER TABLE shift_templates ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0 CHECK (is_archived IN (0, 1));
+      ALTER TABLE shift_templates ADD COLUMN expected_duration_minutes INTEGER CHECK (expected_duration_minutes > 0);
+
+      CREATE INDEX shift_templates_active ON shift_templates(is_archived, name COLLATE NOCASE);
+
+      CREATE TABLE prediction_feedback (
+        id TEXT PRIMARY KEY NOT NULL,
+        feedback_type TEXT NOT NULL CHECK (feedback_type IN ('accepted_all', 'accepted_partial', 'rejected', 'edited_after_acceptance')),
+        engine_version TEXT NOT NULL,
+        candidate_source TEXT NOT NULL CHECK (candidate_source IN ('nearby_scheduled_shift', 'template', 'historical_pattern')),
+        candidate_source_id TEXT NOT NULL,
+        score REAL NOT NULL CHECK (score >= 0 AND score <= 100),
+        accepted_fields_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(accepted_fields_json)),
+        rejected_fields_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(rejected_fields_json)),
+        created_at TEXT NOT NULL
+      );
+
+      CREATE INDEX prediction_feedback_source ON prediction_feedback(candidate_source, candidate_source_id, created_at DESC);
+      CREATE INDEX prediction_feedback_recent ON prediction_feedback(created_at DESC);
+
+      CREATE TABLE workplace_notification_overrides (
+        workplace_id TEXT PRIMARY KEY NOT NULL REFERENCES workplaces(id) ON DELETE CASCADE,
+        scheduled_shift_reminders INTEGER CHECK (scheduled_shift_reminders IN (0, 1)),
+        shift_reminder_offsets_json TEXT CHECK (shift_reminder_offsets_json IS NULL OR json_valid(shift_reminder_offsets_json)),
+        missed_clock_in_reminders INTEGER CHECK (missed_clock_in_reminders IN (0, 1)),
+        missed_clock_in_grace_minutes INTEGER CHECK (missed_clock_in_grace_minutes >= 0 AND missed_clock_in_grace_minutes <= 120),
+        expected_end_reminders INTEGER CHECK (expected_end_reminders IN (0, 1)),
+        overdue_shift_reminders INTEGER CHECK (overdue_shift_reminders IN (0, 1)),
+        long_break_reminders INTEGER CHECK (long_break_reminders IN (0, 1)),
+        long_unpaid_break_threshold_minutes INTEGER CHECK (long_unpaid_break_threshold_minutes >= 0 AND long_unpaid_break_threshold_minutes <= 240),
+        long_paid_break_threshold_minutes INTEGER CHECK (long_paid_break_threshold_minutes >= 0 AND long_paid_break_threshold_minutes <= 240),
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE scheduled_notification_records (
+        logical_key TEXT PRIMARY KEY NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('shift_reminder', 'missed_clock_in', 'expected_end_soon', 'expected_end', 'overdue_shift', 'long_break', 'daily_summary')),
+        scheduled_for TEXT NOT NULL,
+        shift_id TEXT REFERENCES shifts(id) ON DELETE CASCADE,
+        break_session_id TEXT REFERENCES break_sessions(id) ON DELETE CASCADE,
+        workplace_id TEXT REFERENCES workplaces(id) ON DELETE CASCADE,
+        title_key TEXT NOT NULL,
+        body_key TEXT NOT NULL,
+        body_params_json TEXT CHECK (body_params_json IS NULL OR json_valid(body_params_json)),
+        native_id TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE INDEX scheduled_notifications_shift ON scheduled_notification_records(shift_id) WHERE shift_id IS NOT NULL;
+      CREATE INDEX scheduled_notifications_scheduled_for ON scheduled_notification_records(scheduled_for);
+    `,
+  },
 ];
