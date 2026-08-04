@@ -1,0 +1,32 @@
+import { Pressable, StyleSheet, Text } from 'react-native';
+
+import { radius, spacing, typography, useAppTheme } from '@/shared/theme';
+
+interface SecondaryButtonProps {
+  label: string;
+  onPress: () => void;
+  destructive?: boolean;
+  disabled?: boolean;
+}
+
+export function SecondaryButton({ label, onPress, destructive = false, disabled = false }: SecondaryButtonProps) {
+  const { colors } = useAppTheme();
+  const color = destructive ? colors.danger : colors.primary;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [styles.button, { borderColor: color, backgroundColor: pressed ? colors.surfaceMuted : colors.surface }, disabled && styles.disabled]}
+    >
+      <Text style={[styles.label, { color }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  button: { alignItems: 'center', borderRadius: radius.md, borderWidth: 1, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.md },
+  disabled: { opacity: 0.45 },
+  label: { fontSize: typography.body, fontWeight: '700' },
+});

@@ -90,6 +90,9 @@ function getStoredBreakMinutes(shift: Shift, kind: ShiftTimeKind): number {
 function getShiftRange(shift: Shift, kind: ShiftTimeKind): { start: string; end?: string } {
   switch (kind) {
     case 'scheduled':
+      if (!shift.scheduledStart) {
+        throw new Error('Scheduled start time is missing.');
+      }
       return { start: shift.scheduledStart, end: shift.scheduledEnd };
     case 'actual':
       if (!shift.actualStart) {

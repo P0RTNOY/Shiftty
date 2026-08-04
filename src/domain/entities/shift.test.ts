@@ -36,4 +36,32 @@ describe('shiftSchema', () => {
       }),
     ).toThrow('actual start and end');
   });
+
+  it('allows a completed shift when the original schedule is unknown', () => {
+    const shift = shiftSchema.parse({
+      ...createShift({
+        status: 'completed',
+        actualStart: '2026-07-15T13:24:00+03:00',
+        actualEnd: '2026-07-15T22:07:00+03:00',
+        payableStart: '2026-07-15T13:24:00+03:00',
+        payableEnd: '2026-07-15T22:07:00+03:00',
+      }),
+      scheduledStart: undefined,
+      scheduledEnd: undefined,
+    });
+
+    expect(shift.scheduledStart).toBeUndefined();
+    expect(shift.actualStart).toBeDefined();
+    expect(shift.payableStart).toBeDefined();
+  });
+
+  it('still requires a complete scheduled range for planned statuses', () => {
+    expect(() =>
+      shiftSchema.parse({
+        ...createShift(),
+        scheduledStart: undefined,
+        scheduledEnd: undefined,
+      }),
+    ).toThrow('scheduled range');
+  });
 });

@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { SettingsRow } from '@/features/settings/components/settings-row';
@@ -17,8 +18,8 @@ export default function SettingsScreen() {
     <AppScreen title={t('settings.title')}>
       <View style={styles.section}>
         <Text style={headingStyle}>{t('settings.work')}</Text>
-        <SettingsRow icon="business-outline" label={t('settings.workplaces')} />
-        <SettingsRow icon="cash-outline" label={t('settings.salary')} />
+        <SettingsRow icon="business-outline" label={t('settings.workplaces')} onPress={() => router.push('/settings/workplaces')} />
+        <SettingsRow icon="cash-outline" label={t('settings.salary')} onPress={() => router.push('/settings/salary')} />
         <SettingsRow icon="time-outline" label={t('settings.templates')} />
       </View>
       <View style={styles.section}>

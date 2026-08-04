@@ -1,4 +1,6 @@
-import { AppScreen, EmptyState } from '@/shared/components';
+import { router } from 'expo-router';
+
+import { AppScreen, PrimaryButton, SecondaryButton } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 
 export default function AddShiftScreen() {
@@ -6,7 +8,8 @@ export default function AddShiftScreen() {
 
   return (
     <AppScreen title={t('addShift.title')}>
-      <EmptyState body={t('addShift.foundationBody')} title={t('addShift.foundation')} />
+      <PrimaryButton label={t('addShift.future')} onPress={() => router.push('/shifts/new?mode=scheduled')} />
+      <SecondaryButton label={t('addShift.completed')} onPress={() => router.push('/shifts/new?mode=completed')} />
     </AppScreen>
   );
 }

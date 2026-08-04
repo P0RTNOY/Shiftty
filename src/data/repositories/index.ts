@@ -1,1 +1,6 @@
+export * from './sqlite-active-shift-repository';
+export * from './sqlite-recurrence-repository';
 export * from './sqlite-shift-repository';
+export * from './sqlite-shift-template-repository';
+export * from './sqlite-workplace-repository';
+export * from './sqlite-salary-repositories';

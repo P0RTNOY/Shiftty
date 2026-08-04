@@ -8,6 +8,7 @@ export const breakSessionSchema = z
     end: z.iso.datetime({ offset: true }).optional(),
     isPaid: z.boolean(),
     source: z.enum(['tracked', 'manual']),
+    notes: z.string().trim().max(1_000).optional(),
     createdAt: z.iso.datetime({ offset: true }),
     updatedAt: z.iso.datetime({ offset: true }),
   })

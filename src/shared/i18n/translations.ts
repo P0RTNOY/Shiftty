@@ -1,3 +1,7 @@
+import { phase2En, phase2He } from '@/shared/i18n/translations-phase2';
+import { phase3En, phase3He } from '@/shared/i18n/translations-phase3';
+import { phase4En, phase4He } from '@/shared/i18n/translations-phase4';
+
 export const he = {
   'app.name': 'שיפטי',
   'common.notAvailable': 'לא זמין',
@@ -39,6 +43,9 @@ export const he = {
   'bootstrap.error': 'לא הצלחנו לפתוח את מסד הנתונים המקומי.',
   'bootstrap.retry': 'ניסיון נוסף',
   'accessibility.opensScreen': 'פותח מסך חדש',
+  ...phase2He,
+  ...phase3He,
+  ...phase4He,
 } as const;
 
 export type TranslationKey = keyof typeof he;
@@ -84,4 +91,7 @@ export const en: Record<TranslationKey, string> = {
   'bootstrap.error': 'We could not open the local database.',
   'bootstrap.retry': 'Try again',
   'accessibility.opensScreen': 'Opens a new screen',
+  ...phase2En,
+  ...phase3En,
+  ...phase4En,
 };

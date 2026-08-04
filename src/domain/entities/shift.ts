@@ -14,6 +14,13 @@ export const shiftStatusSchema = z.enum([
 
 export type ShiftStatus = z.infer<typeof shiftStatusSchema>;
 
+export const activeShiftOriginSchema = z.enum(['scheduled', 'unscheduled']);
+export const payableSourceSchema = z.enum(['actual', 'scheduled', 'rounded', 'manual']);
+export const salaryCalculationStatusSchema = z.enum(['not_calculated', 'estimated', 'finalized', 'incomplete', 'stale']);
+export type ActiveShiftOrigin = z.infer<typeof activeShiftOriginSchema>;
+export type PayableSource = z.infer<typeof payableSourceSchema>;
+export type SalaryCalculationStatus = z.infer<typeof salaryCalculationStatusSchema>;
+
 export const shiftSchema = z
   .object({
     id: z.string().min(1),
@@ -22,8 +29,8 @@ export const shiftSchema = z
     salaryProfileId: z.string().min(1).optional(),
     title: z.string().trim().max(120).optional(),
     notes: z.string().trim().max(4_000).optional(),
-    scheduledStart: isoTimestampSchema,
-    scheduledEnd: isoTimestampSchema,
+    scheduledStart: isoTimestampSchema.optional(),
+    scheduledEnd: isoTimestampSchema.optional(),
     actualStart: isoTimestampSchema.optional(),
     actualEnd: isoTimestampSchema.optional(),
     payableStart: isoTimestampSchema.optional(),
@@ -33,17 +40,36 @@ export const shiftSchema = z
     payableBreakMinutes: nonNegativeMinutesSchema.optional(),
     status: shiftStatusSchema,
     hourlyRateSnapshotMinor: minorUnitsSchema,
+    hourlyRateOverrideMinor: minorUnitsSchema.optional(),
+    fixedBonusOverrideMinor: minorUnitsSchema.optional(),
+    travelReimbursementOverrideMinor: minorUnitsSchema.optional(),
+    salaryCalculationStatus: salaryCalculationStatusSchema.default('not_calculated'),
     expectedGrossPayMinor: minorUnitsSchema.optional(),
     actualGrossPayMinor: minorUnitsSchema.optional(),
     payableGrossPayMinor: minorUnitsSchema.optional(),
+    shiftTemplateId: z.string().min(1).optional(),
     recurrenceGroupId: z.string().min(1).optional(),
+    recurrenceOriginalStart: isoTimestampSchema.optional(),
+    recurrenceExceptionType: z.enum(['modified']).optional(),
+    cancelledAt: isoTimestampSchema.optional(),
+    expectedEnd: isoTimestampSchema.optional(),
+    activeOrigin: activeShiftOriginSchema.optional(),
+    payableSource: payableSourceSchema.optional(),
+    completedAt: isoTimestampSchema.optional(),
     timezone: z.string().min(1).default('Asia/Jerusalem'),
     createdAt: isoTimestampSchema,
     updatedAt: isoTimestampSchema,
   })
   .superRefine((shift, context) => {
-    validateRange('scheduledStart', 'scheduledEnd', shift.scheduledStart, shift.scheduledEnd, context);
-    validateOptionalRange('actualStart', 'actualEnd', shift.actualStart, shift.actualEnd, context);
+    validateOptionalRange('scheduledStart', 'scheduledEnd', shift.scheduledStart, shift.scheduledEnd, context);
+    validateOptionalRange(
+      'actualStart',
+      'actualEnd',
+      shift.actualStart,
+      shift.actualEnd,
+      context,
+      shift.status === 'active',
+    );
     validateOptionalRange('payableStart', 'payableEnd', shift.payableStart, shift.payableEnd, context);
 
     if (shift.status === 'active' && !shift.actualStart) {
@@ -54,6 +80,14 @@ export const shiftSchema = z
       });
     }
 
+    if (shift.status === 'active' && !shift.activeOrigin) {
+      context.addIssue({
+        code: 'custom',
+        path: ['activeOrigin'],
+        message: 'An active shift requires its tracking origin.',
+      });
+    }
+
     if (shift.status === 'completed' && (!shift.actualStart || !shift.actualEnd)) {
       context.addIssue({
         code: 'custom',
@@ -61,22 +95,56 @@ export const shiftSchema = z
         message: 'A completed shift requires actual start and end times.',
       });
     }
+
+    if ((shift.status === 'scheduled' || shift.status === 'missed') && (!shift.scheduledStart || !shift.scheduledEnd)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['scheduledStart'],
+        message: 'A complete scheduled range is required for this shift status.',
+      });
+    }
+
+
+    if (shift.status === 'completed' && !shift.completedAt) {
+      context.addIssue({
+        code: 'custom',
+        path: ['completedAt'],
+        message: 'A completed shift requires a completion timestamp.',
+      });
+    }
+
+    if (shift.status === 'completed' && (!shift.payableStart || !shift.payableEnd || !shift.payableSource)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['payableStart'],
+        message: 'A completed shift requires a payable range and source.',
+      });
+    }
   });
 
 export type Shift = z.infer<typeof shiftSchema>;
 
 function validateOptionalRange(
-  startKey: 'actualStart' | 'payableStart',
-  endKey: 'actualEnd' | 'payableEnd',
+  startKey: 'scheduledStart' | 'actualStart' | 'payableStart',
+  endKey: 'scheduledEnd' | 'actualEnd' | 'payableEnd',
   start: string | undefined,
   end: string | undefined,
   context: z.RefinementCtx,
+  allowOpenEnd = false,
 ) {
   if (end && !start) {
     context.addIssue({
       code: 'custom',
       path: [startKey],
       message: `${startKey} is required when ${endKey} is present.`,
+    });
+  }
+
+  if (start && !end && !allowOpenEnd) {
+    context.addIssue({
+      code: 'custom',
+      path: [endKey],
+      message: `${endKey} is required when ${startKey} is present.`,
     });
   }
 

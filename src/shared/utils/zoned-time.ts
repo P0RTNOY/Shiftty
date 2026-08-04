@@ -1,5 +1,5 @@
 import { TZDate } from '@date-fns/tz';
-import { addDays, differenceInMinutes } from 'date-fns';
+import { addDays, differenceInMinutes, format } from 'date-fns';
 
 import { DEFAULT_TIMEZONE } from '@/shared/constants/app';
 
@@ -10,6 +10,15 @@ export interface ResolvedShiftRange {
   end: string;
   durationMinutes: number;
   crossesMidnight: boolean;
+}
+
+export function formatLocalDateKey(value: Date | string, timezone = DEFAULT_TIMEZONE): string {
+  return format(TZDate.tz(timezone, typeof value === 'string' ? new Date(value) : value), 'yyyy-MM-dd');
+}
+
+export function formatLocalTime(value: Date | string, timezone = DEFAULT_TIMEZONE): string {
+  const date = TZDate.tz(timezone, typeof value === 'string' ? new Date(value) : value);
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
 export function resolveLocalShiftRange(
@@ -48,6 +57,12 @@ export function resolveLocalShiftRange(
     durationMinutes: differenceInMinutes(end, start),
     crossesMidnight,
   };
+}
+
+export function resolveLocalDateTime(localDate: string, localTime: string, timezone = DEFAULT_TIMEZONE): string {
+  const [year, month, day] = parseLocalDate(localDate);
+  const [hour, minute] = parseLocalTime(localTime);
+  return new TZDate(year, month - 1, day, hour, minute, timezone).toISOString();
 }
 
 function parseLocalDate(value: string): [number, number, number] {

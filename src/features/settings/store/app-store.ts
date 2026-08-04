@@ -10,6 +10,7 @@ interface AppState {
   bootstrapStatus: BootstrapStatus;
   bootstrapError: string | null;
   activeShift: Shift | null;
+  setActiveShift: (shift: Shift | null) => void;
   bootstrap: (repository: ShiftRepository) => Promise<void>;
 }
 
@@ -17,6 +18,7 @@ export const useAppStore = create<AppState>((set) => ({
   bootstrapStatus: 'idle',
   bootstrapError: null,
   activeShift: null,
+  setActiveShift: (activeShift) => set({ activeShift }),
   async bootstrap(repository) {
     set({ bootstrapStatus: 'loading', bootstrapError: null });
     try {

@@ -7,8 +7,15 @@ function createRepository(activeShift: ReturnType<typeof createShift> | null): S
     findActive: jest.fn().mockResolvedValue(activeShift),
     getById: jest.fn(),
     list: jest.fn(),
+    listUpcoming: jest.fn(),
+    getNextScheduled: jest.fn(),
+    findOverlapping: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
     save: jest.fn(),
+    saveMany: jest.fn(),
     delete: jest.fn(),
+    deleteMany: jest.fn(),
   };
 }
 

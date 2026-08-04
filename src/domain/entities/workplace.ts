@@ -5,6 +5,7 @@ export const roleSchema = z.object({
   workplaceId: z.string().min(1),
   name: z.string().trim().min(1).max(80),
   hourlyRateMinor: z.number().int().min(0).optional(),
+  isArchived: z.boolean().optional(),
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
 });
@@ -18,6 +19,9 @@ export const workplaceSchema = z.object({
   defaultHourlyRateMinor: z.number().int().min(0),
   defaultBreakMinutes: z.number().int().min(0),
   salaryProfileId: z.string().min(1).optional(),
+  defaultTravelReimbursementMinor: z.number().int().min(0).optional(),
+  defaultShiftBonusMinor: z.number().int().min(0).optional(),
+  isArchived: z.boolean().optional(),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),

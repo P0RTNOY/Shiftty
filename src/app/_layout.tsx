@@ -30,6 +30,8 @@ function DatabaseRoot() {
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="shifts" />
+          <Stack.Screen name="settings" />
         </Stack>
       </AppBootstrap>
     </SQLiteProvider>

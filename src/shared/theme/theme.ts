@@ -37,6 +37,7 @@ export const lightColors = {
   warning: '#8A4B08',
   danger: '#A93232',
   tabInactive: '#65776E',
+  scrim: 'rgba(0, 0, 0, 0.52)',
 } as const;
 
 export const darkColors: ThemeColors = {
@@ -53,6 +54,7 @@ export const darkColors: ThemeColors = {
   warning: '#F0B66D',
   danger: '#FF9A9A',
   tabInactive: '#9AAEA3',
+  scrim: 'rgba(0, 0, 0, 0.68)',
 };
 
 export type ThemeColors = { [Key in keyof typeof lightColors]: string };

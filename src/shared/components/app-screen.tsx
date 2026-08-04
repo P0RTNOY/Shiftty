@@ -17,10 +17,12 @@ export function AppScreen({ title, eyebrow, children, footer }: AppScreenProps) 
   const textAlignment = isRtl ? 'right' : 'left';
 
   return (
-    <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={['top', 'bottom']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <ScrollView
+        automaticallyAdjustKeyboardInsets
         contentContainerStyle={styles.content}
         contentInsetAdjustmentBehavior="automatic"
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
