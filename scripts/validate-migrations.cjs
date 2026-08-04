@@ -7,7 +7,7 @@ const { join } = require('node:path');
 const source = readFileSync(join(__dirname, '..', 'src', 'data', 'database', 'migrations.ts'), 'utf8');
 const migrations = [...source.matchAll(/version:\s*(\d+),\s*name:\s*'([^']+)',\s*sql:\s*`([\s\S]*?)`/g)]
   .map((match) => ({ version: Number(match[1]), name: match[2], sql: match[3] }));
-if (migrations.length !== 5) throw new Error(`Expected five migrations, found ${migrations.length}.`);
+if (migrations.length !== 6) throw new Error(`Expected six migrations, found ${migrations.length}.`);
 
 const directory = mkdtempSync(join(tmpdir(), 'shifty-migrations-'));
 try {

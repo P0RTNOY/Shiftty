@@ -15,11 +15,18 @@
         "expo-localization",
         {
           "supportedLocales": {
-            "ios": ["he", "en"],
-            "android": ["he", "en"]
+            "ios": [
+              "he",
+              "en"
+            ],
+            "android": [
+              "he",
+              "en"
+            ]
           }
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true

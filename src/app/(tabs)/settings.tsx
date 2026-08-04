@@ -33,7 +33,9 @@ export default function SettingsScreen() {
       </View>
       <View style={styles.section}>
         <Text style={headingStyle}>{t('settings.data')}</Text>
-        <SettingsRow icon="shield-checkmark-outline" label={t('settings.backup')} />
+        <SettingsRow icon="download-outline" label={t('settings.exports' as any)} onPress={() => router.push('/settings/exports')} />
+        <SettingsRow icon="shield-checkmark-outline" label={t('settings.privacy' as any)} onPress={() => router.push('/settings/privacy')} />
+        <SettingsRow icon="save-outline" label={t('settings.dataManagement' as any)} onPress={() => router.push('/settings/data-management')} />
         <SettingsRow 
           icon="trash-outline" 
           label={t('settings.clearPredictions')} 

@@ -599,4 +599,40 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       CREATE INDEX scheduled_notifications_scheduled_for ON scheduled_notification_records(scheduled_for);
     `,
   },
+  {
+    version: 6,
+    name: 'exports_and_onboarding',
+    sql: `
+      CREATE TABLE export_presets (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        format TEXT NOT NULL CHECK (format IN ('pdf', 'csv', 'ics', 'backup')),
+        config_json TEXT NOT NULL CHECK (json_valid(config_json)),
+        is_archived INTEGER NOT NULL DEFAULT 0 CHECK (is_archived IN (0, 1)),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE export_history (
+        id TEXT PRIMARY KEY NOT NULL,
+        format TEXT NOT NULL CHECK (format IN ('pdf', 'csv', 'ics', 'backup')),
+        preset_id TEXT REFERENCES export_presets(id) ON DELETE SET NULL,
+        reporting_period TEXT,
+        workplace_filter TEXT,
+        generated_at TEXT NOT NULL,
+        sanitized_filename TEXT,
+        status TEXT NOT NULL CHECK (status IN ('success', 'failure')),
+        created_at TEXT NOT NULL
+      );
+
+      CREATE INDEX export_history_recent ON export_history(created_at DESC);
+      CREATE INDEX export_presets_active ON export_presets(is_archived, name COLLATE NOCASE);
+
+      -- Seed onboarding setting for existing users who already have data
+      INSERT INTO app_settings (key, value_json, updated_at)
+      SELECT 'onboarding_completed', 'true', datetime('now')
+      WHERE EXISTS (SELECT 1 FROM workplaces LIMIT 1) OR EXISTS (SELECT 1 FROM shifts LIMIT 1)
+      ON CONFLICT(key) DO NOTHING;
+    `,
+  },
 ];
