@@ -170,7 +170,7 @@ export class BackupOrchestrator {
           await this.db.runAsync('INSERT INTO export_history (id, format, preset_id, reporting_period, workplace_filter, generated_at, sanitized_filename, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [item.id, item.format, item.presetId || null, item.reportingPeriod || null, item.workplaceFilter || null, item.generatedAt, item.sanitizedFilename || null, item.status, item.createdAt]);
         }
         for (const sp of data.salaryProfiles) {
-          await this.db.runAsync('INSERT INTO salary_profiles (id, workplace_id, name, currency, base_hourly_rate_minor, break_policy, timezone, default_travel_reimbursement_minor, default_shift_bonus_minor, calculation_rounding_mode, effective_from, effective_to, is_active, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [sp.id, sp.workplaceId || null, sp.name, sp.currency, sp.baseHourlyRateMinor ?? null, sp.breakPolicy, sp.timezone, sp.defaultTravelReimbursementMinor ?? 0, sp.defaultShiftBonusMinor ?? 0, sp.calculationRoundingMode, sp.effectiveFrom ?? null, sp.effectiveTo ?? null, sp.isActive ? 1 : 0, sp.isArchived ? 1 : 0, sp.createdAt, sp.updatedAt]);
+          await this.db.runAsync('INSERT INTO salary_profiles (id, workplace_id, name, currency, standard_hourly_rate_minor, break_policy, timezone, default_travel_reimbursement_minor, default_shift_bonus_minor, calculation_rounding_mode, effective_from, effective_to, is_active, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [sp.id, sp.workplaceId || null, sp.name, sp.currency, sp.baseHourlyRateMinor ?? null, sp.breakPolicy, sp.timezone, sp.defaultTravelReimbursementMinor ?? 0, sp.defaultShiftBonusMinor ?? 0, sp.calculationRoundingMode, sp.effectiveFrom ?? null, sp.effectiveTo ?? null, sp.isActive ? 1 : 0, sp.isArchived ? 1 : 0, sp.createdAt, sp.updatedAt]);
         }
         for (const r of data.payRules) {
           await this.db.runAsync('INSERT INTO pay_rules (id, salary_profile_id, name, priority, conditions_json, effect_json, can_stack, is_enabled, effective_from, effective_to, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [r.id, r.salaryProfileId, r.name, r.priority, JSON.stringify(r.conditions), JSON.stringify(r.effect), r.canStack ? 1 : 0, r.isEnabled ? 1 : 0, r.effectiveFrom || null, r.effectiveTo || null, r.createdAt, r.updatedAt]);
@@ -263,7 +263,7 @@ export class BackupOrchestrator {
         }
         for (const sp of data.salaryProfiles) {
           const { id, skip } = await remapId('salary_profiles', sp.id, sp);
-          if (!skip) await this.db.runAsync('INSERT INTO salary_profiles (id, workplace_id, name, currency, base_hourly_rate_minor, break_policy, timezone, default_travel_reimbursement_minor, default_shift_bonus_minor, calculation_rounding_mode, effective_from, effective_to, is_active, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, getMappedId(sp.workplaceId), sp.name, sp.currency, sp.baseHourlyRateMinor ?? null, sp.breakPolicy, sp.timezone, sp.defaultTravelReimbursementMinor ?? 0, sp.defaultShiftBonusMinor ?? 0, sp.calculationRoundingMode, sp.effectiveFrom ?? null, sp.effectiveTo ?? null, sp.isActive ? 1 : 0, sp.isArchived ? 1 : 0, sp.createdAt, sp.updatedAt]);
+          if (!skip) await this.db.runAsync('INSERT INTO salary_profiles (id, workplace_id, name, currency, standard_hourly_rate_minor, break_policy, timezone, default_travel_reimbursement_minor, default_shift_bonus_minor, calculation_rounding_mode, effective_from, effective_to, is_active, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, getMappedId(sp.workplaceId), sp.name, sp.currency, sp.baseHourlyRateMinor ?? null, sp.breakPolicy, sp.timezone, sp.defaultTravelReimbursementMinor ?? 0, sp.defaultShiftBonusMinor ?? 0, sp.calculationRoundingMode, sp.effectiveFrom ?? null, sp.effectiveTo ?? null, sp.isActive ? 1 : 0, sp.isArchived ? 1 : 0, sp.createdAt, sp.updatedAt]);
         }
         for (const r of data.payRules) {
           const { id, skip } = await remapId('pay_rules', r.id, r);
@@ -367,7 +367,7 @@ export class BackupOrchestrator {
 
   private mapSalaryProfile = (row: any) => ({
     id: row.id, workplaceId: row.workplace_id, name: row.name, currency: row.currency,
-    baseHourlyRateMinor: row.base_hourly_rate_minor, breakPolicy: row.break_policy,
+    baseHourlyRateMinor: row.standard_hourly_rate_minor, breakPolicy: row.break_policy,
     timezone: row.timezone, defaultTravelReimbursementMinor: row.default_travel_reimbursement_minor,
     defaultShiftBonusMinor: row.default_shift_bonus_minor, calculationRoundingMode: row.calculation_rounding_mode,
     effectiveFrom: row.effective_from, effectiveTo: row.effective_to, isActive: row.is_active === 1,
