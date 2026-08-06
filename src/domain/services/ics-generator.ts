@@ -51,7 +51,7 @@ function generateIcsEvent(shift: Shift, options?: IcsExportOptions): string {
   }
 
   const description = descriptionParts.length > 0 
-    ? descriptionParts.join('\\n').replace(/\n/g, '\\n').replace(/,/g, '\\,')
+    ? escapeIcsText(descriptionParts.join('\n'))
     : '';
 
   let event = `BEGIN:VEVENT\r\n`;

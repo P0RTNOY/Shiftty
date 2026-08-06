@@ -44,7 +44,7 @@ export async function processPdf(options: PrintShareOptions): Promise<void> {
     // For simplicity, we can just share the URI expo-print gave us.
     // But let's follow the standard:
     const FileSystem = require('expo-file-system');
-    const newUri = `\${FileSystem.cacheDirectory}\${filename}`;
+    const newUri = `${FileSystem.cacheDirectory}${filename}`;
     
     await FileSystem.copyAsync({ from: uri, to: newUri });
 
@@ -53,7 +53,7 @@ export async function processPdf(options: PrintShareOptions): Promise<void> {
     
     if (isAvailable) {
       await Sharing.shareAsync(newUri, {
-        dialogTitle: dialogTitle || `שתף \${filename}`,
+        dialogTitle: dialogTitle || `שתף ${filename}`,
         mimeType: 'application/pdf',
         UTI: 'com.adobe.pdf',
       });

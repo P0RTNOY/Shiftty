@@ -18,7 +18,7 @@ export async function shareFile(options: FileShareOptions): Promise<void> {
   }
 
   // Native flow: Write to temporary file, then share
-  const fileUri = `\${FileSystem.cacheDirectory}\${filename}`;
+  const fileUri = `${FileSystem.Paths.cache.uri}${filename}`;
 
   try {
     if (isBase64) {
@@ -33,7 +33,7 @@ export async function shareFile(options: FileShareOptions): Promise<void> {
     }
 
     await Sharing.shareAsync(fileUri, {
-      dialogTitle: dialogTitle || `שתף את \${filename}`,
+      dialogTitle: dialogTitle || `שתף את ${filename}`,
       mimeType,
       UTI: getUtiForMimeType(mimeType),
     });
@@ -49,7 +49,7 @@ function downloadForWeb(filename: string, content: string, mimeType: string, isB
     a.download = filename;
 
     if (isBase64) {
-      a.href = `data:\${mimeType};base64,\${content}`;
+      a.href = `data:${mimeType};base64,${content}`;
     } else {
       // Create object URL from string blob
       const blob = new Blob([content], { type: mimeType });

@@ -1,4 +1,4 @@
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router , useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { StyleSheet, Switch, Text, View, ScrollView } from 'react-native';
 
@@ -7,7 +7,6 @@ import { useTranslation } from '@/shared/i18n';
 import { spacing, typography, useAppTheme } from '@/shared/theme';
 import { useWorkplaceNotificationSettings } from '@/features/notifications/hooks/use-workplace-notification-settings';
 import { useRepositories } from '@/features/shifts/hooks/use-repositories';
-import { useFocusEffect } from 'expo-router';
 
 export default function WorkplaceNotificationOverridesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

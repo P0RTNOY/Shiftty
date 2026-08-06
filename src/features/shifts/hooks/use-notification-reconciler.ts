@@ -14,7 +14,6 @@ export function useNotificationReconciler() {
   const { t } = useTranslation();
 
   const resolveText = useCallback((key: string, params?: Record<string, string | number>) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return t(key as any, params);
   }, [t]);
 
@@ -38,7 +37,6 @@ export function useNotificationReconciler() {
       // Wait, the reconciler deletes obsolete keys based on the plan. If we pass empty upcoming shifts,
       // it will cancel ALL upcoming shift reminders!
       // This means we must fetch upcoming shifts, OR adjust the reconciler.
-      
       // Fetch upcoming shifts (next 24 hours is safe)
       const windowEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
       const upcomingShifts = await repositories.shifts.list({

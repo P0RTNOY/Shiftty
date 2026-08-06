@@ -1,12 +1,11 @@
 import { router } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View , Alert } from 'react-native';
 
 import { SettingsRow } from '@/features/settings/components/settings-row';
 import { AppScreen } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { spacing, typography, useAppTheme } from '@/shared/theme';
 import { useRepositories } from '@/features/shifts/hooks/use-repositories';
-import { Alert } from 'react-native';
 
 export default function SettingsScreen() {
   const { colors } = useAppTheme();

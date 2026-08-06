@@ -59,7 +59,7 @@ function formatCsvCell(value: CsvCellValue, delimiter: string, protectInjection 
   }
 
   // Quote escaping if necessary
-  const needsQuotes = str.includes(delimiter) || str.includes('\\n') || str.includes('\\r') || str.includes('"');
+  const needsQuotes = str.includes(delimiter) || str.includes('\n') || str.includes('\r') || str.includes('"');
   if (needsQuotes) {
     str = '"' + str.replace(/"/g, '""') + '"';
   }

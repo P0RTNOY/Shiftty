@@ -11,8 +11,8 @@ if (migrations.length !== 6) throw new Error(`Expected six migrations, found ${m
 
 const directory = mkdtempSync(join(tmpdir(), 'shifty-migrations-'));
 try {
-  for (const startingVersion of [0, 1, 2, 3]) validateUpgrade(startingVersion);
-  process.stdout.write('Migration 4 smoke tests passed for empty, v1, v2, and v3 databases.\n');
+  for (const startingVersion of [0, 1, 2, 3, 4, 5]) validateUpgrade(startingVersion);
+  process.stdout.write('Migration 6 smoke tests passed for empty, v1, v2, v3, v4, and v5 databases.\n');
 } finally {
   rmSync(directory, { recursive: true, force: true });
 }
@@ -34,7 +34,7 @@ function validateUpgrade(startingVersion) {
   if (integrity !== 'ok') throw new Error(`Integrity failure upgrading v${startingVersion}: ${integrity}`);
   const snapshotTable = sqlite(database, "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='salary_calculation_snapshots';");
   if (snapshotTable !== '1') throw new Error(`Snapshot table missing after v${startingVersion} upgrade.`);
-  if (startingVersion > 0) {
+  if (startingVersion > 0 && startingVersion < 4) {
     const state = sqlite(database, "SELECT status || '|' || salary_calculation_status FROM shifts WHERE id='seed-shift';");
     if (state !== 'active|not_calculated') throw new Error(`Seed shift changed unexpectedly after v${startingVersion} upgrade: ${state}`);
     const openBreak = sqlite(database, "SELECT count(*) FROM break_sessions WHERE shift_id='seed-shift' AND end_at IS NULL;");

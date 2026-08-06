@@ -2,6 +2,7 @@ import { SQLiteDatabase } from 'expo-sqlite';
 import { BackupEnvelopeV1, BackupDataV1, parseBackupEnvelope, BackupEnvelopeV1Schema } from '@/domain/entities/backup';
 import Constants from 'expo-constants';
 import { v4 as uuidv4 } from 'uuid';
+import { useAppStore } from '@/features/settings/store/app-store';
 
 export interface RestoreResult {
   success: boolean;
@@ -315,11 +316,53 @@ export class BackupOrchestrator {
     }
   }
 
+  async clearAllData(): Promise<RestoreResult> {
+    try {
+      await this.db.withTransactionAsync(async () => {
+        await this.db.execAsync(`
+          DELETE FROM scheduled_notification_records;
+          DELETE FROM prediction_feedback;
+          DELETE FROM salary_calculation_snapshots;
+          DELETE FROM break_sessions;
+          DELETE FROM recurrence_exceptions;
+          DELETE FROM shifts;
+          DELETE FROM recurrence_series;
+          DELETE FROM shift_templates;
+          DELETE FROM pay_rules;
+          DELETE FROM roles;
+          DELETE FROM workplaces;
+          DELETE FROM salary_profiles;
+          DELETE FROM export_history;
+          DELETE FROM export_presets;
+          DELETE FROM app_settings;
+        `);
+      });
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, message: e.message };
+    }
+  }
+
   // Mapper helpers omitted for brevity, but they basically map snake_case row to camelCase object
   // Since we use the entity schemas from `src/domain/entities`, we need to map the raw db rows to those types.
   private async fetchAll<T>(table: string, mapper: (row: any) => T): Promise<T[]> {
-    const rows = await this.db.getAllAsync<any>(`SELECT * FROM \${table}`);
-    return rows.map(mapper);
+    const rows = await this.db.getAllAsync<any>(`SELECT * FROM ${table}`);
+    return rows.map(r => this.stripNulls(mapper(r))) as T[];
+  }
+
+  private stripNulls(obj: any): any {
+    if (obj === null) return undefined;
+    if (Array.isArray(obj)) return obj.map(o => this.stripNulls(o));
+    if (typeof obj === 'object' && obj !== null) {
+      const newObj: any = {};
+      for (const [k, v] of Object.entries(obj)) {
+        if (v !== null) {
+          newObj[k] = this.stripNulls(v);
+        }
+      }
+      return newObj;
+    }
+    return obj;
   }
 
   private mapSalaryProfile = (row: any) => ({
@@ -402,10 +445,10 @@ export class BackupOrchestrator {
   });
 
   private mapScheduledNotification = (row: any) => ({
-    logicalKey: row.logical_key, type: row.type, scheduledFor: row.scheduled_for, shiftId: row.shift_id,
-    breakSessionId: row.break_session_id, workplaceId: row.workplace_id, titleKey: row.title_key,
+    logicalKey: row.logical_key, type: row.type, scheduledFor: row.scheduled_for, shiftId: row.shift_id || undefined,
+    breakSessionId: row.break_session_id || undefined, workplaceId: row.workplace_id || undefined, titleKey: row.title_key,
     bodyKey: row.body_key, bodyParams: row.body_params_json ? JSON.parse(row.body_params_json) : undefined,
-    nativeId: row.native_id, createdAt: row.created_at, updatedAt: row.updated_at
+    nativeId: undefined, createdAt: row.created_at, updatedAt: row.updated_at
   });
 
   private mapExportPreset = (row: any) => ({
