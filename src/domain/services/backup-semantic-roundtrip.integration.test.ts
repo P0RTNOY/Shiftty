@@ -81,12 +81,12 @@ describe('Backup Semantic Round-trip Integration', () => {
     expect(backupB.data).toEqual(backupA.data);
 
     // Verify specifically that omitted/null fields remained undefined
-    expect(backupB.data.workplaces[0].address).toBeUndefined();
-    expect(backupB.data.salaryProfiles[0].effectiveTo).toBeUndefined();
-    expect(backupB.data.shifts[0].notes).toBeUndefined();
-    expect(backupB.data.shifts[0].actualEnd).toBeUndefined();
-    expect(backupB.data.breakSessions[0].end).toBeUndefined();
-    expect(backupB.data.recurrenceSeries[0].endDate).toBeUndefined();
-    expect(backupB.data.scheduledNotifications[0].shiftId).toBeUndefined();
+    expect(backupB.data.workplaces?.[0]?.address).toBeUndefined();
+    expect(backupB.data.salaryProfiles?.[0]?.effectiveTo).toBeUndefined();
+    expect(backupB.data.shifts?.[0]?.notes).toBeUndefined();
+    expect(backupB.data.shifts?.[0]?.actualEnd).toBeUndefined();
+    expect(backupB.data.breakSessions?.[0]?.end).toBeUndefined();
+    expect(backupB.data.recurrenceSeries?.[0]?.disabledFrom).toBeUndefined();
+    expect(backupB.data.scheduledNotifications?.[0]?.shiftId).toBeUndefined();
   });
 });

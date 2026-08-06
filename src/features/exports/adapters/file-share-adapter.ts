@@ -18,8 +18,8 @@ export async function shareFile(options: FileShareOptions): Promise<void> {
   }
 
   let baseDir = 'file:///tmp/';
-  if (FileSystem.cacheDirectory) {
-    baseDir = FileSystem.cacheDirectory;
+  if ((FileSystem as any).cacheDirectory) {
+    baseDir = (FileSystem as any).cacheDirectory;
   } else if (FileSystem.Paths && FileSystem.Paths.cache) {
     baseDir = FileSystem.Paths.cache.uri;
   }
