@@ -33,7 +33,13 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.shifty.app"
+      "bundleIdentifier": "com.shifty.app",
+      "infoPlist": {
+        "CFBundleLocalizations": [
+          "he",
+          "en"
+        ]
+      }
     },
     "android": {
       "package": "com.shifty.app",
@@ -44,6 +50,13 @@
     "web": {
       "bundler": "metro",
       "output": "static"
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "25182fca-22be-477f-ac1b-45638f64db2e"
+      }
+    },
+    "owner": "oportnoy"
   }
 }
