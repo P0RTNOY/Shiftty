@@ -17,8 +17,13 @@ export async function shareFile(options: FileShareOptions): Promise<void> {
     return downloadForWeb(filename, content, mimeType, isBase64);
   }
 
-  // Native flow: Write to temporary file, then share
-  const fileUri = `${FileSystem.Paths.cache.uri}${filename}`;
+  let baseDir = 'file:///tmp/';
+  if (FileSystem.cacheDirectory) {
+    baseDir = FileSystem.cacheDirectory;
+  } else if (FileSystem.Paths && FileSystem.Paths.cache) {
+    baseDir = FileSystem.Paths.cache.uri;
+  }
+  const fileUri = `${baseDir}${filename}`;
 
   try {
     if (isBase64) {
