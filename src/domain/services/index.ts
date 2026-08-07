@@ -20,3 +20,4 @@ export * from './salary-calculation-service';
 export * from './salary-forecast-service';
 export * from './holiday-provider';
 export * from './week-calendar-service';
+export * from './workplace-setup-service';

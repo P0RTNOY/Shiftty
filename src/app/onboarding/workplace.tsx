@@ -5,7 +5,9 @@ import { useTranslation } from '@/shared/i18n';
 import { spacing, typography, useAppTheme } from '@/shared/theme';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import * as Crypto from 'expo-crypto';
+import { WorkplaceSetupService } from '@/domain/services';
+import { SqliteWorkplaceRepository } from '@/data/repositories/sqlite-workplace-repository';
+import { SqliteSalaryProfileRepository } from '@/data/repositories/sqlite-salary-repositories';
 
 export default function OnboardingWorkplaceScreen() {
   const { colors } = useAppTheme();
@@ -32,21 +34,16 @@ export default function OnboardingWorkplaceScreen() {
 
     try {
       setLoading(true);
-      const wpId = Crypto.randomUUID();
-      const profileId = Crypto.randomUUID();
       
-      const now = new Date().toISOString();
-
-      await db.withTransactionAsync(async () => {
-        await db.runAsync(
-          `INSERT INTO salary_profiles (id, workplace_id, name, currency, standard_hourly_rate_minor, break_policy, timezone, default_travel_reimbursement_minor, default_shift_bonus_minor, calculation_rounding_mode, is_active, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [profileId, wpId, `פרופיל בסיסי - ${workplaceName}`, 'ILS', Math.round(rate * 100), 'unpaid', Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Jerusalem', 0, 0, 'half_up', 1, 0, now, now]
-        );
-        await db.runAsync(
-          `INSERT INTO workplaces (id, name, default_hourly_rate_minor, default_break_minutes, salary_profile_id, default_travel_reimbursement_minor, default_shift_bonus_minor, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [wpId, workplaceName.trim(), Math.round(rate * 100), 0, profileId, 0, 0, 0, now, now]
-        );
+      const workplaceRepo = new SqliteWorkplaceRepository(db);
+      const salaryProfileRepo = new SqliteSalaryProfileRepository(db);
+      const setupService = new WorkplaceSetupService(db, workplaceRepo, salaryProfileRepo);
+      
+      await setupService.createInitialWorkplace({
+        name: workplaceName.trim(),
+        standardHourlyRateMinor: Math.round(rate * 100),
       });
+
 
       router.push('/onboarding/finish');
     } catch (e: any) {
