@@ -52,6 +52,7 @@ export function useShift(id: string | undefined) {
     catch (caught) { setError(caught instanceof Error ? caught.message : String(caught)); }
     finally { setLoading(false); }
   }, [id, repository]);
+  const clear = useCallback(() => setShift(null), []);
   useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
-  return { shift, loading, error, refresh };
+  return { shift, loading, error, refresh, clear };
 }

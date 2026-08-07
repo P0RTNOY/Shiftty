@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
+import { useAppStore } from '@/features/settings/store/app-store';
 import { Alert, Text } from 'react-native';
 
 import type { RecurrenceScope, Shift, ShiftStatus } from '@/domain/entities';
@@ -21,13 +22,15 @@ type ScopedAction = 'cancel' | 'restore' | 'delete';
 
 export default function ShiftDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { shift, loading, error, refresh } = useShift(id);
+  const { shift, loading, error, refresh, clear } = useShift(id);
   const repositories = useRepositories();
   const { workplaces, roles } = useWorkplaces();
   const { templates } = useShiftTemplates();
   const { t, formatCurrency } = useTranslation();
   const [pendingAction, setPendingAction] = useState<ScopedAction | null>(null);
   const [salaryCalculatedAt] = useState(() => new Date().toISOString());
+  const activeShiftStore = useAppStore((state) => state.activeShift);
+  const setActiveShiftStore = useAppStore((state) => state.setActiveShift);
   const salaryShifts = useMemo(() => shift ? [shift] : [], [shift]);
   const salary = useSalaryDashboard(salaryShifts, salaryCalculatedAt, shift?.status === 'active' ? salaryCalculatedAt : undefined);
 
@@ -50,6 +53,8 @@ export default function ShiftDetailsScreen() {
           seriesIdsToDelete: scope === 'entire' ? [shift.recurrenceGroupId] : [],
         });
         else await repositories.shifts.deleteMany(selected.map((item) => item.id));
+        if (activeShiftStore?.id === shift.id) setActiveShiftStore(null);
+        clear();
         router.replace('/calendar');
         return;
       }

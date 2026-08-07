@@ -20,3 +20,11 @@ export function formatDurationCompact(minutes: number): string {
   const hours = Math.floor(safeMinutes / 60);
   return `${hours}:${String(safeMinutes % 60).padStart(2, '0')} שעות`;
 }
+
+export function formatTimer(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
