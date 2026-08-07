@@ -73,7 +73,153 @@ describe('calculateShiftDuration', () => {
       payableBreakMinutes: 30,
     });
 
-    expect(calculateShiftDuration(shift, 'actual')?.paidMinutes).toBe(481);
     expect(calculateShiftDuration(shift, 'payable')?.paidMinutes).toBe(480);
+  });
+
+  describe('temporal validity and boundary checks', () => {
+    it('allows 1 millisecond shift (returns 0 minutes)', () => {
+      const shift = createShift({
+        status: 'completed',
+        actualStart: '2026-08-07T12:00:00.000Z',
+        actualEnd: '2026-08-07T12:00:00.001Z',
+      });
+      const result = calculateShiftDuration(shift, 'actual');
+      expect(result?.paidMinutes).toBe(0);
+    });
+
+    it('allows 1 second shift (returns 0 minutes)', () => {
+      const shift = createShift({
+        status: 'completed',
+        actualStart: '2026-08-07T12:00:00.000Z',
+        actualEnd: '2026-08-07T12:00:01.000Z',
+      });
+      const result = calculateShiftDuration(shift, 'actual');
+      expect(result?.paidMinutes).toBe(0);
+    });
+
+    it('allows 17 seconds shift (returns 0 minutes)', () => {
+      const shift = createShift({
+        status: 'completed',
+        actualStart: '2026-08-07T12:04:43.295Z',
+        actualEnd: '2026-08-07T12:05:00.000Z',
+      });
+      const result = calculateShiftDuration(shift, 'actual');
+      expect(result?.paidMinutes).toBe(0);
+    });
+
+    it('allows 59.999 seconds shift (returns 0 minutes)', () => {
+      const shift = createShift({
+        status: 'completed',
+        actualStart: '2026-08-07T12:00:00.000Z',
+        actualEnd: '2026-08-07T12:00:59.999Z',
+      });
+      const result = calculateShiftDuration(shift, 'actual');
+      expect(result?.paidMinutes).toBe(0);
+    });
+
+    it('allows exactly 60 seconds shift (returns 1 minute)', () => {
+      const shift = createShift({
+        status: 'completed',
+        actualStart: '2026-08-07T12:00:00.000Z',
+        actualEnd: '2026-08-07T12:01:00.000Z',
+      });
+      const result = calculateShiftDuration(shift, 'actual');
+      expect(result?.paidMinutes).toBe(1);
+    });
+
+    it('allows 1 minute + 1 second shift (returns 1 minute)', () => {
+      const shift = createShift({
+        status: 'completed',
+        actualStart: '2026-08-07T12:00:00.000Z',
+        actualEnd: '2026-08-07T12:01:01.000Z',
+      });
+      const result = calculateShiftDuration(shift, 'actual');
+      expect(result?.paidMinutes).toBe(1);
+    });
+
+    it('allows normal 8-hour shift', () => {
+      const shift = createShift({
+        status: 'completed',
+        actualStart: '2026-08-07T08:00:00+03:00',
+        actualEnd: '2026-08-07T16:00:00+03:00',
+      });
+      const result = calculateShiftDuration(shift, 'actual');
+      expect(result?.paidMinutes).toBe(480);
+    });
+
+    it('allows valid cross-midnight shift', () => {
+      const shift = createShift({
+        status: 'completed',
+        actualStart: '2026-08-07T22:00:00+03:00',
+        actualEnd: '2026-08-08T06:00:00+03:00',
+      });
+      const result = calculateShiftDuration(shift, 'actual');
+      expect(result?.paidMinutes).toBe(480);
+    });
+
+    it('throws END_NOT_AFTER_START if end == start', () => {
+      const shift = createShift({
+        status: 'completed',
+        actualStart: '2026-08-07T12:00:00.000Z',
+        actualEnd: '2026-08-07T12:01:00.000Z',
+      });
+      const corrupt = { ...shift, actualStart: '2026-08-07T12:00:00.000Z', actualEnd: '2026-08-07T12:00:00.000Z' };
+      expect(() => calculateShiftDuration(corrupt, 'actual')).toThrow('Shift end must be after shift start.');
+    });
+
+    it('throws END_NOT_AFTER_START if end is 1 ms before start', () => {
+      const corrupt = {
+        ...createShift(),
+        actualStart: '2026-08-07T12:00:00.001Z',
+        actualEnd: '2026-08-07T12:00:00.000Z',
+      };
+      expect(() => calculateShiftDuration(corrupt, 'actual')).toThrow('Shift end must be after shift start.');
+    });
+
+    it('throws INVALID_TIMESTAMP for malformed start timestamp', () => {
+      const corrupt = {
+        ...createShift(),
+        actualStart: 'invalid-date',
+        actualEnd: '2026-08-07T12:00:00.000Z',
+      };
+      expect(() => calculateShiftDuration(corrupt, 'actual')).toThrow('Invalid timestamps provided for shift calculation.');
+    });
+
+    it('throws INVALID_TIMESTAMP for malformed end timestamp', () => {
+      const corrupt = {
+        ...createShift(),
+        actualStart: '2026-08-07T12:00:00.000Z',
+        actualEnd: 'not-a-date',
+      };
+      expect(() => calculateShiftDuration(corrupt, 'actual')).toThrow('Invalid timestamps provided for shift calculation.');
+    });
+
+    it('allows exactly at supported maximum (24 hours)', () => {
+      const shift = createShift({
+        status: 'completed',
+        actualStart: '2026-08-07T12:00:00.000Z',
+        actualEnd: '2026-08-08T12:00:00.000Z',
+      });
+      const result = calculateShiftDuration(shift, 'actual');
+      expect(result?.paidMinutes).toBe(1440);
+    });
+
+    it('throws DURATION_EXCEEDS_LIMIT if 1 ms above supported maximum', () => {
+      const corrupt = {
+        ...createShift(),
+        actualStart: '2026-08-07T12:00:00.000Z',
+        actualEnd: '2026-08-08T12:00:00.001Z',
+      };
+      expect(() => calculateShiftDuration(corrupt, 'actual')).toThrow('Shift duration exceeds the supported 24-hour safety limit.');
+    });
+
+    it('throws DURATION_EXCEEDS_LIMIT if 30 seconds above supported maximum', () => {
+      const corrupt = {
+        ...createShift(),
+        actualStart: '2026-08-07T12:00:00.000Z',
+        actualEnd: '2026-08-08T12:00:30.000Z',
+      };
+      expect(() => calculateShiftDuration(corrupt, 'actual')).toThrow('Shift duration exceeds the supported 24-hour safety limit.');
+    });
   });
 });

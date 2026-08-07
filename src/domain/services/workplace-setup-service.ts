@@ -28,7 +28,7 @@ export class WorkplaceSetupService {
       workplaceId: wpId,
       name: `פרופיל בסיסי - ${options.name}`,
       currency: options.currency || 'ILS',
-      standardHourlyRateMinor: options.standardHourlyRateMinor,
+      baseHourlyRateMinor: options.standardHourlyRateMinor,
       breakPolicy: 'unpaid',
       timezone: options.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Jerusalem',
       defaultTravelReimbursementMinor: 0,
@@ -54,7 +54,7 @@ export class WorkplaceSetupService {
     };
 
     await this.db.withTransactionAsync(async () => {
-      await this.salaryProfileRepo.save(salaryProfile);
+      await this.salaryProfileRepo.create(salaryProfile);
       await this.workplaceRepo.save(workplace);
     });
 

@@ -12,6 +12,21 @@ export interface ShiftDurationResult {
 
 const MAX_REASONABLE_SHIFT_MINUTES = 24 * 60;
 
+export type ShiftTimeRangeErrorCode =
+  | 'INVALID_TIMESTAMP'
+  | 'END_NOT_AFTER_START'
+  | 'DURATION_EXCEEDS_LIMIT';
+
+export class ShiftTimeRangeError extends Error {
+  constructor(
+    message: string,
+    public readonly code: ShiftTimeRangeErrorCode,
+  ) {
+    super(message);
+    this.name = 'ShiftTimeRangeError';
+  }
+}
+
 export function calculateShiftDuration(
   shift: Shift,
   kind: ShiftTimeKind,
@@ -23,13 +38,25 @@ export function calculateShiftDuration(
     return null;
   }
 
+  const startMs = Date.parse(range.start);
+  const endMs = Date.parse(range.end);
+
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) {
+    throw new ShiftTimeRangeError('Invalid timestamps provided for shift calculation.', 'INVALID_TIMESTAMP');
+  }
+
+  if (endMs <= startMs) {
+    throw new ShiftTimeRangeError('Shift end must be after shift start.', 'END_NOT_AFTER_START');
+  }
+
+  const durationMs = endMs - startMs;
+  const MAX_REASONABLE_SHIFT_MS = MAX_REASONABLE_SHIFT_MINUTES * 60 * 1000;
+
+  if (durationMs > MAX_REASONABLE_SHIFT_MS) {
+    throw new ShiftTimeRangeError('Shift duration exceeds the supported 24-hour safety limit.', 'DURATION_EXCEEDS_LIMIT');
+  }
+
   const grossMinutes = differenceInMinutes(range.end, range.start);
-  if (grossMinutes <= 0) {
-    throw new Error('Shift end must be after shift start.');
-  }
-  if (grossMinutes > MAX_REASONABLE_SHIFT_MINUTES) {
-    throw new Error('Shift duration exceeds the supported 24-hour safety limit.');
-  }
 
   const unpaidBreakMinutes = breaks.length
     ? calculateSessionBreakMinutes(breaks, { start: range.start, end: range.end })

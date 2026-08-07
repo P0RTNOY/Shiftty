@@ -35,7 +35,7 @@ export function createRealSqliteDb() {
     }
   }
 
-  return {
+  const obj: any = {
     execAsync: async (sql: string) => {
       runSql(sql);
     },
@@ -59,5 +59,6 @@ export function createRealSqliteDb() {
     closeAsync: async () => {
       rmSync(dir, { recursive: true, force: true });
     }
-  } as any;
+  };
+  return obj;
 }
