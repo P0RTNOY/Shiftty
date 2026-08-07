@@ -11,7 +11,7 @@ import { Pressable, StyleSheet, Switch, Text, View, type TextInputProps } from '
 
 import type { RecurrenceFrequency, Role, Shift, ShiftTemplate, Workplace } from '@/domain/entities';
 import { createCompletedShift, createScheduledShift } from '@/domain/services';
-import { FormField, PrimaryButton } from '@/shared/components';
+import { FormField, PrimaryButton, DateField, TimeField as NativeTimeField } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { radius, spacing, typography, useAppTheme } from '@/shared/theme';
 import { createId } from '@/shared/utils/id';
@@ -108,7 +108,7 @@ export function ShiftForm({ mode, workplaces, roles = [], templates = [], initia
 
   return (
     <View style={styles.form}>
-      <ControlledField control={control} name="date" label={t('form.date')} error={errors.date?.message} rules={{ required: t('form.required'), pattern: { value: datePattern, message: t('form.invalidDate') }, validate: (value) => isValidLocalDate(value) || t('form.invalidDate') }} />
+      <ControlledDateField control={control} name="date" label={t('form.date')} error={errors.date?.message} rules={{ required: t('form.required'), pattern: { value: datePattern, message: t('form.invalidDate') }, validate: (value) => isValidLocalDate(value) || t('form.invalidDate') }} />
       <Text style={[styles.label, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}>{t('form.workplace')}</Text>
       <View style={[styles.choices, { flexDirection: direction }]}>
         {workplaces.map((workplace) => <Controller key={workplace.id} control={control} name="workplaceId" render={({ field }) => (
@@ -180,9 +180,26 @@ function ControlledField({ control, name, label, error, rules, ...props }: Contr
   return <Controller control={control} name={name} rules={rules} render={({ field }) => <FormField {...props} error={error} label={label} onBlur={field.onBlur} onChangeText={field.onChange} value={field.value} />} />;
 }
 
+function ControlledDateField({ control, name, label, error, rules, ...props }: ControlledFieldProps) {
+  return <Controller control={control} name={name} rules={rules} render={({ field }) => {
+    const valueStr = field.value || new Date().toISOString().split('T')[0];
+    const date = new Date(`${valueStr}T12:00:00`);
+    return <DateField label={label} value={date} onChange={(d) => field.onChange(d.toISOString().split('T')[0])} />;
+  }} />;
+}
+
 function TimeField({ optional, ...props }: ControlledFieldProps & { optional?: boolean }) {
   const { t } = useTranslation();
-  return <ControlledField {...props} autoCapitalize="none" rules={optional ? { pattern: { value: timePattern, message: t('form.invalidTime') } } : { required: t('form.required'), pattern: { value: timePattern, message: t('form.invalidTime') } }} />;
+  return <Controller control={props.control} name={props.name} rules={optional ? { pattern: { value: timePattern, message: t('form.invalidTime') } } : { required: t('form.required'), pattern: { value: timePattern, message: t('form.invalidTime') } }} render={({ field }) => {
+    const [h, m] = (field.value || "08:00").split(':').map(Number);
+    const date = new Date();
+    date.setHours(h || 0, m || 0, 0, 0);
+    return <NativeTimeField label={props.label} value={date} onChange={(d) => {
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      field.onChange(`${hh}:${mm}`);
+    }} />;
+  }} />;
 }
 
 function RecurrenceFields({ control, startDate, weekdays, setValue }: {
@@ -197,7 +214,7 @@ function RecurrenceFields({ control, startDate, weekdays, setValue }: {
     <Controller control={control} name="frequency" render={({ field }) => <View style={[styles.choices, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}>{(['weekly', 'biweekly'] as const).map((value) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ checked: field.value === value }} onPress={() => field.onChange(value)} style={[styles.choice, { backgroundColor: colors.surface, borderColor: field.value === value ? colors.primary : colors.border }]}><Text style={{ color: colors.text }}>{t(`recurrence.${value}`)}</Text></Pressable>)}</View>} />
     <Text style={[styles.label, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}>{t('recurrence.weekdays')}</Text>
     <View style={[styles.choices, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}>{labels.map((label, day) => <Pressable key={label} accessibilityRole="checkbox" accessibilityState={{ checked: weekdays.includes(day) }} onPress={() => setValue('weekdays', weekdays.includes(day) ? weekdays.filter((item: number) => item !== day) : [...weekdays, day], { shouldDirty: true })} style={[styles.day, { borderColor: weekdays.includes(day) ? colors.primary : colors.border, backgroundColor: colors.surface }]}><Text style={{ color: colors.text }}>{t(`calendar.day.${label}`)}</Text></Pressable>)}</View>
-    <ControlledField control={control} name="endsOn" label={t('recurrence.endsOn')} rules={{ pattern: { value: datePattern, message: t('form.invalidDate') }, validate: (value) => !value || (!isValidLocalDate(value) ? t('form.invalidDate') : value >= startDate || t('recurrence.endBeforeStart')) }} />
+    <ControlledDateField control={control} name="endsOn" label={t('recurrence.endsOn')} rules={{ pattern: { value: datePattern, message: t('form.invalidDate') }, validate: (value) => !value || (!isValidLocalDate(value) ? t('form.invalidDate') : value >= startDate || t('recurrence.endBeforeStart')) }} />
     <ControlledField control={control} name="occurrenceLimit" label={t('recurrence.limit')} keyboardType="number-pad" rules={{ validate: (value) => !value || (/^\d+$/.test(value) && Number(value) >= 1 && Number(value) <= 520) || t('recurrence.invalidLimit') }} />
   </View>;
 }
