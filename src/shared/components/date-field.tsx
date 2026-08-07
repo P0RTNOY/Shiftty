@@ -46,6 +46,8 @@ export function DateTimeField({ value, onChange, mode, label, disabled }: Picker
       {label && <Text style={[styles.label, { color: colors.textMuted, textAlign: align }]}>{label}</Text>}
       
       <TouchableOpacity 
+        accessibilityLabel={label}
+        accessibilityRole="button"
         disabled={disabled} 
         onPress={() => {
           setTempValue(value);

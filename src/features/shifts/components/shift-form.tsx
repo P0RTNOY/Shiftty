@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Controller,
   useForm,
@@ -11,7 +11,7 @@ import { Pressable, StyleSheet, Switch, Text, View, type TextInputProps } from '
 
 import type { RecurrenceFrequency, Role, Shift, ShiftTemplate, Workplace } from '@/domain/entities';
 import { createCompletedShift, createScheduledShift } from '@/domain/services';
-import { FormField, PrimaryButton, DateField, TimeField as NativeTimeField } from '@/shared/components';
+import { FormField, PrimaryButton, SecondaryButton, DateField, TimeField as NativeTimeField } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { radius, spacing, typography, useAppTheme } from '@/shared/theme';
 import { createId } from '@/shared/utils/id';
@@ -53,6 +53,7 @@ type StringFieldName = Exclude<keyof ShiftFormValues, 'recurring' | 'weekdays'>;
 export function ShiftForm({ mode, workplaces, roles = [], templates = [], initialShift, initialDate, saving = false, onDirtyChange, onSave }: Props) {
   const { colors } = useAppTheme();
   const { t, isRtl } = useTranslation();
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const defaults = useMemo(() => makeDefaults(mode, initialShift, initialDate), [initialDate, initialShift, mode]);
   const { control, handleSubmit, setValue, setError, formState: { errors, dirtyFields, isDirty } } = useForm<ShiftFormValues>({ defaultValues: defaults });
   const actualStart = useWatch({ control, name: 'actualStart' });
@@ -62,6 +63,8 @@ export function ShiftForm({ mode, workplaces, roles = [], templates = [], initia
   const workplaceId = useWatch({ control, name: 'workplaceId' });
   const scheduledStart = useWatch({ control, name: 'scheduledStart' });
   const scheduledEnd = useWatch({ control, name: 'scheduledEnd' });
+  const actualBreak = useWatch({ control, name: 'actualBreak' });
+  const expectedBreak = useWatch({ control, name: 'expectedBreak' });
   const shiftDate = useWatch({ control, name: 'date' });
   const direction = isRtl ? 'row-reverse' : 'row';
 
@@ -109,6 +112,21 @@ export function ShiftForm({ mode, workplaces, roles = [], templates = [], initia
   return (
     <View style={styles.form}>
       <ControlledDateField control={control} name="date" label={t('form.date')} error={errors.date?.message} rules={{ required: t('form.required'), pattern: { value: datePattern, message: t('form.invalidDate') }, validate: (value) => isValidLocalDate(value) || t('form.invalidDate') }} />
+      
+      {mode === 'scheduled' ? (
+        <>
+          <TimeField control={control} name="scheduledStart" label={t('form.scheduledStart')} error={errors.scheduledStart?.message} />
+          <TimeField control={control} name="scheduledEnd" label={t('form.scheduledEnd')} error={errors.scheduledEnd?.message} />
+          {timePattern.test(scheduledStart) && timePattern.test(scheduledEnd) && scheduledEnd < scheduledStart ? <Text style={[styles.hint, { color: colors.textMuted, textAlign: isRtl ? 'right' : 'left' }]}>{t('form.endsNextDay')}</Text> : null}
+        </>
+      ) : (
+        <>
+          <TimeField control={control} name="actualStart" label={t('form.actualStart')} error={errors.actualStart?.message} />
+          <TimeField control={control} name="actualEnd" label={t('form.actualEnd')} error={errors.actualEnd?.message} />
+          {timePattern.test(actualStart) && timePattern.test(actualEnd) && actualEnd < actualStart ? <Text style={[styles.hint, { color: colors.textMuted, textAlign: isRtl ? 'right' : 'left' }]}>{t('form.endsNextDay')}</Text> : null}
+        </>
+      )}
+
       <Text style={[styles.label, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}>{t('form.workplace')}</Text>
       <View style={[styles.choices, { flexDirection: direction }]}>
         {workplaces.map((workplace) => <Controller key={workplace.id} control={control} name="workplaceId" render={({ field }) => (
@@ -120,50 +138,60 @@ export function ShiftForm({ mode, workplaces, roles = [], templates = [], initia
       {!workplaces.length ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.danger }]}>{t('form.noWorkplaces')}</Text> : null}
       {errors.workplaceId ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.danger }]}>{errors.workplaceId.message}</Text> : null}
 
-      {roles.some((role) => role.workplaceId === workplaceId) ? <>
-        <Text style={[styles.label, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}>{t('form.role')}</Text>
-        <Controller control={control} name="roleId" render={({ field }) => <View style={[styles.choices, { flexDirection: direction }]}>
-          <Choice checked={!field.value} label={t('form.noRole')} onPress={() => field.onChange('')} />
-          {roles.filter((role) => role.workplaceId === workplaceId).map((role) => <Choice key={role.id} checked={field.value === role.id} label={role.name} onPress={() => field.onChange(role.id)} />)}
-        </View>} />
-      </> : null}
-
-      {mode === 'scheduled' ? <>
-        {templates.length ? <>
-          <Text style={[styles.label, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}>{t('form.template')}</Text>
-          <Controller control={control} name="shiftTemplateId" render={({ field }) => <View style={[styles.choices, { flexDirection: direction }]}>
-            <Choice checked={!field.value} label={t('form.noTemplate')} onPress={() => field.onChange('')} />
-            {templates.map((template) => <Choice key={template.id} checked={field.value === template.id} label={template.name} onPress={() => { field.onChange(template.id); setValue('scheduledStart', template.defaultStartTime, { shouldDirty: true }); setValue('scheduledEnd', template.defaultEndTime, { shouldDirty: true }); setValue('expectedBreak', String(template.expectedBreakMinutes), { shouldDirty: true }); if (template.workplaceId) setValue('workplaceId', template.workplaceId, { shouldDirty: true }); if (template.roleId) setValue('roleId', template.roleId, { shouldDirty: true }); }} />)}
-          </View>} />
-        </> : null}
-        <TimeField control={control} name="scheduledStart" label={t('form.scheduledStart')} error={errors.scheduledStart?.message} />
-        <TimeField control={control} name="scheduledEnd" label={t('form.scheduledEnd')} error={errors.scheduledEnd?.message} />
-        {timePattern.test(scheduledStart) && timePattern.test(scheduledEnd) && scheduledEnd < scheduledStart ? <Text style={[styles.hint, { color: colors.textMuted, textAlign: isRtl ? 'right' : 'left' }]}>{t('form.endsNextDay')}</Text> : null}
-        <ControlledField control={control} name="expectedBreak" label={t('form.expectedBreak')} error={errors.expectedBreak?.message} keyboardType="number-pad" rules={minuteRules(t)} />
-      </> : <>
-        <TimeField control={control} name="scheduledStart" label={t('form.scheduledStart')} error={errors.scheduledStart?.message} optional />
-        <TimeField control={control} name="scheduledEnd" label={t('form.scheduledEnd')} error={errors.scheduledEnd?.message} optional />
-        <TimeField control={control} name="actualStart" label={t('form.actualStart')} error={errors.actualStart?.message} />
-        <TimeField control={control} name="actualEnd" label={t('form.actualEnd')} error={errors.actualEnd?.message} />
-        <TimeField control={control} name="payableStart" label={t('form.payableStart')} error={errors.payableStart?.message} />
-        <TimeField control={control} name="payableEnd" label={t('form.payableEnd')} error={errors.payableEnd?.message} />
+      {mode === 'completed' && (
         <ControlledField control={control} name="actualBreak" label={t('form.actualBreak')} keyboardType="number-pad" error={errors.actualBreak?.message} rules={minuteRules(t)} />
-        <ControlledField control={control} name="payableBreak" label={t('form.payableBreak')} keyboardType="number-pad" error={errors.payableBreak?.message} rules={minuteRules(t)} />
-      </>}
-      <ControlledField control={control} name="title" label={t('form.title')} error={errors.title?.message} />
-      <ControlledField control={control} name="notes" label={t('form.notes')} error={errors.notes?.message} multiline />
-      <Text style={[styles.label, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}>{t('salary.shiftOverrides')}</Text>
-      <ControlledField control={control} name="hourlyRateOverride" label={t('salary.hourlyOverride')} keyboardType="decimal-pad" />
-      <ControlledField control={control} name="fixedBonusOverride" label={t('salary.shiftBonus')} keyboardType="decimal-pad" />
-      <ControlledField control={control} name="travelOverride" label={t('salary.travel')} keyboardType="decimal-pad" />
+      )}
 
       {mode === 'scheduled' && !initialShift ? <>
         <Controller control={control} name="recurring" render={({ field }) => <View style={[styles.switchRow, { flexDirection: direction }]}><Text style={[styles.label, { color: colors.text }]}>{t('recurrence.toggle')}</Text><Switch accessibilityLabel={t('recurrence.toggle')} onValueChange={field.onChange} value={field.value} /></View>} />
         {recurring ? <RecurrenceFields control={control} startDate={shiftDate} weekdays={weekdays} setValue={setValue} /> : null}
         {errors.weekdays?.message ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.danger }]}>{errors.weekdays.message}</Text> : null}
       </> : null}
+
       {errors.root?.message ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.danger }]}>{errors.root.message}</Text> : null}
+
       <PrimaryButton disabled={saving || !workplaces.length} label={t('common.save')} onPress={() => void submit()} />
+      <SecondaryButton label={showAdvanced ? t('form.hideAdvanced') : t('form.advancedOptions')} onPress={() => setShowAdvanced(!showAdvanced)} />
+
+      {showAdvanced && (
+        <View style={styles.advanced}>
+          {roles.some((role) => role.workplaceId === workplaceId) ? <>
+            <Text style={[styles.label, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}>{t('form.role')}</Text>
+            <Controller control={control} name="roleId" render={({ field }) => <View style={[styles.choices, { flexDirection: direction }]}>
+              <Choice checked={!field.value} label={t('form.noRole')} onPress={() => field.onChange('')} />
+              {roles.filter((role) => role.workplaceId === workplaceId).map((role) => <Choice key={role.id} checked={field.value === role.id} label={role.name} onPress={() => field.onChange(role.id)} />)}
+            </View>} />
+          </> : null}
+
+          {templates.length ? <>
+            <Text style={[styles.label, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}>{t('form.template')}</Text>
+            <Controller control={control} name="shiftTemplateId" render={({ field }) => <View style={[styles.choices, { flexDirection: direction }]}>
+              <Choice checked={!field.value} label={t('form.noTemplate')} onPress={() => field.onChange('')} />
+              {templates.map((template) => <Choice key={template.id} checked={field.value === template.id} label={template.name} onPress={() => { field.onChange(template.id); setValue('scheduledStart', template.defaultStartTime, { shouldDirty: true }); setValue('scheduledEnd', template.defaultEndTime, { shouldDirty: true }); setValue('expectedBreak', String(template.expectedBreakMinutes), { shouldDirty: true }); if (template.workplaceId) setValue('workplaceId', template.workplaceId, { shouldDirty: true }); if (template.roleId) setValue('roleId', template.roleId, { shouldDirty: true }); }} />)}
+            </View>} />
+          </> : null}
+
+          {mode === 'scheduled' ? (
+            <ControlledField control={control} name="expectedBreak" label={t('form.expectedBreak')} error={errors.expectedBreak?.message} keyboardType="number-pad" rules={minuteRules(t)} />
+          ) : (
+            <>
+              <TimeField control={control} name="scheduledStart" label={t('form.scheduledStart')} error={errors.scheduledStart?.message} optional />
+              <TimeField control={control} name="scheduledEnd" label={t('form.scheduledEnd')} error={errors.scheduledEnd?.message} optional />
+              <TimeField control={control} name="payableStart" label={t('form.payableStart')} error={errors.payableStart?.message} />
+              <TimeField control={control} name="payableEnd" label={t('form.payableEnd')} error={errors.payableEnd?.message} />
+              <ControlledField control={control} name="payableBreak" label={t('form.payableBreak')} keyboardType="number-pad" error={errors.payableBreak?.message} rules={minuteRules(t)} />
+            </>
+          )}
+
+          <ControlledField control={control} name="title" label={t('form.title')} error={errors.title?.message} />
+          <ControlledField control={control} name="notes" label={t('form.notes')} error={errors.notes?.message} multiline />
+          
+          <Text style={[styles.label, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}>{t('salary.shiftOverrides')}</Text>
+          <ControlledField control={control} name="hourlyRateOverride" label={t('salary.hourlyOverride')} keyboardType="decimal-pad" />
+          <ControlledField control={control} name="fixedBonusOverride" label={t('salary.shiftBonus')} keyboardType="decimal-pad" />
+          <ControlledField control={control} name="travelOverride" label={t('salary.travel')} keyboardType="decimal-pad" />
+        </View>
+      )}
     </View>
   );
 }
@@ -184,7 +212,12 @@ function ControlledDateField({ control, name, label, error, rules, ...props }: C
   return <Controller control={control} name={name} rules={rules} render={({ field }) => {
     const valueStr = field.value || new Date().toISOString().split('T')[0];
     const date = new Date(`${valueStr}T12:00:00`);
-    return <DateField label={label} value={date} onChange={(d) => field.onChange(d.toISOString().split('T')[0])} />;
+    return <DateField label={label} value={date} onChange={(d) => {
+      const yy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      field.onChange(`${yy}-${mm}-${dd}`);
+    }} />;
   }} />;
 }
 
@@ -260,4 +293,5 @@ const styles = StyleSheet.create({
   day: { alignItems: 'center', borderRadius: radius.pill, borderWidth: 1, height: 44, justifyContent: 'center', width: 44 },
   error: { fontSize: typography.caption }, hint: { fontSize: typography.caption }, switchRow: { alignItems: 'center', justifyContent: 'space-between', minHeight: 48 },
   recurrence: { gap: spacing.md },
+  advanced: { gap: spacing.md },
 });

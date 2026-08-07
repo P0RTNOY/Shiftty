@@ -9,13 +9,26 @@ const workplace: Workplace = {
   createdAt: '2026-07-01T10:00:00+03:00', updatedAt: '2026-07-01T10:00:00+03:00',
 };
 
+jest.mock('@/shared/components/date-field', () => {
+  const React = require('react');
+  const { TextInput } = require('react-native');
+  return {
+    DateField: ({ onChange, label, value }: any) => React.createElement(TextInput, { accessibilityLabel: label, value: value?.toISOString().split('T')[0], onChangeText: (text: string) => onChange(text) }),
+    TimeField: ({ onChange, label, value }: any) => React.createElement(TextInput, { accessibilityLabel: label, value: value ? `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2, '0')}` : '', onChangeText: (text: string) => {
+      const [h, m] = text.split(':').map(Number);
+      const d = new Date(); d.setHours(h || 0, m || 0, 0, 0);
+      onChange(d);
+    } }),
+  };
+});
+
 describe('ShiftForm', () => {
   it('renders Hebrew labels and validates that a workplace exists', async () => {
     const onSave = jest.fn();
     renderApp(<ShiftForm mode="scheduled" workplaces={[]} onSave={onSave} />);
 
     expect(screen.getByLabelText('תאריך')).toBeTruthy();
-    expect(screen.getByText('כדי להוסיף משמרת צריך להגדיר מקום עבודה.')).toBeTruthy();
+    expect(screen.getByText('יש להוסיף מקום עבודה לפחות.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'שמירה' })).toBeDisabled();
   });
 
@@ -38,6 +51,7 @@ describe('ShiftForm', () => {
     const onSave = jest.fn();
     renderApp(<ShiftForm initialDate="2026-07-10" mode="completed" workplaces={[workplace]} onSave={onSave} />);
 
+    fireEvent.press(screen.getByRole('button', { name: 'אפשרויות נוספות' }));
     fireEvent.press(screen.getByRole('radio', { name: 'בית קפה' }));
     fireEvent.changeText(screen.getByLabelText('שעת התחלה בפועל'), '09:15');
     await waitFor(() => expect(screen.getByLabelText('שעת התחלה לדיווח')).toHaveProp('value', '09:15'));
@@ -48,6 +62,7 @@ describe('ShiftForm', () => {
 
   it('applies an existing shift template without coupling it to salary logic', () => {
     renderApp(<ShiftForm initialDate="2026-08-10" mode="scheduled" onSave={jest.fn()} templates={[{ id: 'night', name: 'לילה', defaultStartTime: '22:00', defaultEndTime: '06:00', expectedBreakMinutes: 45, isArchived: false, workplaceId: 'work-1', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }]} workplaces={[workplace]} />);
+    fireEvent.press(screen.getByRole('button', { name: 'אפשרויות נוספות' }));
     fireEvent.press(screen.getByRole('radio', { name: 'לילה' }));
     expect(screen.getByLabelText('שעת התחלה מתוכננת')).toHaveProp('value', '22:00');
     expect(screen.getByLabelText('שעת סיום מתוכננת')).toHaveProp('value', '06:00');
