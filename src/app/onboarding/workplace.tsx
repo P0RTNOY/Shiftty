@@ -39,7 +39,7 @@ export default function OnboardingWorkplaceScreen() {
 
       await db.withTransactionAsync(async () => {
         await db.runAsync(
-          `INSERT INTO salary_profiles (id, workplace_id, name, currency, base_hourly_rate_minor, break_policy, timezone, default_travel_reimbursement_minor, default_shift_bonus_minor, calculation_rounding_mode, is_active, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO salary_profiles (id, workplace_id, name, currency, standard_hourly_rate_minor, break_policy, timezone, default_travel_reimbursement_minor, default_shift_bonus_minor, calculation_rounding_mode, is_active, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [profileId, wpId, `פרופיל בסיסי - ${workplaceName}`, 'ILS', Math.round(rate * 100), 'unpaid', Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Jerusalem', 0, 0, 'half_up', 1, 0, now, now]
         );
         await db.runAsync(
