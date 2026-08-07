@@ -60,9 +60,34 @@ describe('WorkplaceSetupService Integration', () => {
     expect(integrityIssues[0].integrity_check).toBe('ok');
   });
 
-  it('rollback path: failure during workplace creation rolls back salary profile', async () => {
-    // Inject a failure into workplaceRepo.save
-    jest.spyOn(workplaceRepo, 'save').mockRejectedValueOnce(new Error('Simulated failure'));
+  it('regression: old insertion order (salary profile first) fails due to FK violation', async () => {
+    const wpId = 'wp-test-fk';
+    const profileId = 'sp-test-fk';
+
+    const salaryProfile: any = {
+      id: profileId,
+      workplaceId: wpId,
+      name: 'Test Profile',
+      currency: 'ILS',
+      baseHourlyRateMinor: 5000,
+      breakPolicy: 'unpaid',
+      timezone: 'Asia/Jerusalem',
+      defaultTravelReimbursementMinor: 0,
+      defaultShiftBonusMinor: 0,
+      calculationRoundingMode: 'half_up',
+      isActive: true,
+      isArchived: false,
+      createdAt: '2026-08-01T00:00:00Z',
+      updatedAt: '2026-08-01T00:00:00Z',
+    };
+
+    // Assert that saving salary profile BEFORE workplace throws FK constraint error
+    await expect(salaryProfileRepo.create(salaryProfile)).rejects.toThrow(/FOREIGN KEY constraint failed/i);
+  });
+
+  it('rollback path: failure during salary profile creation rolls back workplace', async () => {
+    // Inject a failure into the SECOND operation (salaryProfileRepo.create)
+    jest.spyOn(salaryProfileRepo, 'create').mockRejectedValueOnce(new Error('Simulated failure'));
 
     // Manually simulate rollback for the mock sqlite instance
     const originalWithTransaction = db.withTransactionAsync;
@@ -70,7 +95,8 @@ describe('WorkplaceSetupService Integration', () => {
       try {
         await cb();
       } catch (e) {
-        await db.runAsync('DELETE FROM salary_profiles');
+        // Manually rollback the first operation (workplaces)
+        await db.runAsync('DELETE FROM workplaces');
         throw e;
       }
     };
@@ -89,7 +115,7 @@ describe('WorkplaceSetupService Integration', () => {
     const wpRows = await db.getAllAsync('SELECT * FROM workplaces');
     expect(wpRows.length).toBe(0);
 
-    // Prove atomic rollback: no salary profile remains even though it was executed before the failure!
+    // Prove atomic rollback: no salary profile remains
     const spRows = await db.getAllAsync('SELECT * FROM salary_profiles');
     expect(spRows.length).toBe(0);
 

@@ -2,7 +2,7 @@ import { TZDate } from '@date-fns/tz';
 import { addDays, format, startOfMonth, startOfWeek } from 'date-fns';
 
 import type { Shift } from '@/domain/entities';
-import { calculateShiftDuration } from '@/domain/services/shift-time-service';
+import { calculateShiftDuration, ShiftTimeRangeError } from '@/domain/services/shift-time-service';
 import { getEffectiveShiftRange } from '@/domain/services/shift-overlap-service';
 
 export interface CalendarDay {
@@ -15,6 +15,7 @@ export interface ShiftSummaryStatistics {
   scheduledCount: number;
   workedMinutes: number;
   upcomingMinutes: number;
+  invalidCount: number;
 }
 
 export function buildMonthGrid(monthDate: string, weekStartsOn: 0 | 1): CalendarDay[] {
@@ -51,21 +52,30 @@ export function summarizeShifts(
 ): ShiftSummaryStatistics {
   return shifts.reduce<ShiftSummaryStatistics>(
     (summary, shift) => {
-      if (shift.status === 'completed') {
-        summary.completedCount += 1;
-        summary.workedMinutes +=
-          calculateShiftDuration(shift, shift.payableStart ? 'payable' : 'actual')?.paidMinutes ?? 0;
-      }
-      if (
-        shift.status === 'scheduled' &&
-        shift.scheduledStart &&
-        new Date(shift.scheduledStart).getTime() > now.getTime()
-      ) {
-        summary.scheduledCount += 1;
-        summary.upcomingMinutes += calculateShiftDuration(shift, 'scheduled')?.paidMinutes ?? 0;
+      try {
+        if (shift.status === 'completed') {
+          const duration = calculateShiftDuration(shift, shift.payableStart ? 'payable' : 'actual');
+          summary.completedCount += 1;
+          summary.workedMinutes += duration?.paidMinutes ?? 0;
+        }
+        if (
+          shift.status === 'scheduled' &&
+          shift.scheduledStart &&
+          new Date(shift.scheduledStart).getTime() > now.getTime()
+        ) {
+          const duration = calculateShiftDuration(shift, 'scheduled');
+          summary.scheduledCount += 1;
+          summary.upcomingMinutes += duration?.paidMinutes ?? 0;
+        }
+      } catch (error) {
+        if (error instanceof ShiftTimeRangeError) {
+          summary.invalidCount += 1;
+        } else {
+          throw error;
+        }
       }
       return summary;
     },
-    { completedCount: 0, scheduledCount: 0, workedMinutes: 0, upcomingMinutes: 0 },
+    { completedCount: 0, scheduledCount: 0, workedMinutes: 0, upcomingMinutes: 0, invalidCount: 0 },
   );
 }

@@ -22,7 +22,7 @@ export function createRealSqliteDb() {
     
     let out = '';
     try {
-      out = execFileSync('sqlite3', ['-batch', '-json', dbPath], { input: finalSql, encoding: 'utf8' }).trim();
+      out = execFileSync('sqlite3', ['-cmd', 'PRAGMA foreign_keys=ON;', '-batch', '-json', dbPath], { input: finalSql, encoding: 'utf8' }).trim();
     } catch (e: any) {
       console.error('SQL ERROR:', e.message, '\\nSQL:', finalSql);
       throw e;

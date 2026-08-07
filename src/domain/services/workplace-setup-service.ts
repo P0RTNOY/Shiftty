@@ -45,7 +45,7 @@ export class WorkplaceSetupService {
       name: options.name,
       defaultHourlyRateMinor: options.standardHourlyRateMinor,
       defaultBreakMinutes: 0,
-      salaryProfileId: profileId,
+      salaryProfileId: undefined, // Omit first to avoid FK violation
       defaultTravelReimbursementMinor: 0,
       defaultShiftBonusMinor: 0,
       isArchived: false,
@@ -54,7 +54,14 @@ export class WorkplaceSetupService {
     };
 
     await this.db.withTransactionAsync(async () => {
+      // 1. Insert Workplace (without salary profile reference)
+      await this.workplaceRepo.save(workplace);
+
+      // 2. Insert Salary Profile (referencing the new workplace)
       await this.salaryProfileRepo.create(salaryProfile);
+
+      // 3. Update Workplace with the salary profile ID
+      workplace.salaryProfileId = profileId;
       await this.workplaceRepo.save(workplace);
     });
 

@@ -33,6 +33,6 @@ describe('calendar services', () => {
     const upcoming = createShift({ id: 'future', scheduledStart: '2026-08-10T08:00:00+03:00', scheduledEnd: '2026-08-10T16:00:00+03:00' });
     const stats = summarizeShifts([completed, upcoming], new Date('2026-08-03T10:00:00+03:00'));
 
-    expect(stats).toEqual({ completedCount: 1, scheduledCount: 1, workedMinutes: 480, upcomingMinutes: 450 });
+    expect(stats).toEqual({ completedCount: 1, scheduledCount: 1, workedMinutes: 480, upcomingMinutes: 450, invalidCount: 0 });
   });
 });

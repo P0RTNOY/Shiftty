@@ -8,7 +8,7 @@ import { AppScreen, EmptyState, MetricCard } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { radius, spacing, useAppTheme } from '@/shared/theme';
 import { formatDurationLong } from '@/shared/utils/duration-format';
-import { resolveLocalShiftRange } from '@/shared/utils/zoned-time';
+import { resolveLocalDateTime } from '@/shared/utils/zoned-time';
 import { useSalaryDashboard } from '@/features/pay-rules';
 import { useWorkplaces } from '@/features/workplaces/hooks/use-workplaces';
 
@@ -19,7 +19,7 @@ export default function ReportsScreen() {
   const { workplaces, roles } = useWorkplaces();
   const monthStart = `${format(month, 'yyyy-MM').slice(0, 7)}-01`;
   const nextMonth = format(addMonths(new Date(`${monthStart}T12:00:00`), 1), 'yyyy-MM-dd');
-  const reportingRange = useMemo(() => ({ start: resolveLocalShiftRange(monthStart, '00:00', '23:59').start, end: resolveLocalShiftRange(nextMonth, '00:00', '23:59').start }), [monthStart, nextMonth]);
+  const reportingRange = useMemo(() => ({ start: resolveLocalDateTime(monthStart, '00:00'), end: resolveLocalDateTime(nextMonth, '00:00') }), [monthStart, nextMonth]);
   const { shifts, loading } = useShifts({ endsAfter: reportingRange.start, startsBefore: reportingRange.end, rangeSource: 'salary' });
   const filtered = useMemo(() => shifts.filter((shift) => (workplaceId === 'all' || shift.workplaceId === workplaceId) && (roleId === 'all' || shift.roleId === roleId) && (status === 'all' || shift.status === status)), [roleId, shifts, status, workplaceId]);
   const summary = summarizeShifts(filtered);
@@ -32,6 +32,11 @@ export default function ReportsScreen() {
       <FilterRow label={t('salary.byRole')} options={[{ id: 'all', name: t('reports.all') }, ...roles.filter((role) => workplaceId === 'all' || role.workplaceId === workplaceId)]} selected={roleId} onSelect={setRoleId} />
       <FilterRow label={t('reports.status')} options={[{ id: 'all', name: t('reports.all') }, { id: 'completed', name: t('status.completed') }, { id: 'scheduled', name: t('status.scheduled') }]} selected={status} onSelect={setStatus} />
       {!loading && !filtered.length ? <EmptyState body={t('reports.emptyBody')} title={t('reports.empty')} /> : <View style={styles.metrics}>
+        {summary.invalidCount > 0 ? (
+          <Text accessibilityRole="alert" style={{ color: colors.warning, textAlign: isRtl ? 'right' : 'left', flexBasis: '100%', marginBottom: spacing.sm }}>
+            {summary.invalidCount === 1 ? t('dashboard.invalidShiftsWarning_one') : t('dashboard.invalidShiftsWarning_other', { count: summary.invalidCount })}
+          </Text>
+        ) : null}
         <MetricCard label={t('reports.scheduledCount')} value={String(filtered.filter((shift) => shift.status === 'scheduled').length)} />
         <MetricCard label={t('reports.completedCount')} value={String(summary.completedCount)} />
         <MetricCard label={t('reports.workedMinutes')} value={formatDurationLong(summary.workedMinutes, locale)} />

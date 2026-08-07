@@ -17,7 +17,7 @@ import { AppScreen, EmptyState, MetricCard, PrimaryButton, SecondaryButton } fro
 import { useTranslation } from '@/shared/i18n';
 import { spacing, typography, useAppTheme } from '@/shared/theme';
 import { useLiveNow } from '@/shared/hooks';
-import { resolveLocalShiftRange } from '@/shared/utils/zoned-time';
+import { resolveLocalDateTime } from '@/shared/utils/zoned-time';
 import { formatDurationLong } from '@/shared/utils/duration-format';
 
 export default function HomeScreen() {
@@ -26,8 +26,8 @@ export default function HomeScreen() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const monthStart = `${today.slice(0, 7)}-01`;
   const nextMonthStart = format(addMonths(new Date(`${monthStart}T12:00:00`), 1), 'yyyy-MM-dd');
-  const { start } = resolveLocalShiftRange(monthStart, '00:00', '23:59');
-  const end = resolveLocalShiftRange(nextMonthStart, '00:00', '23:59').start;
+  const start = resolveLocalDateTime(monthStart, '00:00');
+  const end = resolveLocalDateTime(nextMonthStart, '00:00');
   const { shifts, loading, error } = useShifts({ endsAfter: start, startsBefore: end, rangeSource: 'salary' });
   const { workplaces, roles } = useWorkplaces();
   const { templates } = useShiftTemplates();
@@ -100,6 +100,11 @@ export default function HomeScreen() {
           <MetricCard label={t('home.completedCount')} value={String(summary.completedCount)} />
           <MetricCard emphasized label={t('home.upcomingCount')} value={String(summary.scheduledCount)} />
         </View>
+        {summary.invalidCount > 0 ? (
+          <Text accessibilityRole="alert" style={{ color: colors.warning, textAlign: isRtl ? 'right' : 'left', marginTop: spacing.xs }}>
+            {summary.invalidCount === 1 ? t('dashboard.invalidShiftsWarning_one') : t('dashboard.invalidShiftsWarning_other', { count: summary.invalidCount })}
+          </Text>
+        ) : null}
         {salary.summary ? <><View style={[styles.metrics, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}><MetricCard label={t('home.earned')} value={formatCurrency(salary.summary.earnedMinor)} /><MetricCard label={t('home.future')} value={formatCurrency(salary.summary.futureMinor)} /><MetricCard emphasized label={t('home.forecast')} value={formatCurrency(salary.summary.forecastMinor)} /><MetricCard label={t('salary.regularHours')} value={formatDurationLong(salary.summary.regularMinutes, locale)} /><MetricCard label={t('salary.specialHours')} value={formatDurationLong(salary.summary.specialRateMinutes, locale)} /></View>{salary.summary.incompleteShiftCount ? <Text accessibilityRole="alert" style={{ color: colors.warning, textAlign: isRtl ? 'right' : 'left' }}>{salary.summary.incompleteShiftCount} {t('salary.incompleteCount')}</Text> : null}{salary.summary.staleShiftCount ? <Text accessibilityRole="alert" style={{ color: colors.warning, textAlign: isRtl ? 'right' : 'left' }}>{salary.summary.staleShiftCount} {t('salary.staleCount')}</Text> : null}</> : null}
       </View>
     </AppScreen>

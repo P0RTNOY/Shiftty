@@ -140,24 +140,26 @@ export class BackupOrchestrator {
 
     try {
       await this.db.withTransactionAsync(async () => {
-        // Clear all data in safe order
-        await this.db.execAsync(`
-          DELETE FROM scheduled_notification_records;
-          DELETE FROM prediction_feedback;
-          DELETE FROM salary_calculation_snapshots;
-          DELETE FROM break_sessions;
-          DELETE FROM recurrence_exceptions;
-          DELETE FROM shifts;
-          DELETE FROM recurrence_series;
-          DELETE FROM shift_templates;
-          DELETE FROM pay_rules;
-          DELETE FROM roles;
-          DELETE FROM workplaces;
-          DELETE FROM salary_profiles;
-          DELETE FROM export_history;
-          DELETE FROM export_presets;
-          DELETE FROM app_settings;
-        `);
+        // Clear all tables (order matters for cascading deletes if foreign_keys are ON, but we'll defer them anyway to be safe)
+        await this.db.runAsync('PRAGMA defer_foreign_keys = ON');
+
+        await this.db.runAsync('DELETE FROM prediction_feedback');
+        await this.db.runAsync('DELETE FROM salary_calculation_snapshots');
+        await this.db.runAsync('DELETE FROM scheduled_notification_records');
+        await this.db.runAsync('DELETE FROM break_sessions');
+        await this.db.runAsync('DELETE FROM recurrence_exceptions');
+        await this.db.runAsync('DELETE FROM shifts');
+        await this.db.runAsync('DELETE FROM recurrence_series');
+        await this.db.runAsync('DELETE FROM shift_templates');
+        await this.db.runAsync('DELETE FROM roles');
+        // Due to circular FKs, we must clear workplaces' salary_profile_id first
+        await this.db.runAsync('UPDATE workplaces SET salary_profile_id = NULL');
+        await this.db.runAsync('DELETE FROM pay_rules');
+        await this.db.runAsync('DELETE FROM salary_profiles');
+        await this.db.runAsync('DELETE FROM workplaces');
+        await this.db.runAsync('DELETE FROM export_history');
+        await this.db.runAsync('DELETE FROM export_presets');
+        await this.db.runAsync('DELETE FROM app_settings');
 
         // Insert in dependency order
         for (const item of data.appSettings) {
@@ -169,6 +171,9 @@ export class BackupOrchestrator {
         for (const item of data.exportHistory) {
           await this.db.runAsync('INSERT INTO export_history (id, format, preset_id, reporting_period, workplace_filter, generated_at, sanitized_filename, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [item.id, item.format, item.presetId || null, item.reportingPeriod || null, item.workplaceFilter || null, item.generatedAt, item.sanitizedFilename || null, item.status, item.createdAt]);
         }
+        for (const w of data.workplaces) {
+          await this.db.runAsync('INSERT INTO workplaces (id, name, address, default_hourly_rate_minor, default_break_minutes, salary_profile_id, color, default_travel_reimbursement_minor, default_shift_bonus_minor, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [w.id, w.name, w.address || null, w.defaultHourlyRateMinor ?? null, w.defaultBreakMinutes ?? 0, null, w.color || null, w.defaultTravelReimbursementMinor ?? 0, w.defaultShiftBonusMinor ?? 0, w.isArchived ? 1 : 0, w.createdAt, w.updatedAt]);
+        }
         for (const sp of data.salaryProfiles) {
           await this.db.runAsync('INSERT INTO salary_profiles (id, workplace_id, name, currency, standard_hourly_rate_minor, break_policy, timezone, default_travel_reimbursement_minor, default_shift_bonus_minor, calculation_rounding_mode, effective_from, effective_to, is_active, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [sp.id, sp.workplaceId || null, sp.name, sp.currency, sp.baseHourlyRateMinor ?? null, sp.breakPolicy, sp.timezone, sp.defaultTravelReimbursementMinor ?? 0, sp.defaultShiftBonusMinor ?? 0, sp.calculationRoundingMode, sp.effectiveFrom ?? null, sp.effectiveTo ?? null, sp.isActive ? 1 : 0, sp.isArchived ? 1 : 0, sp.createdAt, sp.updatedAt]);
         }
@@ -176,7 +181,9 @@ export class BackupOrchestrator {
           await this.db.runAsync('INSERT INTO pay_rules (id, salary_profile_id, name, priority, conditions_json, effect_json, can_stack, is_enabled, effective_from, effective_to, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [r.id, r.salaryProfileId, r.name, r.priority, JSON.stringify(r.conditions), JSON.stringify(r.effect), r.canStack ? 1 : 0, r.isEnabled ? 1 : 0, r.effectiveFrom || null, r.effectiveTo || null, r.createdAt, r.updatedAt]);
         }
         for (const w of data.workplaces) {
-          await this.db.runAsync('INSERT INTO workplaces (id, name, address, default_hourly_rate_minor, default_break_minutes, salary_profile_id, color, default_travel_reimbursement_minor, default_shift_bonus_minor, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [w.id, w.name, w.address || null, w.defaultHourlyRateMinor ?? null, w.defaultBreakMinutes ?? 0, w.salaryProfileId || null, w.color || null, w.defaultTravelReimbursementMinor ?? 0, w.defaultShiftBonusMinor ?? 0, w.isArchived ? 1 : 0, w.createdAt, w.updatedAt]);
+          if (w.salaryProfileId) {
+            await this.db.runAsync('UPDATE workplaces SET salary_profile_id = ? WHERE id = ?', [w.salaryProfileId, w.id]);
+          }
         }
         for (const r of data.roles) {
           await this.db.runAsync('INSERT INTO roles (id, workplace_id, name, hourly_rate_minor, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [r.id, r.workplaceId, r.name, r.hourlyRateMinor || null, r.isArchived ? 1 : 0, r.createdAt, r.updatedAt]);
@@ -236,6 +243,8 @@ export class BackupOrchestrator {
 
     try {
       await this.db.withTransactionAsync(async () => {
+        await this.db.runAsync('PRAGMA defer_foreign_keys = ON');
+
         const idMap = new Map<string, string>();
         
         const remapId = async (table: string, oldId: string, fieldsToCheck: any): Promise<{id: string, isNew: boolean, skip: boolean}> => {
@@ -261,6 +270,10 @@ export class BackupOrchestrator {
           const { id, skip } = await remapId('export_history', item.id, item);
           if (!skip) await this.db.runAsync('INSERT INTO export_history (id, format, preset_id, reporting_period, workplace_filter, generated_at, sanitized_filename, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, item.format, getMappedId(item.presetId), item.reportingPeriod || null, item.workplaceFilter || null, item.generatedAt, item.sanitizedFilename || null, item.status, item.createdAt]);
         }
+        for (const w of data.workplaces) {
+          const { id, skip } = await remapId('workplaces', w.id, w);
+          if (!skip) await this.db.runAsync('INSERT INTO workplaces (id, name, address, default_hourly_rate_minor, default_break_minutes, salary_profile_id, color, default_travel_reimbursement_minor, default_shift_bonus_minor, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, w.name, w.address || null, w.defaultHourlyRateMinor ?? null, w.defaultBreakMinutes ?? 0, null, w.color || null, w.defaultTravelReimbursementMinor ?? 0, w.defaultShiftBonusMinor ?? 0, w.isArchived ? 1 : 0, w.createdAt, w.updatedAt]);
+        }
         for (const sp of data.salaryProfiles) {
           const { id, skip } = await remapId('salary_profiles', sp.id, sp);
           if (!skip) await this.db.runAsync('INSERT INTO salary_profiles (id, workplace_id, name, currency, standard_hourly_rate_minor, break_policy, timezone, default_travel_reimbursement_minor, default_shift_bonus_minor, calculation_rounding_mode, effective_from, effective_to, is_active, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, getMappedId(sp.workplaceId), sp.name, sp.currency, sp.baseHourlyRateMinor ?? null, sp.breakPolicy, sp.timezone, sp.defaultTravelReimbursementMinor ?? 0, sp.defaultShiftBonusMinor ?? 0, sp.calculationRoundingMode, sp.effectiveFrom ?? null, sp.effectiveTo ?? null, sp.isActive ? 1 : 0, sp.isArchived ? 1 : 0, sp.createdAt, sp.updatedAt]);
@@ -270,8 +283,11 @@ export class BackupOrchestrator {
           if (!skip) await this.db.runAsync('INSERT INTO pay_rules (id, salary_profile_id, name, priority, conditions_json, effect_json, can_stack, is_enabled, effective_from, effective_to, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, getMappedId(r.salaryProfileId), r.name, r.priority, JSON.stringify(r.conditions), JSON.stringify(r.effect), r.canStack ? 1 : 0, r.isEnabled ? 1 : 0, r.effectiveFrom || null, r.effectiveTo || null, r.createdAt, r.updatedAt]);
         }
         for (const w of data.workplaces) {
-          const { id, skip } = await remapId('workplaces', w.id, w);
-          if (!skip) await this.db.runAsync('INSERT INTO workplaces (id, name, address, default_hourly_rate_minor, default_break_minutes, salary_profile_id, color, default_travel_reimbursement_minor, default_shift_bonus_minor, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, w.name, w.address || null, w.defaultHourlyRateMinor ?? null, w.defaultBreakMinutes ?? 0, getMappedId(w.salaryProfileId), w.color || null, w.defaultTravelReimbursementMinor ?? 0, w.defaultShiftBonusMinor ?? 0, w.isArchived ? 1 : 0, w.createdAt, w.updatedAt]);
+          if (w.salaryProfileId) {
+            const mappedProfileId = getMappedId(w.salaryProfileId);
+            const mappedWorkplaceId = idMap.get(w.id) || w.id; // Get the mapped ID if it was inserted/remapped
+            await this.db.runAsync('UPDATE workplaces SET salary_profile_id = ? WHERE id = ?', [mappedProfileId, mappedWorkplaceId]);
+          }
         }
         for (const r of data.roles) {
           const { id, skip } = await remapId('roles', r.id, r);
