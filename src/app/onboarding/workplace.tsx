@@ -5,7 +5,7 @@ import { useTranslation } from '@/shared/i18n';
 import { spacing, typography, useAppTheme } from '@/shared/theme';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { v4 as uuidv4 } from 'uuid';
+import * as Crypto from 'expo-crypto';
 
 export default function OnboardingWorkplaceScreen() {
   const { colors } = useAppTheme();
@@ -32,8 +32,8 @@ export default function OnboardingWorkplaceScreen() {
 
     try {
       setLoading(true);
-      const wpId = uuidv4();
-      const profileId = uuidv4();
+      const wpId = Crypto.randomUUID();
+      const profileId = Crypto.randomUUID();
       
       const now = new Date().toISOString();
 

@@ -1,7 +1,7 @@
 import { SQLiteDatabase } from 'expo-sqlite';
 import { BackupEnvelopeV1, BackupDataV1, parseBackupEnvelope, BackupEnvelopeV1Schema } from '@/domain/entities/backup';
 import Constants from 'expo-constants';
-import { v4 as uuidv4 } from 'uuid';
+import * as Crypto from 'expo-crypto';
 import { useAppStore } from '@/features/settings/store/app-store';
 
 export interface RestoreResult {
@@ -246,7 +246,7 @@ export class BackupOrchestrator {
           if (existing.updated_at === fieldsToCheck.updatedAt && existing.created_at === fieldsToCheck.createdAt) {
             return { id: oldId, isNew: false, skip: true };
           }
-          const newId = uuidv4();
+          const newId = Crypto.randomUUID();
           idMap.set(oldId, newId);
           return { id: newId, isNew: true, skip: false };
         };
