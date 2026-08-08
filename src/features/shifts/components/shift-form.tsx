@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { format } from 'date-fns';
 import {
   Controller,
   useForm,
@@ -213,10 +214,7 @@ function ControlledDateField({ control, name, label, error, rules, ...props }: C
     const valueStr = field.value || new Date().toISOString().split('T')[0];
     const date = new Date(`${valueStr}T12:00:00`);
     return <DateField label={label} value={date} onChange={(d) => {
-      const yy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      field.onChange(`${yy}-${mm}-${dd}`);
+      field.onChange(format(d, 'yyyy-MM-dd'));
     }} />;
   }} />;
 }
@@ -228,9 +226,7 @@ function TimeField({ optional, ...props }: ControlledFieldProps & { optional?: b
     const date = new Date();
     date.setHours(h || 0, m || 0, 0, 0);
     return <NativeTimeField label={props.label} value={date} onChange={(d) => {
-      const hh = String(d.getHours()).padStart(2, '0');
-      const mm = String(d.getMinutes()).padStart(2, '0');
-      field.onChange(`${hh}:${mm}`);
+      field.onChange(format(d, 'HH:mm'));
     }} />;
   }} />;
 }

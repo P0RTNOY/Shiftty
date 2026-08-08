@@ -37,8 +37,8 @@ describe('ShiftForm', () => {
     renderApp(<ShiftForm initialDate="2026-08-10" mode="scheduled" workplaces={[workplace]} onSave={onSave} />);
 
     fireEvent.press(screen.getByRole('radio', { name: 'בית קפה' }));
-    fireEvent.changeText(screen.getByLabelText('שעת התחלה מתוכננת'), '22:00');
-    fireEvent.changeText(screen.getByLabelText('שעת סיום מתוכננת'), '06:00');
+    fireEvent.changeText(screen.getByLabelText('התחלה'), '22:00');
+    fireEvent.changeText(screen.getByLabelText('סיום'), '06:00');
     expect(screen.getByText('המשמרת מסתיימת ביום הבא.')).toBeTruthy();
     fireEvent.press(screen.getByRole('button', { name: 'שמירה' }));
 
@@ -53,10 +53,10 @@ describe('ShiftForm', () => {
 
     fireEvent.press(screen.getByRole('button', { name: 'אפשרויות נוספות' }));
     fireEvent.press(screen.getByRole('radio', { name: 'בית קפה' }));
-    fireEvent.changeText(screen.getByLabelText('שעת התחלה בפועל'), '09:15');
+    fireEvent.changeText(screen.getByLabelText('כניסה'), '09:15');
     await waitFor(() => expect(screen.getByLabelText('שעת התחלה לדיווח')).toHaveProp('value', '09:15'));
     fireEvent.changeText(screen.getByLabelText('שעת התחלה לדיווח'), '09:30');
-    fireEvent.changeText(screen.getByLabelText('שעת התחלה בפועל'), '09:20');
+    fireEvent.changeText(screen.getByLabelText('כניסה'), '09:20');
     expect(screen.getByLabelText('שעת התחלה לדיווח')).toHaveProp('value', '09:30');
   });
 
@@ -64,8 +64,8 @@ describe('ShiftForm', () => {
     renderApp(<ShiftForm initialDate="2026-08-10" mode="scheduled" onSave={jest.fn()} templates={[{ id: 'night', name: 'לילה', defaultStartTime: '22:00', defaultEndTime: '06:00', expectedBreakMinutes: 45, isArchived: false, workplaceId: 'work-1', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }]} workplaces={[workplace]} />);
     fireEvent.press(screen.getByRole('button', { name: 'אפשרויות נוספות' }));
     fireEvent.press(screen.getByRole('radio', { name: 'לילה' }));
-    expect(screen.getByLabelText('שעת התחלה מתוכננת')).toHaveProp('value', '22:00');
-    expect(screen.getByLabelText('שעת סיום מתוכננת')).toHaveProp('value', '06:00');
+    expect(screen.getByLabelText('התחלה')).toHaveProp('value', '22:00');
+    expect(screen.getByLabelText('סיום')).toHaveProp('value', '06:00');
     expect(screen.getByLabelText('הפסקה מתוכננת בדקות')).toHaveProp('value', '45');
   });
 });
