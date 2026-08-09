@@ -6,10 +6,6 @@ jest.mock('expo-print', () => ({
   printToFileAsync: jest.fn()
 }));
 
-jest.mock('react-native', () => ({
-  Platform: { OS: 'ios' }
-}));
-
 describe('print-share-adapter', () => {
   afterEach(() => {
     jest.clearAllMocks();

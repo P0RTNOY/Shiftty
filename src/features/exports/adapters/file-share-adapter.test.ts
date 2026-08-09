@@ -1,7 +1,6 @@
 import { shareFile } from './file-share-adapter';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { Platform } from 'react-native';
 
 jest.mock('expo-file-system', () => ({
   documentDirectory: 'file:///mock/doc/dir/',
@@ -13,10 +12,6 @@ jest.mock('expo-file-system', () => ({
 jest.mock('expo-sharing', () => ({
   isAvailableAsync: jest.fn().mockResolvedValue(true),
   shareAsync: jest.fn()
-}));
-
-jest.mock('react-native', () => ({
-  Platform: { OS: 'ios' }
 }));
 
 describe('file-share-adapter', () => {
