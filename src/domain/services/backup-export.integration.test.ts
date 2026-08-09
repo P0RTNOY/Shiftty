@@ -24,6 +24,7 @@ describe('Backup Export Integration', () => {
     
     // Inject a notification ID to prove it doesn't get exported in backup
     await db.runAsync('INSERT INTO scheduled_notification_records (logical_key, type, scheduled_for, shift_id, title_key, body_key, native_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', ['notif1', 'shift_reminder', '2026-08-01T10:00:00Z', 'sh1', 'shift_start', 'shift_start', 'NATIVE-12345', '2026-08-01T00:00:00Z', '2026-08-01T00:00:00Z']);
+    await db.runAsync("INSERT INTO app_settings (key, value_json, updated_at) VALUES ('onboarding_completed', '\"true\"', datetime('now'))");
 
     const backup = await orchestrator.generateBackup();
     expect(backup.backupVersion).toBe(1);
@@ -38,5 +39,6 @@ describe('Backup Export Integration', () => {
     // (Wait, are scheduled_notifications backed up? No, the requirements say "Verify it excludes: Native notification IDs")
     expect(backup.data.scheduledNotifications.length).toBe(1);
     expect((backup.data.scheduledNotifications[0] as any).nativeId).toBeUndefined();
+    expect(backup.data.appSettings[0]!.updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
   });
 });

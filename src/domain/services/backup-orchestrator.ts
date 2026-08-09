@@ -476,6 +476,15 @@ export class BackupOrchestrator {
   });
 
   private mapAppSetting = (row: any) => ({
-    key: row.key, valueJson: row.value_json, updatedAt: row.updated_at
+    key: row.key, valueJson: row.value_json, updatedAt: this.normalizeSqliteTimestamp(row.updated_at)
   });
+
+  private normalizeSqliteTimestamp(value: string): string {
+    const timestamp = value.includes('T') ? value : `${value.replace(' ', 'T')}Z`;
+    const parsed = new Date(timestamp);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new Error(`Invalid app setting timestamp: ${value}`);
+    }
+    return parsed.toISOString();
+  }
 }

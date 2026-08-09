@@ -8,6 +8,7 @@ import { PrimaryButton } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { spacing, typography, useAppTheme } from '@/shared/theme';
 import { useNotificationSettings } from '@/features/notifications/hooks/use-notification-settings';
+import { SettingsBackButton } from '@/features/settings/components/settings-back-button';
 
 const OFFSET_OPTIONS = [1440, 120, 60, 30, 15, 0] as const;
 
@@ -20,6 +21,7 @@ export default function NotificationSettingsScreen() {
     return (
       <AppScreen title={t('notification.settings.title')}>
         <Stack.Screen options={{ title: t('notification.settings.title') }} />
+        <SettingsBackButton />
         <View style={styles.center} />
       </AppScreen>
     );
@@ -60,6 +62,7 @@ export default function NotificationSettingsScreen() {
   return (
     <AppScreen title={t('notification.settings.title')}>
       <Stack.Screen options={{ title: t('notification.settings.title') }} />
+      <SettingsBackButton />
       <ScrollView contentContainerStyle={styles.content}>
         {/* Permission banner */}
         {permissionStatus !== 'granted' && (

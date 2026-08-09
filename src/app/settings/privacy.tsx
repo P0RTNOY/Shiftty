@@ -2,6 +2,7 @@ import { StyleSheet, Text, ScrollView } from 'react-native';
 import { AppScreen } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { spacing, typography, useAppTheme } from '@/shared/theme';
+import { SettingsBackButton } from '@/features/settings/components/settings-back-button';
 
 export default function PrivacyScreen() {
   const { colors } = useAppTheme();
@@ -11,7 +12,8 @@ export default function PrivacyScreen() {
   const headingStyle = [styles.heading, { color: colors.text, textAlign: isRtl ? ('right' as const) : ('left' as const) }];
 
   return (
-    <AppScreen title={t('settings.privacy' as any)}>
+    <AppScreen title={t('settings.privacy')}>
+      <SettingsBackButton />
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={headingStyle}>הפרטיות שלך במקום הראשון</Text>
         <Text style={textStyle}>

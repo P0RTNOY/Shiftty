@@ -9,6 +9,7 @@ import { generateIcs } from '@/domain/services/ics-generator';
 import { generatePdfHtml } from '@/domain/services/pdf-html-generator';
 import { shareFile } from '@/features/exports/adapters/file-share-adapter';
 import { processPdf } from '@/features/exports/adapters/print-share-adapter';
+import { SettingsBackButton } from '@/features/settings/components/settings-back-button';
 
 export default function ExportsScreen() {
   const { colors } = useAppTheme();
@@ -110,7 +111,8 @@ export default function ExportsScreen() {
   };
 
   return (
-    <AppScreen title={t('settings.exports' as any)}>
+    <AppScreen title={t('settings.exports')}>
+      <SettingsBackButton />
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />

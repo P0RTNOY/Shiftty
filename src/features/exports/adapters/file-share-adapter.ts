@@ -17,27 +17,19 @@ export async function shareFile(options: FileShareOptions): Promise<void> {
     return downloadForWeb(filename, content, mimeType, isBase64);
   }
 
-  let baseDir = 'file:///tmp/';
-  if ((FileSystem as any).cacheDirectory) {
-    baseDir = (FileSystem as any).cacheDirectory;
-  } else if (FileSystem.Paths && FileSystem.Paths.cache) {
-    baseDir = FileSystem.Paths.cache.uri;
-  }
-  const fileUri = `${baseDir}${filename}`;
+  const file = new FileSystem.File(FileSystem.Paths.cache, filename);
 
   try {
-    if (isBase64) {
-      await FileSystem.writeAsStringAsync(fileUri, content, { encoding: FileSystem.EncodingType.Base64 });
-    } else {
-      await FileSystem.writeAsStringAsync(fileUri, content, { encoding: FileSystem.EncodingType.UTF8 });
-    }
+    file.write(content, {
+      encoding: isBase64 ? FileSystem.EncodingType.Base64 : FileSystem.EncodingType.UTF8,
+    });
 
     const isAvailable = await Sharing.isAvailableAsync();
     if (!isAvailable) {
       throw new Error('Sharing is not available on this device');
     }
 
-    await Sharing.shareAsync(fileUri, {
+    await Sharing.shareAsync(file.uri, {
       dialogTitle: dialogTitle || `שתף את ${filename}`,
       mimeType,
       UTI: getUtiForMimeType(mimeType),

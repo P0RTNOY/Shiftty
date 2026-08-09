@@ -6,9 +6,10 @@ import { spacing, typography, useAppTheme } from '@/shared/theme';
 import { BackupOrchestrator } from '@/domain/services/backup-orchestrator';
 import { useSQLiteContext } from 'expo-sqlite';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
 import { shareFile } from '@/features/exports/adapters/file-share-adapter';
+import { readTextFile } from '@/features/exports/adapters/file-read-adapter';
 import { router } from 'expo-router';
+import { SettingsBackButton } from '@/features/settings/components/settings-back-button';
 
 export default function DataManagementScreen() {
   const { colors } = useAppTheme();
@@ -54,7 +55,7 @@ export default function DataManagementScreen() {
       setLoading(true);
       const fileUri = res.assets[0]?.uri;
       if (!fileUri) return;
-      const content = await FileSystem.readAsStringAsync(fileUri);
+      const content = await readTextFile(fileUri);
 
       const orchestrator = new BackupOrchestrator(db);
       const validation = await orchestrator.validateBackup(content);
@@ -152,7 +153,8 @@ export default function DataManagementScreen() {
   };
 
   return (
-    <AppScreen title={t('settings.dataManagement' as any)}>
+    <AppScreen title={t('settings.dataManagement')}>
+      <SettingsBackButton />
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
