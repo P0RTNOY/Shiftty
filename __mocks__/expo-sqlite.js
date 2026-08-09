@@ -9,7 +9,7 @@ process.on('exit', () => {
   instances.forEach((dir) => {
     try {
       rmSync(dir, { recursive: true, force: true });
-    } catch (e) {}
+    } catch (_error) {}
   });
 });
 
@@ -36,7 +36,7 @@ module.exports = {
       if (!out) return [];
       try {
         return JSON.parse(out);
-      } catch (e) {
+      } catch (_error) {
         // sqlite3 returns text for PRAGMAs or non-json output sometimes, but -json flag should wrap results.
         return [];
       }

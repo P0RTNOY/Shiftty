@@ -26,10 +26,6 @@ const fksW = execFileSync('sqlite3', ['-json', dbPath, 'PRAGMA foreign_key_list(
 const fksS = execFileSync('sqlite3', ['-json', dbPath, 'PRAGMA foreign_key_list(salary_profiles);']).toString();
 const fksR = execFileSync('sqlite3', ['-json', dbPath, 'PRAGMA foreign_key_list(roles);']).toString();
 
-const tW = execFileSync('sqlite3', ['-json', dbPath, 'PRAGMA table_info(workplaces);']).toString();
-const tS = execFileSync('sqlite3', ['-json', dbPath, 'PRAGMA table_info(salary_profiles);']).toString();
-const tR = execFileSync('sqlite3', ['-json', dbPath, 'PRAGMA table_info(roles);']).toString();
-
 console.log('--- FK workplaces ---');
 console.log(fksW || '[]');
 console.log('--- FK salary_profiles ---');

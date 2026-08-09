@@ -1,8 +1,8 @@
 import React from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import type { CreateShiftTemplateInput, UpdateShiftTemplateInput } from '@/domain/repositories';
+import type { CreateShiftTemplateInput } from '@/domain/repositories';
 import { FormField } from '@/shared/components/form-field';
 import { PrimaryButton } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';

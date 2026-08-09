@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 import { AppScreen, PrimaryButton } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';

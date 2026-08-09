@@ -1,8 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import { initializeDatabase } from '@/data/database/database';
 import { BackupOrchestrator } from './backup-orchestrator';
-import { BackupEnvelopeV1 } from '@/domain/entities/backup';
-
 import { createRealSqliteDb } from '@/test-utils/real-sqlite';
 
 describe('Backup Export Integration', () => {

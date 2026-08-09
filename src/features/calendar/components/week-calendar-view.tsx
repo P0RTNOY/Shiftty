@@ -5,10 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { Shift } from '@/domain/entities';
 import {
   buildWeekCalendarData,
-  getPreviousWeek,
-  getNextWeek,
   type ShiftTimeBlock,
-  type WeekDayData,
 } from '@/domain/services/week-calendar-service';
 import { useTranslation } from '@/shared/i18n';
 import { spacing, radius, typography, useAppTheme } from '@/shared/theme';

@@ -1,4 +1,4 @@
-import { generateIcs, IcsExportOptions } from './ics-generator';
+import { generateIcs } from './ics-generator';
 import { Shift } from '@/domain/entities/shift';
 
 describe('ics-generator', () => {

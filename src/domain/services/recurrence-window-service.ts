@@ -11,7 +11,7 @@
  * - Bounded: never generates more than TARGET_HORIZON_DAYS ahead
  */
 
-import { addDays, format, parseISO, max } from 'date-fns';
+import { addDays, format } from 'date-fns';
 
 import type { RecurrenceSeries, RecurrenceException } from '@/domain/entities';
 import { generateRecurrenceOccurrences } from './recurrence-service';

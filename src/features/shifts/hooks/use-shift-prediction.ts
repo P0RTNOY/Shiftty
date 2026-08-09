@@ -1,12 +1,10 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { getDay } from 'date-fns';
 
 import type { ShiftPredictionResult } from '@/domain/entities/prediction';
 import { SqliteShiftRepository, SqliteShiftTemplateRepository, SqlitePredictionFeedbackRepository } from '@/data/repositories';
 import { orchestratePrediction } from '@/features/shifts/services/prediction-orchestrator';
-import { useAppStore } from '@/features/settings/store/app-store';
 
 export function useShiftPrediction(selectedWorkplaceId?: string, selectedRoleId?: string) {
   const database = useSQLiteContext();

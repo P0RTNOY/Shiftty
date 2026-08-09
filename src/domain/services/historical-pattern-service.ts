@@ -32,11 +32,6 @@ function groupKeyString(key: GroupKey): string {
   return `${key.workplaceId}__${key.roleId ?? 'none'}__${key.weekday}`;
 }
 
-function localTimeToMinutes(time: string): TimeMinutes {
-  const [h, m] = time.split(':').map(Number);
-  return (h ?? 0) * 60 + (m ?? 0);
-}
-
 function minutesToLocalTime(minutes: TimeMinutes): string {
   const h = Math.floor(minutes / 60) % 24;
   const m = minutes % 60;

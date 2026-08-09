@@ -27,7 +27,6 @@ function ActiveShiftTimer({ shift, breaks }: { shift: Shift; breaks: readonly Br
 }
 
 function ActiveBreakTimer({ session }: { session: BreakSession }) {
-  const { colors } = useAppTheme();
   const { t } = useTranslation();
   const now = useLiveNow(systemClock, 1000);
   

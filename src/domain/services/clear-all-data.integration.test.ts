@@ -1,17 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import { initializeDatabase } from '@/data/database/database';
 import { BackupOrchestrator } from './backup-orchestrator';
-import { useAppStore } from '@/features/settings/store/app-store';
-
 import { createRealSqliteDb } from '@/test-utils/real-sqlite';
-
-jest.mock('@/features/settings/store/app-store', () => ({
-  useAppStore: {
-    getState: jest.fn().mockReturnValue({
-      resetAllData: jest.fn()
-    })
-  }
-}));
 
 describe('Clear All Data Integration', () => {
   let db: SQLite.SQLiteDatabase;

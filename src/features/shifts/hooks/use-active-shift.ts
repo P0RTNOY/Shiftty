@@ -6,11 +6,9 @@ import { useAppStore } from '@/features/settings/store/app-store';
 import { useRepositories } from '@/features/shifts/hooks/use-repositories';
 import { createId } from '@/shared/utils/id';
 import { useNotificationReconciler } from '@/features/shifts/hooks/use-notification-reconciler';
-import { useTranslation } from '@/shared/i18n';
 import { SalaryCalculationCoordinator } from '@/features/pay-rules/services/salary-calculation-coordinator';
 
 export function useActiveShift() {
-  const { locale } = useTranslation();
   const repositories = useRepositories();
   const activeShift = useAppStore((state) => state.activeShift);
   const setActiveShift = useAppStore((state) => state.setActiveShift);

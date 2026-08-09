@@ -2,7 +2,6 @@ import { SQLiteDatabase } from 'expo-sqlite';
 import { BackupEnvelopeV1, BackupDataV1, parseBackupEnvelope, BackupEnvelopeV1Schema } from '@/domain/entities/backup';
 import Constants from 'expo-constants';
 import * as Crypto from 'expo-crypto';
-import { useAppStore } from '@/features/settings/store/app-store';
 
 export interface RestoreResult {
   success: boolean;
@@ -81,9 +80,7 @@ export class BackupOrchestrator {
     const errors: string[] = [];
     const wpIds = new Set(data.workplaces.map(w => w.id));
     const roleIds = new Set(data.roles.map(r => r.id));
-    const profileIds = new Set(data.salaryProfiles.map(s => s.id));
     const shiftIds = new Set(data.shifts.map(s => s.id));
-    const seriesIds = new Set(data.recurrenceSeries.map(s => s.id));
 
     // Validations: Unique IDs
     if (wpIds.size !== data.workplaces.length) errors.push('Duplicate workplace IDs found');

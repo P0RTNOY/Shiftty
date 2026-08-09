@@ -1,5 +1,6 @@
 import * as Print from 'expo-print';
-import { shareFile } from './file-share-adapter';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 
 export interface PrintShareOptions {
@@ -30,7 +31,7 @@ export async function processPdf(options: PrintShareOptions): Promise<void> {
 
   // Native: generate file, then share it
   try {
-    const { uri, base64 } = await Print.printToFileAsync({
+    const { uri } = await Print.printToFileAsync({
       html,
       base64: false, // We'll share via file URI directly
     });
@@ -43,12 +44,10 @@ export async function processPdf(options: PrintShareOptions): Promise<void> {
     
     // For simplicity, we can just share the URI expo-print gave us.
     // But let's follow the standard:
-    const FileSystem = require('expo-file-system');
     const newUri = `${FileSystem.cacheDirectory}${filename}`;
     
     await FileSystem.copyAsync({ from: uri, to: newUri });
 
-    const Sharing = require('expo-sharing');
     const isAvailable = await Sharing.isAvailableAsync();
     
     if (isAvailable) {

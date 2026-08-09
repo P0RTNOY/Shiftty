@@ -3,7 +3,6 @@ import { StyleSheet, Text, View, Alert, ActivityIndicator } from 'react-native';
 import { AppScreen, PrimaryButton } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { spacing, typography, useAppTheme } from '@/shared/theme';
-import { useRepositories } from '@/features/shifts/hooks/use-repositories';
 import { BackupOrchestrator } from '@/domain/services/backup-orchestrator';
 import { useSQLiteContext } from 'expo-sqlite';
 import * as DocumentPicker from 'expo-document-picker';
@@ -15,7 +14,6 @@ export default function DataManagementScreen() {
   const { colors } = useAppTheme();
   const { t, isRtl } = useTranslation();
   const db = useSQLiteContext();
-  const repositories = useRepositories();
   const [loading, setLoading] = useState(false);
 
   const textStyle = [styles.text, { color: colors.text, textAlign: isRtl ? ('right' as const) : ('left' as const) }];

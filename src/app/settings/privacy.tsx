@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView } from 'react-native';
+import { StyleSheet, Text, ScrollView } from 'react-native';
 import { AppScreen } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { spacing, typography, useAppTheme } from '@/shared/theme';

@@ -1,12 +1,10 @@
-import { useLocalSearchParams, router , useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Switch, Text, View, ScrollView } from 'react-native';
 
 import { AppScreen } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { spacing, typography, useAppTheme } from '@/shared/theme';
 import { useWorkplaceNotificationSettings } from '@/features/notifications/hooks/use-workplace-notification-settings';
-import { useRepositories } from '@/features/shifts/hooks/use-repositories';
 
 export default function WorkplaceNotificationOverridesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -17,28 +15,12 @@ export default function WorkplaceNotificationOverridesScreen() {
     workplaceOverride,
     updateWorkplaceOverride,
     clearWorkplaceOverride,
-    permissionStatus,
-    requestPermission,
   } = useWorkplaceNotificationSettings(id as string);
-  const repositories = useRepositories();
-  const [workplaceName, setWorkplaceName] = useState<string>('');
-
-  useFocusEffect(
-    useCallback(() => {
-      if (id) {
-        repositories.workplaces.getById(id).then((wp: any) => {
-          if (wp) setWorkplaceName(wp.name);
-        }).catch(console.error);
-      }
-    }, [id, repositories.workplaces])
-  );
 
   if (!globalSettings) return null;
 
   const hasOverride = workplaceOverride != null;
   const override = workplaceOverride;
-  const settings = hasOverride ? override : globalSettings;
-
   const toggleOverride = async (enabled: boolean) => {
     if (!id) return;
     if (enabled) {

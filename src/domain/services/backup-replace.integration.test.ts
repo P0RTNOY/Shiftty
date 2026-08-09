@@ -66,9 +66,8 @@ describe('Backup Replace Integration', () => {
       }
     });
 
-    try {
-      await orchestrator.restoreReplace(badContent);
-    } catch (e) {}
+    const result = await orchestrator.restoreReplace(badContent);
+    expect(result.success).toBe(false);
 
     // Original data should remain untouched
     const workplaces = await db.getAllAsync('SELECT * FROM workplaces');

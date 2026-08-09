@@ -17,7 +17,7 @@
  * Engine version: "1.0.0" — increment when scoring algorithm changes.
  */
 
-import { differenceInMinutes, getDay, parseISO, format, addMinutes } from 'date-fns';
+import { differenceInMinutes, getDay, parseISO, format } from 'date-fns';
 
 import type { Shift, ShiftTemplate } from '@/domain/entities';
 import {

@@ -16,7 +16,7 @@ export default function ApplySuggestionScreen() {
   const { colors } = useAppTheme();
   const { t, isRtl } = useTranslation();
   const { result: prediction } = useShiftPrediction();
-  const { workplaces, roles } = useWorkplaces();
+  const { workplaces } = useWorkplaces();
   const { templates } = useShiftTemplates();
   const repositories = useRepositories();
 

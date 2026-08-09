@@ -30,7 +30,7 @@ export function createRealSqliteDb() {
     if (!out) return [];
     try {
       return JSON.parse(out);
-    } catch (e) {
+    } catch {
       return [];
     }
   }

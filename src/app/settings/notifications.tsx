@@ -3,7 +3,6 @@ import { Alert, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity
 import { Stack } from 'expo-router';
 
 import type { NotificationPreferences } from '@/domain/entities/notification-preferences';
-import { notificationPreferencesSchema } from '@/domain/entities/notification-preferences';
 import { AppScreen } from '@/shared/components/app-screen';
 import { PrimaryButton } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
@@ -15,7 +14,7 @@ const OFFSET_OPTIONS = [1440, 120, 60, 30, 15, 0] as const;
 export default function NotificationSettingsScreen() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
-  const { preferences, permissionStatus, loading, saving, save, requestPermission } = useNotificationSettings();
+  const { preferences, permissionStatus, loading, save, requestPermission } = useNotificationSettings();
 
   if (loading || !preferences) {
     return (

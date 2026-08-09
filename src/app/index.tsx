@@ -18,7 +18,7 @@ export default function IndexScreen() {
         } else {
           setInitialRoute('/onboarding');
         }
-      } catch (e) {
+      } catch {
         // Fallback to onboarding if table is somehow not ready
         setInitialRoute('/onboarding');
       }

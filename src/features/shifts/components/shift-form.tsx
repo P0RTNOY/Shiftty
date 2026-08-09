@@ -64,8 +64,6 @@ export function ShiftForm({ mode, workplaces, roles = [], templates = [], initia
   const workplaceId = useWatch({ control, name: 'workplaceId' });
   const scheduledStart = useWatch({ control, name: 'scheduledStart' });
   const scheduledEnd = useWatch({ control, name: 'scheduledEnd' });
-  const actualBreak = useWatch({ control, name: 'actualBreak' });
-  const expectedBreak = useWatch({ control, name: 'expectedBreak' });
   const shiftDate = useWatch({ control, name: 'date' });
   const direction = isRtl ? 'row-reverse' : 'row';
 

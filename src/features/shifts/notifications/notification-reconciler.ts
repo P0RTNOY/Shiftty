@@ -21,7 +21,7 @@ import type { Shift, BreakSession } from '@/domain/entities';
 import type { ScheduledNotificationRepository } from '@/domain/repositories';
 import type { NotificationSettingsRepository } from '@/domain/repositories/notification-settings-repository';
 import type { WorkplaceNotificationOverride } from '@/domain/entities/notification-preferences';
-import { resolveNotificationPreferences, notificationPreferencesSchema } from '@/domain/entities/notification-preferences';
+import { resolveNotificationPreferences } from '@/domain/entities/notification-preferences';
 import { buildNotificationPlan } from '@/domain/services/notification-planner';
 import type { NotificationAdapter } from './expo-notification-adapter';
 

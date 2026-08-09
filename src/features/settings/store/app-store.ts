@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 import type { Shift, RecurrenceSeries } from '@/domain/entities';
-import type { RecurrenceRepository, ShiftRepository, ShiftTemplateRepository, SalaryProfileRepository } from '@/domain/repositories';
+import type { RecurrenceRepository, ShiftRepository, ShiftTemplateRepository } from '@/domain/repositories';
 import { restoreActiveShift } from '@/domain/services';
 import { checkAllSeriesRollingWindows } from '@/domain/services/recurrence-window-service';
 import { createScheduledShift } from '@/domain/services/shift-factory';

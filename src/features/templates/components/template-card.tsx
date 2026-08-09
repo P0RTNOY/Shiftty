@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import type { ShiftTemplate } from '@/domain/entities';
@@ -18,8 +18,6 @@ const WEEKDAY_LABELS_HE = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
 export function TemplateCard({ template, onPress, onArchive, onRestore, onDuplicate }: TemplateCardProps) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
-  const [expanded, setExpanded] = useState(false);
-
   const crossesMidnight = template.defaultEndTime < template.defaultStartTime;
 
   function handleLongPress() {

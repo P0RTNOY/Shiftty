@@ -1,6 +1,6 @@
 import React, { useState , useCallback } from 'react';
 import { Stack, router, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { View, ActivityIndicator, Alert, Text, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, Alert, StyleSheet } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 
 import type { ShiftTemplate } from '@/domain/entities';
