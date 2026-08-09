@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
-import { PrimaryButton, SecondaryButton } from '@/shared/components';
+import { PrimaryButton } from '@/shared/components/primary-button';
+import { SecondaryButton } from '@/shared/components/secondary-button';
 import { useTranslation } from '@/shared/i18n';
 import { radius, spacing, typography, useAppTheme } from '@/shared/theme';
 
