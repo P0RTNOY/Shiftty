@@ -56,9 +56,16 @@ The Jest lifecycle failure was root-caused to two tests replacing the entire `re
 
 ## Native/manual verification still required
 
-- Produce or identify a fresh iOS simulator development build containing the native date/time picker.
-- Record the EAS build ID and install the artifact in the simulator.
-- Run Metro against that installed build.
+Fresh simulator build evidence:
+
+- EAS build ID: `f838aae8-3a43-422b-8ae4-1144e22bcc38`
+- Source commit: `bf7597a029874fc0d8b6a4c2032e98eef13cc49f`
+- Profile: `development-simulator`
+- Result: finished successfully on 2026-08-09 at 19:44:24Z
+- Installation: installed as `com.shifty.app` on iPhone 17 Pro, iOS 26.5
+- Metro: development-client bundler running over LAN on port 8081
+- Current native checkpoint: the development-client deep link reached the iOS open confirmation; desktop unlock is required before UI-driven acceptance can continue
+
 - Complete onboarding, relaunch persistence, planned/completed/cross-midnight shifts, one-tap live tracking, breaks, clock-out, cancellation/recovery, deletion, forecast/report refresh, exports, notification behavior, and backup/restore acceptance checks.
 - Exercise Hebrew RTL layout, picker interaction, validation, navigation, keyboard avoidance, and empty/error states on native iOS.
 - Run practical Android validation where available after iOS reaches a stable candidate.
