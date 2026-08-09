@@ -4,7 +4,7 @@ Shiftty is a Hebrew-first, local-first shift and salary assistant for hourly wor
 
 ## Current state
 
-The application now includes onboarding, workplaces and roles, shift planning and live tracking, salary rules and calculation, forecasts, reports, exports, notifications, backup/restore, and Hebrew RTL presentation. The RC1 reliability work and the RC1.5A/B shift-form simplification are implemented in source, but the current candidate is not yet release-ready: automated lifecycle and Expo dependency checks still require remediation, and the native iOS flows have not yet completed simulator acceptance testing.
+The application now includes onboarding, workplaces and roles, shift planning and live tracking, salary rules and calculation, forecasts, reports, exports, notifications, backup/restore, and Hebrew RTL presentation. The RC1 reliability work and the RC1.5A/B shift-form simplification are implemented in source, and the full automated gate set is green. The current candidate is not yet release-ready because the native iOS flows still require a fresh simulator build and acceptance testing.
 
 See [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the current evidence-based milestone, known gaps, and next development step. The frontend audit and approved simplification sequence are in [`docs/frontend-audit.md`](docs/frontend-audit.md) and [`docs/frontend-simplification-plan.md`](docs/frontend-simplification-plan.md).
 

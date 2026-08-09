@@ -4,11 +4,11 @@ Last updated: 2026-08-09
 
 ## Current milestone
 
-Development is stopped at the boundary between **RC1.5B (input simplification)** and **RC1.5C (Home and active-shift redesign)** on branch `codex/initial-shifty-foundation`.
+Development is at the **native iOS simulator build and RC1/RC1.5A-B acceptance** milestone on branch `codex/initial-shifty-foundation`. The automated hardening phase is complete; RC1.5C implementation has not begun.
 
 The product foundation through Phase 6 is present in source: onboarding; workplaces, roles, salary profiles, pay rules, and templates; planned, completed, and live shifts; break tracking; deterministic salary calculation; monthly forecasts and reports; notifications; exports; backup and restore; Hebrew localization and RTL UI. RC1 reliability fixes and RC1.5A/B shift-form simplification have also been implemented.
 
-This is not yet a release-candidate claim. Native behavior has not completed the required simulator acceptance matrix, and the automated gate set is not fully green.
+This is not yet a release-candidate claim. Native behavior has not completed the required simulator acceptance matrix, but the repository's automated gate set is now green.
 
 ## Git baseline
 
@@ -17,6 +17,7 @@ This is not yet a release-candidate claim. Native behavior has not completed the
 - Remote baseline before this status update: `origin/codex/initial-shifty-foundation` at `80b28aa2bfa447a193b49a14ef1fc79d71ca2843`
 - Relationship at audit time: local branch was 18 commits ahead and 0 behind
 - Working tree at audit time: no tracked modifications; only the two untracked frontend audit/plan documents now being recorded
+- Latest source-validation milestone: `7f0dd0e` (`chore: eliminate lint warnings`)
 
 ## Implemented and source-verified
 
@@ -30,20 +31,20 @@ This is not yet a release-candidate claim. Native behavior has not completed the
 
 ## Automated validation baseline
 
-These are the latest observed results before Phase 1 remediation begins:
+These are the fresh Phase 1 completion results:
 
 | Check | Result |
 | --- | --- |
 | `npm run typecheck` | Passed |
-| `npm run lint` | Passed with 54 warnings |
-| `npm test` | 72 suites and 297 tests passed, but Jest exited 1 because Expo logged twice after teardown |
+| `npm run lint` | Passed with zero warnings |
+| `npm test` | Passed; 72 suites and 297 tests, process exit 0 |
 | `npm run validate:migrations` | Passed |
 | Expo web export | Passed; 36 routes exported |
 | `npx expo config --type public` | Passed |
-| `npx expo install --check` | Failed: five Expo packages require SDK-compatible patch alignment |
-| `git diff --check` | Passed for tracked source at the audit baseline |
+| `npx expo install --check` | Passed; dependencies are SDK-compatible |
+| `git diff --check` | Passed |
 
-Expected dependency alignment reported by Expo:
+Resolved dependency alignment:
 
 - `expo`: `~57.0.11`
 - `expo-file-system`: `~57.0.2`
@@ -51,7 +52,7 @@ Expected dependency alignment reported by Expo:
 - `expo-router`: `~57.0.11`
 - `expo-sharing`: `~57.0.10`
 
-The Jest lifecycle failure is associated with late `ExpoModulesCoreJSLogger` output after export/share adapter tests. It must be root-caused; globally suppressing console output is not an acceptable fix.
+The Jest lifecycle failure was root-caused to two tests replacing the entire `react-native` module with a partial `Platform` mock. That removed `TurboModuleRegistry`, causing Expo's lazy fetch initialization to warn during teardown. Removing the destructive mocks preserved the Jest Expo runtime and fixed the process exit without suppressing console output. The lint backlog was also reduced from 53 current warnings to zero.
 
 ## Native/manual verification still required
 
@@ -71,12 +72,16 @@ The Jest lifecycle failure is associated with late `ExpoModulesCoreJSLogger` out
 
 ## Safest next development step
 
-Align the five Expo SDK patch dependencies first, then reproduce and root-cause the Jest post-teardown logger failure until the full automated gate set exits successfully. Commit and push those green milestones separately. Only then create a fresh iOS simulator build and begin the native acceptance matrix; RC1.5C implementation should start after that baseline is stable and recorded.
+Create a fresh EAS iOS simulator development build containing the native date/time picker, record its build ID, install it in the simulator, and run Metro against it. Then execute the native acceptance matrix before starting RC1.5C implementation.
 
 ## Recent development history
 
-The latest source milestones before this status document were:
+The latest milestones are:
 
+- `7f0dd0e` eliminated the lint-warning backlog and modernized static adapter imports
+- `7e96589` fixed the Jest Expo lifecycle mocks
+- `9619017` aligned the five Expo SDK patch dependencies
+- `a1abaa9` recorded the frontend audit and simplification plan
 - `ac03fa7` final timezone and form UX corrections
 - `c3beaff` simplified shift forms
 - `eac332b` native date/time picker integration
