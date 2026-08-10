@@ -42,6 +42,31 @@ describe('live shift calculations', () => {
     });
   });
 
+  it('treats a just-started break as zero minutes when the UI clock is one tick behind', () => {
+    const staleRenderNow = new Date('2026-07-15T17:00:00.100+03:00');
+    const justStarted = createBreak({ start: '2026-07-15T17:00:00.900+03:00', end: undefined });
+
+    expect(calculateLiveShiftMetrics(active, [justStarted], staleRenderNow)).toMatchObject({
+      activeBreakMinutes: 0,
+      unpaidBreakMinutes: 0,
+      isOnBreak: true,
+    });
+  });
+
+  it('accepts a just-ended break when the UI clock is one tick behind', () => {
+    const staleRenderNow = new Date('2026-07-15T17:00:00.100+03:00');
+    const justEnded = createBreak({
+      start: '2026-07-15T16:50:00.000+03:00',
+      end: '2026-07-15T17:00:00.900+03:00',
+    });
+
+    expect(calculateLiveShiftMetrics(active, [justEnded], staleRenderNow)).toMatchObject({
+      activeBreakMinutes: 0,
+      unpaidBreakMinutes: 10,
+      isOnBreak: false,
+    });
+  });
+
   it('handles cross-midnight and DST changes by comparing instants', () => {
     const crossMidnight = createShift({ status: 'active', actualStart: '2026-07-15T22:00:00+03:00', activeOrigin: 'unscheduled' });
     expect(calculateLiveShiftMetrics(crossMidnight, [], new Date('2026-07-16T02:00:00+03:00')).elapsedMinutes).toBe(240);

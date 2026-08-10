@@ -1,23 +1,23 @@
 # Shiftty Project Status
 
-Last updated: 2026-08-09
+Last updated: 2026-08-10
 
 ## Current milestone
 
-Development is at the **native iOS simulator RC1/RC1.5A-B acceptance and blocker-remediation** milestone on branch `codex/initial-shifty-foundation`. The automated hardening phase is complete; RC1.5C implementation has not begun.
+Development is at the **RC1.5C core shift-experience completion** milestone on branch `codex/initial-shifty-foundation`. The Home clock-in, active-shift, break/resume, and quick clock-out redesign is implemented and has passed automated and native iOS simulator acceptance.
 
 The product foundation through Phase 6 is present in source: onboarding; workplaces, roles, salary profiles, pay rules, and templates; planned, completed, and live shifts; break tracking; deterministic salary calculation; monthly forecasts and reports; notifications; exports; backup and restore; Hebrew localization and RTL UI. RC1 reliability fixes and RC1.5A/B shift-form simplification have also been implemented.
 
-This is not yet a release-candidate claim. The non-destructive iOS simulator acceptance matrix is substantially complete and the native defects it exposed have been remediated and re-verified. Irreversible delete/replace checks still require at-action approval, and practical Android verification remains outstanding.
+This is not yet a final release-candidate claim. RC1.5D/E navigation and progressive-disclosure work, final release hardening, irreversible confirmation checks, and practical Android verification remain outstanding.
 
 ## Git baseline
 
 - Branch: `codex/initial-shifty-foundation`
-- Current committed HEAD before the native-remediation milestone: `8d5ec2d5093838a7d4346b55d1e7747068a6d899`
-- Remote baseline before the native-remediation milestone: `origin/codex/initial-shifty-foundation` at the same commit
-- Relationship before the native-remediation milestone: 0 commits ahead and 0 behind
-- Working tree before native acceptance: clean
-- Latest source-validation milestone: `8d5ec2d` (`fix: remove native Metro require cycles`)
+- Committed baseline before RC1.5C: `e217003188ae3e7976aa0cc1938db45186383961`
+- Remote baseline: `origin/codex/initial-shifty-foundation` at the same commit
+- Relationship before the RC1.5C commit: 0 committed changes ahead and 0 behind
+- Working tree: focused RC1.5C implementation and evidence update, pending milestone commit
+- Latest committed milestone: `e217003` (`fix: unblock native exports and backup`)
 
 ## Implemented and source-verified
 
@@ -28,16 +28,18 @@ This is not yet a release-candidate claim. The non-destructive iOS simulator acc
 - Onboarding, notification scheduling, data management, and backup/restore flows.
 - RC1 reliability work including legacy-report invalidation, timestamp handling, deletion-state recovery, live timer behavior, and form/timezone corrections.
 - RC1.5A/B UI work: simplified shift forms and native date/time picker integration.
+- RC1.5C UI work: one dominant Home clock-in action, safe nearby-scheduled selection, minimal workplace ambiguity picker, compact monthly summary, simplified active/break state, and inline quick clock-out review with advanced-edit fallback.
+- Interaction timestamps use the live system clock rather than the 30-second display clock. Completion is schema-validated before any write transaction, and live break calculations tolerate a one-tick UI/persistence boundary without accepting genuinely future events.
 
 ## Automated validation baseline
 
-These are the fresh native-remediation validation results:
+These are the fresh RC1.5C validation results:
 
 | Check | Result |
 | --- | --- |
 | `npm run typecheck` | Passed |
 | `npm run lint` | Passed with zero warnings |
-| `npm test -- --runInBand` | Passed; 75 suites and 300 tests, process exit 0 |
+| `npm test -- --runInBand` | Passed; 78 suites and 316 tests, process exit 0 |
 | `npm run validate:migrations` | Passed |
 | Expo web export | Passed; 36 routes exported |
 | `npx expo config --type public` | Passed |
@@ -83,30 +85,41 @@ Passed on iPhone 17 Pro / iOS 26.5:
 - Restore originally failed because `readAsStringAsync` also throws under Expo SDK 57; the reader now uses `File.text`, and restore-merge completed successfully from the saved backup.
 - Notification permission produced the native iOS prompt and was granted.
 - Settings data/privacy rows are localized, and Settings subroutes now expose a working in-app Back action.
+- Home presents one dominant `כניסה` action, secondary future/completed actions, and only compact completed-hours/earned metrics by default; prediction cards and technical salary breakdown fields are absent from the daily surface.
+- Single-workplace clock-in started an unscheduled shift immediately with the correct workplace.
+- With two active workplaces, clock-in opened `איפה עובדים עכשיו?`; selecting the second workplace started that workplace's active shift.
+- A nearby scheduled fixture started directly from Home without opening the legacy start flow.
+- The simplified active state showed workplace, status, live timer, clock-in time, subtle pay/expected end, `הפסקה`, and `יציאה` only.
+- Active tracking survived a real process terminate/relaunch.
+- Break start and resume both passed after native testing exposed and regression-covered the one-render-tick timestamp boundary.
+- Quick clock-out showed in/out/total/pay, advanced edit opened the full editor and returned safely, and quick save completed both unscheduled and scheduled native test shifts.
+- Native testing exposed the stale-display-clock completion defect for very short shifts; mutation timestamps now use the interaction clock, repository prevalidation prevents invalid writes, and the native retry passed.
+- Stale-shift recovery appeared after relaunching a fixture made more than 16 hours old; `להמשיך מעקב` restored the active panel, and quick save completed it and returned to inactive Home.
 
 Still requiring native/manual verification:
 
 - Confirm the irreversible actions for scheduled, completed, break-bearing, and cross-midnight shift deletion; each flow has reached the app's permanent-delete confirmation but was not executed without at-action approval.
 - Confirm restore-replace and clear-all at their destructive confirmation boundaries; restore validation and merge already pass.
-- Complete active-shift cancellation/recovery confirmation paths.
+- Complete the destructive active-shift cancellation/recovery confirmation paths.
 - Inspect keyboard avoidance and less common empty/error states on native iOS.
 - Run practical Android validation where available after iOS reaches a stable candidate.
 
 ## Partial or not started
 
-- RC1.5C: unified Home and active-shift experience is not started.
+- RC1.5C: complete in the current milestone working tree; commit/push is pending this status review.
 - RC1.5D: Calendar, Reports, Settings, and navigation simplification is not started.
 - RC1.5E: progressive disclosure is only partial; some advanced concepts remain exposed in legacy screens.
 - Release hardening and the final evidence matrix are not started.
 
 ## Safest next development step
 
-Commit and push the focused native-remediation milestone after reviewing the complete diff. Preserve the simulator backup and acceptance data, then either execute the pending irreversible confirmations with at-action approval or continue the independent RC1.5C Home/active-shift redesign while keeping those acceptance rows explicitly open.
+Review, commit, and push the focused RC1.5C milestone. Then begin RC1.5D with a source-and-native audit of Calendar, Reports, Settings, and tab navigation, while keeping irreversible confirmations explicitly open until at-action approval is available.
 
 ## Recent development history
 
 The latest committed milestones are:
 
+- `e217003` unblocked native CSV/ICS export and JSON backup/restore and localized Settings navigation
 - `8d5ec2d` removed native Metro require cycles from the notification imports
 - `35c3842` recorded the simulator build checkpoint
 - `bf7597a` completed the Phase 1 status documentation

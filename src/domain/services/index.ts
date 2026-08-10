@@ -2,6 +2,7 @@ export * from './active-shift-service';
 export * from './active-notification-service';
 export * from './break-session-service';
 export * from './calendar-service';
+export * from './clock-in-decision-service';
 export * from './historical-pattern-service';
 export * from './notification-planner';
 export * from './recurrence-service';

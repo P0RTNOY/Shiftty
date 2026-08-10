@@ -89,6 +89,20 @@ export class SqliteActiveShiftRepository implements ActiveShiftRepository {
   async deleteBreak(breakId: string): Promise<void> { await this.database.runAsync('DELETE FROM break_sessions WHERE id = ? AND end_at IS NOT NULL;', breakId); }
 
   async completeShift(input: CompleteShiftInput): Promise<Shift> {
+    const activeShift = await this.requireShift(input.shiftId);
+    if (activeShift.status !== 'active') throw new Error('Only the active shift can be completed.');
+    shiftSchema.parse({
+      ...activeShift,
+      status: 'completed',
+      actualEnd: input.actualEnd,
+      payableStart: input.payableStart,
+      payableEnd: input.payableEnd,
+      actualBreakMinutes: input.actualBreakMinutes,
+      payableBreakMinutes: input.payableBreakMinutes,
+      payableSource: input.payableSource,
+      completedAt: input.actualEnd,
+      updatedAt: input.actualEnd,
+    });
     await this.database.withTransactionAsync(async () => {
       if (input.closeOpenBreak) {
         await this.database.runAsync('DELETE FROM break_sessions WHERE shift_id = ? AND end_at IS NULL AND julianday(?) <= julianday(start_at);', input.shiftId, input.actualEnd);

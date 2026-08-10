@@ -1,6 +1,6 @@
 import { differenceInMinutes } from 'date-fns';
 
-import { shiftSchema, type Shift } from '@/domain/entities';
+import { shiftSchema, type Shift, type Workplace } from '@/domain/entities';
 import { resolveLocalShiftRange } from '@/shared/utils/zoned-time';
 
 interface ShiftFactoryContext {
@@ -16,6 +16,13 @@ interface BaseShiftInput {
   title?: string;
   notes?: string;
   hourlyRateSnapshotMinor: number;
+}
+
+export interface ActiveShiftInput {
+  workplace: Workplace;
+  roleId?: string;
+  shiftTemplateId?: string;
+  expectedBreakMinutes?: number;
 }
 
 export interface ScheduledShiftInput extends BaseShiftInput {
@@ -45,6 +52,23 @@ export function createScheduledShift(input: ScheduledShiftInput, context: ShiftF
     scheduledEnd: scheduled.end,
     expectedBreakMinutes: input.expectedBreakMinutes,
     status: 'scheduled',
+  });
+}
+
+export function createActiveShift(input: ActiveShiftInput, context: ShiftFactoryContext): Shift {
+  return shiftSchema.parse({
+    id: context.id,
+    workplaceId: input.workplace.id,
+    roleId: input.roleId,
+    shiftTemplateId: input.shiftTemplateId,
+    actualStart: context.now,
+    expectedBreakMinutes: input.expectedBreakMinutes ?? input.workplace.defaultBreakMinutes,
+    status: 'active',
+    activeOrigin: 'unscheduled',
+    hourlyRateSnapshotMinor: input.workplace.defaultHourlyRateMinor,
+    timezone: context.timezone,
+    createdAt: context.now,
+    updatedAt: context.now,
   });
 }
 

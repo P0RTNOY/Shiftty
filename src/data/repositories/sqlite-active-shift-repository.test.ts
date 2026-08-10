@@ -80,11 +80,29 @@ describe('SqliteActiveShiftRepository', () => {
 
   it('completes the shift and closes an open break in one transaction', async () => {
     const database = databaseMock();
-    database.getFirstAsync.mockResolvedValue({ ...activeRow, status: 'completed', actual_end: '2026-07-15T22:07:00+03:00', payable_start: '2026-07-15T13:24:00+03:00', payable_end: '2026-07-15T22:07:00+03:00', payable_break_minutes: 30, actual_break_minutes: 30, payable_source: 'actual', completed_at: '2026-07-15T22:07:00+03:00' });
+    database.getFirstAsync.mockResolvedValueOnce(activeRow).mockResolvedValue({ ...activeRow, status: 'completed', actual_end: '2026-07-15T22:07:00+03:00', payable_start: '2026-07-15T13:24:00+03:00', payable_end: '2026-07-15T22:07:00+03:00', payable_break_minutes: 30, actual_break_minutes: 30, payable_source: 'actual', completed_at: '2026-07-15T22:07:00+03:00' });
     const repository = new SqliteActiveShiftRepository(database as unknown as SQLiteDatabase);
     await repository.completeShift({ shiftId: 'shift-1', actualEnd: '2026-07-15T22:07:00+03:00', payableStart: '2026-07-15T13:24:00+03:00', payableEnd: '2026-07-15T22:07:00+03:00', actualBreakMinutes: 30, payableBreakMinutes: 30, payableSource: 'actual', closeOpenBreak: true });
     expect(database.withTransactionAsync).toHaveBeenCalledTimes(1);
     expect(database.runAsync.mock.calls.map((call) => call[0]).join('\n')).toContain("status = 'completed'");
+  });
+
+  it('rejects an invalid completion before opening a write transaction', async () => {
+    const database = databaseMock();
+    const repository = new SqliteActiveShiftRepository(database as unknown as SQLiteDatabase);
+
+    await expect(repository.completeShift({
+      shiftId: 'shift-1',
+      actualEnd: activeRow.actual_start,
+      payableStart: activeRow.actual_start,
+      payableEnd: activeRow.actual_start,
+      actualBreakMinutes: 0,
+      payableBreakMinutes: 0,
+      payableSource: 'actual',
+      closeOpenBreak: false,
+    })).rejects.toThrow('End time must be after start time');
+
+    expect(database.withTransactionAsync).not.toHaveBeenCalled();
   });
 
   it('restores or cancels a scheduled active shift without partial writes', async () => {

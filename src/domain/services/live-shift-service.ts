@@ -8,9 +8,21 @@ export interface EndShiftReview { scheduledMinutes?: number; actualMinutes: numb
 
 export function calculateLiveShiftMetrics(shift: Shift, breaks: readonly BreakSession[], now: Date): LiveShiftMetrics {
   if (shift.status !== 'active' || !shift.actualStart) throw new Error('Live metrics require an active shift.');
-  validateBreakSessions(shift, breaks, now);
-  const elapsedMinutes = Math.max(0, differenceInMinutes(now, shift.actualStart));
-  const summary = summarizeBreakSessions(breaks, now);
+  const openBreakStart = breaks.find((session) => !session.end)?.start;
+  const newestBreakEvent = breaks.reduce((latest, session) => Math.max(
+    latest,
+    Date.parse(session.start),
+    session.end ? Date.parse(session.end) : Number.NEGATIVE_INFINITY,
+  ), Number.NEGATIVE_INFINITY);
+  const newestRequiredInstant = openBreakStart
+    ? Math.max(newestBreakEvent, Date.parse(openBreakStart) + 1)
+    : newestBreakEvent;
+  const isOneTickBehind = newestRequiredInstant >= now.getTime()
+    && newestRequiredInstant - now.getTime() <= 1_000;
+  const calculationNow = isOneTickBehind ? new Date(newestRequiredInstant) : now;
+  validateBreakSessions(shift, breaks, calculationNow);
+  const elapsedMinutes = Math.max(0, differenceInMinutes(calculationNow, shift.actualStart));
+  const summary = summarizeBreakSessions(breaks, calculationNow);
   return { elapsedMinutes, paidBreakMinutes: summary.paidMinutes, unpaidBreakMinutes: summary.unpaidMinutes, activeBreakMinutes: summary.activeMinutes, netWorkedMinutes: Math.max(0, elapsedMinutes - summary.unpaidMinutes), isOnBreak: Boolean(summary.activeBreak) };
 }
 

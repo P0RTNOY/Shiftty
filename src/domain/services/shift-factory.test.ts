@@ -1,4 +1,5 @@
 import {
+  createActiveShift,
   createCompletedShift,
   createScheduledShift,
   isCompletedShiftFutureDated,
@@ -11,6 +12,30 @@ const context = {
 };
 
 describe('shift factories', () => {
+  it('creates an unscheduled active shift from safe workplace defaults', () => {
+    const shift = createActiveShift({
+      workplace: {
+        id: 'workplace-1',
+        name: 'Cafe',
+        defaultHourlyRateMinor: 5_000,
+        defaultBreakMinutes: 30,
+        createdAt: '2026-01-01T00:00:00+02:00',
+        updatedAt: '2026-01-01T00:00:00+02:00',
+      },
+    }, context);
+
+    expect(shift).toMatchObject({
+      workplaceId: 'workplace-1',
+      status: 'active',
+      activeOrigin: 'unscheduled',
+      actualStart: context.now,
+      expectedBreakMinutes: 30,
+      hourlyRateSnapshotMinor: 5_000,
+    });
+    expect(shift.scheduledStart).toBeUndefined();
+    expect(shift.payableStart).toBeUndefined();
+  });
+
   it('creates a cross-midnight scheduled shift without populating worked ranges', () => {
     const shift = createScheduledShift(
       {
