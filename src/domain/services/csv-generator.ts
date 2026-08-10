@@ -52,7 +52,7 @@ function formatCsvCell(value: CsvCellValue, delimiter: string, protectInjection 
   // Formula injection protection for user-entered text
   if (protectInjection && str.length > 0) {
     const firstChar = str.charAt(0);
-    if (firstChar === '=' || firstChar === '+' || firstChar === '-' || firstChar === '@') {
+    if (/^[=+\-@\t\r\n]$/.test(firstChar)) {
       // Prefix with a single quote so Excel treats it as text, not a formula
       str = "'" + str;
     }

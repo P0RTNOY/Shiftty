@@ -9,7 +9,7 @@ import {
   type Shift,
 } from '@/domain/entities';
 import type { RecurrenceMutation, RecurrenceRepository } from '@/domain/repositories';
-import { SHIFT_COLUMNS, SqliteShiftRepository, toShiftParameters } from '@/data/repositories/sqlite-shift-repository';
+import { SHIFT_COLUMN_COUNT, SHIFT_COLUMNS, SqliteShiftRepository, toShiftParameters } from '@/data/repositories/sqlite-shift-repository';
 
 interface SeriesRow { id: string; rule_json: string; template_json: string; disabled_from: string | null; created_at: string; updated_at: string }
 interface ExceptionRow { id: string; series_id: string; local_date: string; type: 'deleted' | 'modified'; shift_id: string | null; created_at: string }
@@ -65,7 +65,7 @@ export class SqliteRecurrenceRepository implements RecurrenceRepository {
       for (const input of occurrences) {
         const shift = shiftSchema.parse(input);
         await this.database.runAsync(
-          `INSERT OR IGNORE INTO shifts (${SHIFT_COLUMNS}) VALUES (${Array.from({ length: 28 }, () => '?').join(', ')});`,
+          `INSERT OR IGNORE INTO shifts (${SHIFT_COLUMNS}) VALUES (${Array.from({ length: SHIFT_COLUMN_COUNT }, () => '?').join(', ')});`,
           toShiftParameters(shift),
         );
       }

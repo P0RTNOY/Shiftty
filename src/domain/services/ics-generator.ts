@@ -35,8 +35,8 @@ function generateIcsEvent(shift: Shift, options?: IcsExportOptions): string {
   const dtEnd = format(endDate, "yyyyMMdd'T'HHmmss'Z'", { in: tz('UTC') });
   const dtStamp = format(dtstampDate, "yyyyMMdd'T'HHmmss'Z'", { in: tz('UTC') });
 
-  // Stable UID based on shift ID and timestamps (so updates modify the same event)
-  const uid = `${shift.id}-${dtStart}@shiftty.app`;
+  // Stable UID based only on the persisted shift ID so calendar imports update moved events.
+  const uid = `${shift.id}@shiftty.app`;
 
   const summary = shift.title || 'משמרת';
   
@@ -73,21 +73,36 @@ function escapeIcsText(text: string): string {
 }
 
 function foldIcsLines(icsText: string): string {
-  // iCalendar lines must be folded at 75 octets.
-  // We'll fold at 75 characters for simplicity since most characters are 1 octet,
-  // but if there are wide characters, folding at 75 chars is strictly < 75 octets if we're careful.
-  // Actually, RFC 5545 specifies 75 octets. Let's do a safe string fold.
   const lines = icsText.split('\r\n');
-  const foldedLines = lines.map(line => {
-    if (line.length <= 70) return line;
-    let folded = '';
-    let currentLine = line;
-    while (currentLine.length > 70) {
-      folded += currentLine.substring(0, 70) + '\r\n ';
-      currentLine = currentLine.substring(70);
+  return lines.map(foldIcsLine).join('\r\n');
+}
+
+function foldIcsLine(line: string): string {
+  if (utf8ByteLength(line) <= 75) return line;
+  const segments: string[] = [];
+  let current = '';
+  let currentBytes = 0;
+  for (const character of line) {
+    const characterBytes = utf8ByteLength(character);
+    const limit = segments.length === 0 ? 75 : 74;
+    if (current && currentBytes + characterBytes > limit) {
+      segments.push(current);
+      current = character;
+      currentBytes = characterBytes;
+    } else {
+      current += character;
+      currentBytes += characterBytes;
     }
-    folded += currentLine;
-    return folded;
-  });
-  return foldedLines.join('\r\n');
+  }
+  if (current) segments.push(current);
+  return segments.join('\r\n ');
+}
+
+function utf8ByteLength(value: string): number {
+  let length = 0;
+  for (const character of value) {
+    const codePoint = character.codePointAt(0)!;
+    length += codePoint <= 0x7f ? 1 : codePoint <= 0x7ff ? 2 : codePoint <= 0xffff ? 3 : 4;
+  }
+  return length;
 }

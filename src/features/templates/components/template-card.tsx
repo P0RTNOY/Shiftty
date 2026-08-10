@@ -10,7 +10,7 @@ interface TemplateCardProps {
   onPress: (template: ShiftTemplate) => void;
   onArchive?: (id: string) => void;
   onRestore?: (id: string) => void;
-  onDuplicate?: (id: string) => void;
+  onDuplicate?: (id: string, newName: string) => void;
 }
 
 const WEEKDAY_LABELS_HE = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
@@ -31,7 +31,7 @@ export function TemplateCard({ template, onPress, onArchive, onRestore, onDuplic
     if (onDuplicate) {
       options.push({ text: t('templates.duplicate'), onPress: () => promptDuplicate() });
     }
-    options.push({ text: 'ביטול', style: 'cancel' as const, onPress: () => undefined });
+    options.push({ text: t('common.cancel'), style: 'cancel' as const, onPress: () => undefined });
     Alert.alert(template.name, undefined, options);
   }
 
@@ -40,12 +40,12 @@ export function TemplateCard({ template, onPress, onArchive, onRestore, onDuplic
       t('templates.duplicate'),
       undefined,
       (newName) => {
-        if (newName?.trim() && onDuplicate) {
-          onDuplicate(template.id);
+            if (newName?.trim() && onDuplicate) {
+              onDuplicate(template.id, newName.trim());
         }
       },
       'plain-text',
-      `${template.name} (עותק)`,
+          `${template.name} (${t('templates.copySuffix')})`,
     );
   }
 
@@ -55,6 +55,7 @@ export function TemplateCard({ template, onPress, onArchive, onRestore, onDuplic
     <TouchableOpacity
       accessible
       accessibilityLabel={template.name}
+      accessibilityRole="button"
       activeOpacity={0.78}
       onPress={() => onPress(template)}
       onLongPress={handleLongPress}

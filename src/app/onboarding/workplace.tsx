@@ -8,10 +8,11 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { WorkplaceSetupService } from '@/domain/services';
 import { SqliteWorkplaceRepository } from '@/data/repositories/sqlite-workplace-repository';
 import { SqliteSalaryProfileRepository } from '@/data/repositories/sqlite-salary-repositories';
+import { reportUnexpectedError } from '@/shared/utils/report-unexpected-error';
 
 export default function OnboardingWorkplaceScreen() {
   const { colors } = useAppTheme();
-  const { isRtl } = useTranslation();
+  const { isRtl, t } = useTranslation();
   const db = useSQLiteContext();
   const [workplaceName, setWorkplaceName] = useState('');
   const [hourlyRate, setHourlyRate] = useState('');
@@ -46,8 +47,9 @@ export default function OnboardingWorkplaceScreen() {
 
 
       router.push('/onboarding/finish');
-    } catch (e: any) {
-      Alert.alert('שגיאה', e.message);
+    } catch (error) {
+      reportUnexpectedError('onboarding.workplace.save', error);
+      Alert.alert(t('common.error'));
     } finally {
       setLoading(false);
     }

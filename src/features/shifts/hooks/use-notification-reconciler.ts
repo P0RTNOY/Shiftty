@@ -6,6 +6,7 @@ import { expoNotificationAdapter, noOpNotificationAdapter } from '@/features/shi
 import { useRepositories } from '@/features/shifts/hooks/use-repositories';
 import { useTranslation } from '@/shared/i18n';
 import type { Shift, BreakSession } from '@/domain/entities';
+import { DEFAULT_TIMEZONE } from '@/shared/constants/app';
 
 const adapter = Platform.OS === 'web' ? noOpNotificationAdapter : expoNotificationAdapter;
 
@@ -26,48 +27,37 @@ export function useNotificationReconciler() {
     );
   }, [repositories, resolveText]);
 
+  const reconcileAll = useCallback(async (
+    now: Date,
+    activeShiftOverride?: Shift | null,
+    activeBreakOverride?: BreakSession | null,
+  ) => {
+    const activeShift = activeShiftOverride === undefined
+      ? await repositories.activeShifts.getActiveShift()
+      : activeShiftOverride;
+    const activeBreak = activeBreakOverride === undefined
+      ? (activeShift ? (await repositories.activeShifts.listBreaks(activeShift.id)).find((item) => !item.end) ?? null : null)
+      : activeBreakOverride;
+    const upcomingShifts = await repositories.shifts.listUpcoming(now.toISOString(), 50);
+    const timezone = activeShift?.timezone ?? upcomingShifts[0]?.timezone ?? DEFAULT_TIMEZONE;
+
+    await reconciler.reconcile({
+      now,
+      timezone,
+      upcomingShifts,
+      activeShift,
+      activeBreak,
+      workplaceId: activeShift?.workplaceId,
+    });
+  }, [reconciler, repositories.activeShifts, repositories.shifts]);
+
   const reconcileActiveShift = useCallback(async (
     activeShift: Shift | null,
     activeBreak: BreakSession | null,
-    now: Date
-  ) => {
-    try {
-      // In a real app we'd also pass upcomingShifts, but this is scoped to active shift updates.
-      // We pass empty array for upcomingShifts so they don't get accidentally cancelled if we don't load them.
-      // Wait, the reconciler deletes obsolete keys based on the plan. If we pass empty upcoming shifts,
-      // it will cancel ALL upcoming shift reminders!
-      // This means we must fetch upcoming shifts, OR adjust the reconciler.
-      // Fetch upcoming shifts (next 24 hours is safe)
-      const windowEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
-      const upcomingShifts = await repositories.shifts.list({
-        statuses: ['scheduled'],
-        endsAfter: now.toISOString(),
-        startsBefore: windowEnd,
-      });
+    now: Date,
+  ) => reconcileAll(now, activeShift, activeBreak), [reconcileAll]);
 
-      const timezone = activeShift?.timezone ?? 'Asia/Jerusalem';
+  const cancelForShift = useCallback(async (shiftId: string) => reconciler.cancelForShift(shiftId), [reconciler]);
 
-      await reconciler.reconcile({
-        now,
-        timezone,
-        upcomingShifts,
-        activeShift,
-        activeBreak,
-        workplaceId: activeShift?.workplaceId,
-      });
-    } catch (err) {
-      // Avoid crashing the app if reconciliation fails
-      console.warn('Reconciliation failed:', err);
-    }
-  }, [reconciler, repositories.shifts]);
-
-  const cancelForShift = useCallback(async (shiftId: string) => {
-    try {
-      await reconciler.cancelForShift(shiftId);
-    } catch (err) {
-      console.warn('Failed to cancel notifications for shift:', err);
-    }
-  }, [reconciler]);
-
-  return { reconciler, reconcileActiveShift, cancelForShift };
+  return { reconciler, reconcileAll, reconcileActiveShift, cancelForShift };
 }

@@ -4,6 +4,7 @@ import { useFocusEffect } from 'expo-router';
 import type { Shift } from '@/domain/entities';
 import type { ShiftQuery } from '@/domain/repositories';
 import { useRepositories } from '@/features/shifts/hooks/use-repositories';
+import { reportUnexpectedError } from '@/shared/utils/report-unexpected-error';
 
 export function useShifts(query: ShiftQuery = {}) {
   const { shifts: repository } = useRepositories();
@@ -30,6 +31,7 @@ export function useShifts(query: ShiftQuery = {}) {
         statuses: statusesKey ? statusesKey.split(',') as Shift['status'][] : undefined,
       }));
     } catch (caught) {
+      reportUnexpectedError('shifts.list', caught);
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
       setLoading(false);
@@ -49,7 +51,7 @@ export function useShift(id: string | undefined) {
     if (!id) return;
     setLoading(true);
     try { setShift(await repository.getById(id)); setError(null); }
-    catch (caught) { setError(caught instanceof Error ? caught.message : String(caught)); }
+    catch (caught) { reportUnexpectedError('shifts.getById', caught); setError(caught instanceof Error ? caught.message : String(caught)); }
     finally { setLoading(false); }
   }, [id, repository]);
   const clear = useCallback(() => setShift(null), []);

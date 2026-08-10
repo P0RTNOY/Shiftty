@@ -3,6 +3,7 @@ import { useFocusEffect } from 'expo-router';
 
 import type { Role, Workplace } from '@/domain/entities';
 import { useRepositories } from '@/features/shifts/hooks/use-repositories';
+import { reportUnexpectedError } from '@/shared/utils/report-unexpected-error';
 
 export function useWorkplaces() {
   const { workplaces: repository } = useRepositories();
@@ -18,7 +19,7 @@ export function useWorkplaces() {
       setRoles((await Promise.all(nextWorkplaces.map((workplace) => repository.listRoles(workplace.id)))).flat());
       setError(null);
     }
-    catch (caught) { setError(caught instanceof Error ? caught.message : String(caught)); }
+    catch (caught) { reportUnexpectedError('workplaces.list', caught); setError(caught instanceof Error ? caught.message : String(caught)); }
     finally { setLoading(false); }
   }, [repository]);
   useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));

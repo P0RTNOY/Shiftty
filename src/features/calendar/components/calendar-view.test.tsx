@@ -25,6 +25,23 @@ describe('CalendarView', () => {
     expect(onCreateShift).toHaveBeenCalledWith('2026-07-15');
   });
 
+  it('exposes week navigation and compact shifts as accessible controls', () => {
+    const onOpenShift = jest.fn();
+    const shift = createShift({
+      id: 'short-shift',
+      title: 'משמרת קצרה',
+      scheduledStart: '2026-07-15T09:00:00+03:00',
+      scheduledEnd: '2026-07-15T09:15:00+03:00',
+    });
+    renderApp(<CalendarView mode="week" monthDate="2026-07-01" onCreateShift={jest.fn()} onModeChange={jest.fn()} onNextMonth={jest.fn()} onOpenShift={onOpenShift} onPreviousMonth={jest.fn()} onSelectDate={jest.fn()} selectedDate="2026-07-15" shifts={[shift]} workplaces={[{ id: 'workplace-1', name: 'העבודה' }]} />);
+
+    expect(screen.getByRole('button', { name: 'שבוע קודם' })).toHaveStyle({ minHeight: 44, minWidth: 44 });
+    expect(screen.getByRole('button', { name: 'היום' })).toHaveStyle({ minHeight: 44 });
+    expect(screen.getByRole('button', { name: 'שבוע הבא' })).toHaveStyle({ minHeight: 44, minWidth: 44 });
+    fireEvent.press(screen.getByRole('button', { name: 'משמרת קצרה' }));
+    expect(onOpenShift).toHaveBeenCalledWith(shift);
+  });
+
   it('renders multiple shifts for one day with distinct statuses', () => {
     const shifts = [
       createShift({ id: 'one', title: 'בוקר' }),

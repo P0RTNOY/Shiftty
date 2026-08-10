@@ -16,6 +16,7 @@ import { useTranslation } from '@/shared/i18n';
 import { createId } from '@/shared/utils/id';
 import { confirmAlert } from '@/shared/utils/confirm-alert';
 import { formatLocalDateKey, formatLocalTime, resolveLocalShiftRange } from '@/shared/utils/zoned-time';
+import { reportUnexpectedError } from '@/shared/utils/report-unexpected-error';
 
 export default function EditShiftScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -41,7 +42,7 @@ export default function EditShiftScreen() {
       if (overlaps.length && !await confirmAlert(t('form.overlapTitle'), t('form.overlapBody'), t('common.cancel'), t('common.confirm'))) return;
       await repositories.shifts.update(next);
       router.replace(`/shifts/${next.id}`);
-    } catch (caught) { Alert.alert(t('common.error'), caught instanceof Error ? caught.message : String(caught)); }
+    } catch (caught) { reportUnexpectedError('shift.edit.save', caught); Alert.alert(t('common.error')); }
     finally { setSaving(false); }
   };
   const applyScope = async (scope: RecurrenceScope) => {
@@ -84,7 +85,7 @@ export default function EditShiftScreen() {
         await repositories.recurrence.applyMutation({ seriesToSave, shiftsToSave: updates, exceptionsToSave });
       }
       router.replace(`/shifts/${shift.id}`);
-    } catch (caught) { Alert.alert(t('common.error'), caught instanceof Error ? caught.message : String(caught)); }
+    } catch (caught) { reportUnexpectedError('shift.edit.applyScope', caught); Alert.alert(t('common.error')); }
     finally { setDraft(null); setSaving(false); }
   };
 

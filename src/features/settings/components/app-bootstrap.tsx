@@ -7,6 +7,7 @@ import { useAppStore } from '@/features/settings/store/app-store';
 import { PrimaryButton } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { spacing, typography, useAppTheme } from '@/shared/theme';
+import { NotificationLifecycle } from '@/features/shifts/components/notification-lifecycle';
 
 export function AppBootstrap({ children }: PropsWithChildren) {
   const database = useSQLiteContext();
@@ -26,7 +27,7 @@ export function AppBootstrap({ children }: PropsWithChildren) {
   }, [bootstrap, bootstrapStatus, database]);
 
   if (bootstrapStatus === 'ready') {
-    return children;
+    return <><NotificationLifecycle />{children}</>;
   }
 
   if (bootstrapStatus === 'error') {

@@ -58,4 +58,15 @@ describe('csv-generator', () => {
     expect(result).toContain("'-foo,-20\r\n");
     expect(result).toContain("'@bar,0\r\n");
   });
+
+  it('neutralizes spreadsheet control prefixes in user-entered cells', () => {
+    const result = generateCsv({
+      columns: [{ key: 'value', header: 'Value', isUserText: true }],
+      rows: [{ value: '\t=CMD()' }, { value: '\r=CMD()' }, { value: '\n=CMD()' }],
+    });
+
+    expect(result).toContain("'\t=CMD()\r\n");
+    expect(result).toContain('"\'\r=CMD()"\r\n');
+    expect(result).toContain('"\'\n=CMD()"\r\n');
+  });
 });

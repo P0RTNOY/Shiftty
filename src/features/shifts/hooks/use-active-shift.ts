@@ -7,6 +7,7 @@ import { useRepositories } from '@/features/shifts/hooks/use-repositories';
 import { createId } from '@/shared/utils/id';
 import { useNotificationReconciler } from '@/features/shifts/hooks/use-notification-reconciler';
 import { SalaryCalculationCoordinator } from '@/features/pay-rules/services/salary-calculation-coordinator';
+import { reportUnexpectedError } from '@/shared/utils/report-unexpected-error';
 
 export function useActiveShift() {
   const repositories = useRepositories();
@@ -24,7 +25,7 @@ export function useActiveShift() {
 
   const notify = useCallback(async (operation: () => Promise<unknown>) => {
     try { await operation(); setNotificationError(null); }
-    catch (caught) { setNotificationError(toMessage(caught)); }
+    catch (caught) { reportUnexpectedError('notifications.activeShift', caught); setNotificationError(toMessage(caught)); }
   }, []);
 
   const refresh = useCallback(async () => {
@@ -33,7 +34,7 @@ export function useActiveShift() {
       setActiveShift(shift);
       setBreaks(shift ? await repositories.activeShifts.listBreaks(shift.id) : []);
       setError(null);
-    } catch (caught) { setError(toMessage(caught)); }
+    } catch (caught) { reportUnexpectedError('activeShift.refresh', caught); setError(toMessage(caught)); }
     finally { setLoading(false); }
   }, [repositories.activeShifts, setActiveShift]);
   useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
@@ -42,7 +43,7 @@ export function useActiveShift() {
     if (mutation.current) return undefined;
     mutation.current = true; setBusy(true); setError(null);
     try { const result = await operation(); await refresh(); return result; }
-    catch (caught) { setError(toMessage(caught)); throw caught; }
+    catch (caught) { reportUnexpectedError('activeShift.mutation', caught); setError(toMessage(caught)); throw caught; }
     finally { mutation.current = false; setBusy(false); }
   }, [refresh]);
 
@@ -67,7 +68,8 @@ export function useActiveShift() {
       const completed = await repositories.activeShifts.completeShift(input);
       try { await salaryCoordinator.finalizeCompletedShift(completed, input.actualEnd); setSalaryError(null); }
       catch (caught) {
-        await repositories.salaryCalculations.markIncomplete(completed.id).catch(() => undefined);
+        reportUnexpectedError('salary.finalizeCompletedShift', caught);
+        await repositories.salaryCalculations.markIncomplete(completed.id).catch((markError) => reportUnexpectedError('salary.markIncomplete', markError));
         setSalaryError(toMessage(caught));
       }
       await notify(() => cancelForShift(input.shiftId)); return completed;

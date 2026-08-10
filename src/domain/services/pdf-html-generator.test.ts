@@ -56,5 +56,16 @@ describe('pdf-html-generator', () => {
       expect(result).toContain('חתימת עובד');
       expect(result).toContain('חתימת מנהל');
     });
+
+    it('keeps every escaped row in a long RTL report with multipage-safe table styles', () => {
+      const rows = Array.from({ length: 120 }, (_, index) => [`${index + 1}`, `משמרת <${index + 1}>`]);
+      const result = generatePdfHtml({ title: 'דוח ארוך', headers: ['מספר', 'כותרת'], rows });
+
+      expect(result).toContain('<html dir="rtl" lang="he">');
+      expect(result).toContain('display: table-header-group');
+      expect(result).toContain('page-break-inside: avoid');
+      expect((result.match(/<tr>/g) ?? []).length).toBe(121);
+      expect(result).toContain('משמרת &lt;120&gt;');
+    });
   });
 });

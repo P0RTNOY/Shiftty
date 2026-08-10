@@ -113,6 +113,7 @@ describe('buildNotificationPlan', () => {
       logicalKey: 'shift_reminder:shift-1:60',
       type: 'shift_reminder' as const,
       scheduledFor: fixedScheduledFor,
+      nativeId: 'native-existing',
       shiftId: 'shift-1',
       titleKey: 'notification.shiftReminderTitle',
       bodyKey: 'notification.shiftReminderBody',
@@ -123,10 +124,43 @@ describe('buildNotificationPlan', () => {
     expect(plan.notifications.find((n) => n.logicalKey === 'shift_reminder:shift-1:60')).toBeUndefined();
   });
 
+  it('retries a matching persisted record that has no native notification ID', () => {
+    const fixedScheduledFor = new Date(NOW.getTime() + 60 * 60 * 1000).toISOString();
+    const plan = buildNotificationPlan(makeInput({ existingRecords: [{
+      logicalKey: 'shift_reminder:shift-1:60', type: 'shift_reminder', scheduledFor: fixedScheduledFor,
+      shiftId: 'shift-1', titleKey: 'notification.shiftReminderTitle', bodyKey: 'notification.shiftReminderBody',
+      createdAt: '2026-01-01T00:00:00+03:00', updatedAt: '2026-01-01T00:00:00+03:00',
+    }] }));
+
+    expect(plan.notifications).toContainEqual(expect.objectContaining({ logicalKey: 'shift_reminder:shift-1:60' }));
+  });
+
   it('respects shift reminder disabled preference', () => {
     const plan = buildNotificationPlan(makeInput({
       preferences: { ...DEFAULT_PREFS, scheduledShiftReminders: false },
     }));
     expect(plan.notifications.filter((n) => n.type === 'shift_reminder')).toHaveLength(0);
+  });
+
+  it('keeps missed clock-in reminders independent from pre-shift reminders', () => {
+    const plan = buildNotificationPlan(makeInput({
+      preferences: { ...DEFAULT_PREFS, scheduledShiftReminders: false, missedClockInReminders: true },
+    }));
+
+    expect(plan.notifications.filter((notification) => notification.type === 'shift_reminder')).toHaveLength(0);
+    expect(plan.notifications).toContainEqual(expect.objectContaining({ type: 'missed_clock_in' }));
+  });
+
+  it('applies scheduled reminder preferences per workplace', () => {
+    const otherShift = { ...UPCOMING_SHIFT, id: 'shift-2', workplaceId: 'wp-2' };
+    const plan = buildNotificationPlan(makeInput({
+      upcomingShifts: [UPCOMING_SHIFT, otherShift],
+      preferencesByWorkplace: new Map([
+        ['wp-1', { ...DEFAULT_PREFS, scheduledShiftReminders: false, missedClockInReminders: false }],
+      ]),
+    }));
+
+    expect(plan.notifications.some((notification) => notification.shiftId === 'shift-1')).toBe(false);
+    expect(plan.notifications).toContainEqual(expect.objectContaining({ shiftId: 'shift-2', type: 'shift_reminder' }));
   });
 });

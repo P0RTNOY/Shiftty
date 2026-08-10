@@ -3,6 +3,8 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { SqliteRecurrenceRepository } from '@/data/repositories/sqlite-recurrence-repository';
 import type { RecurrenceSeries } from '@/domain/entities';
 import { createShift } from '@/test/fixtures';
+import { createRealSqliteDb } from '@/test-utils/real-sqlite';
+import { DATABASE_MIGRATIONS } from '@/data/database/migrations';
 
 const series: RecurrenceSeries = {
   id: 'series-1',
@@ -50,6 +52,25 @@ describe('SqliteRecurrenceRepository', () => {
       expect.stringContaining('INSERT OR IGNORE INTO shifts'),
       expect.anything(),
     );
+  });
+
+  it('materializes occurrences against the current migrated shift schema', async () => {
+    const database = createRealSqliteDb();
+    try {
+      await database.execAsync('CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY);');
+      for (const migration of DATABASE_MIGRATIONS) {
+        await database.execAsync(migration.sql as string);
+      }
+      await database.execAsync("INSERT INTO workplaces (id, name, default_hourly_rate_minor, default_break_minutes, created_at, updated_at) VALUES ('workplace-1', 'Workplace', 4500, 30, '2026-08-01T00:00:00Z', '2026-08-01T00:00:00Z');");
+      const repository = new SqliteRecurrenceRepository(database as unknown as SQLiteDatabase);
+      const occurrence = createShift({ recurrenceGroupId: 'series-1', recurrenceOriginalStart: '2026-08-02T08:00:00+03:00' });
+
+      await repository.materializeOccurrences(series, [occurrence]);
+
+      await expect(database.getFirstAsync('SELECT id FROM shifts WHERE id = ?;', occurrence.id)).resolves.toEqual({ id: occurrence.id });
+    } finally {
+      await database.closeAsync();
+    }
   });
 
   it('applies scoped recurrence changes in one transaction and propagates failures', async () => {

@@ -17,6 +17,7 @@ import { createId } from '@/shared/utils/id';
 import { confirmAlert } from '@/shared/utils/confirm-alert';
 import { formatLocalDateKey } from '@/shared/utils/zoned-time';
 import { SalaryBreakdown, useSalaryDashboard } from '@/features/pay-rules';
+import { reportUnexpectedError } from '@/shared/utils/report-unexpected-error';
 
 type ScopedAction = 'cancel' | 'restore' | 'delete';
 
@@ -74,13 +75,13 @@ export default function ShiftDetailsScreen() {
       });
       else await repositories.shifts.saveMany(updates);
       await refresh();
-    } catch (caught) { Alert.alert(t('common.error'), caught instanceof Error ? caught.message : String(caught)); }
+    } catch (caught) { reportUnexpectedError('shift.details.applyAction', caught); Alert.alert(t('common.error')); }
     finally { setPendingAction(null); }
   };
   const markMissed = async () => {
     if (!shift) return;
     try { assertShiftStatusTransition(shift.status, 'missed'); await repositories.shifts.update({ ...shift, status: 'missed', updatedAt: new Date().toISOString() }); await refresh(); }
-    catch (caught) { Alert.alert(t('common.error'), caught instanceof Error ? caught.message : String(caught)); }
+    catch (caught) { reportUnexpectedError('shift.details.markMissed', caught); Alert.alert(t('common.error')); }
   };
   const recalculateSalary = async () => {
     if (!shift || shift.status !== 'completed') return;
@@ -89,15 +90,15 @@ export default function ShiftDetailsScreen() {
       const previous = salary.summary?.resultsByShiftId[shift.id]?.totalGrossPayMinor; const next = preview.totalGrossPayMinor;
       Alert.alert(t('salary.recalculateTitle'), `${t('salary.recalculateBody')}\n${previous === undefined ? t('salary.missingConfig') : formatCurrency(previous)} → ${next === undefined ? t('salary.missingConfig') : formatCurrency(next)}`, [
         { text: t('common.cancel'), style: 'cancel' },
-        { text: t('common.confirm'), onPress: () => void salary.coordinator.finalizeCompletedShift(shift, now, true).then(refresh).catch((caught) => Alert.alert(t('common.error'), caught instanceof Error ? caught.message : String(caught))) },
+        { text: t('common.confirm'), onPress: () => void salary.coordinator.finalizeCompletedShift(shift, now, true).then(refresh).catch((caught) => { reportUnexpectedError('shift.details.recalculate.confirm', caught); Alert.alert(t('common.error')); }) },
       ]);
-    } catch (caught) { Alert.alert(t('common.error'), caught instanceof Error ? caught.message : String(caught)); }
+    } catch (caught) { reportUnexpectedError('shift.details.recalculate.preview', caught); Alert.alert(t('common.error')); }
   };
 
   return <AppScreen title={t('shift.details')}>
     <SecondaryButton label={t('common.back')} onPress={() => router.back()} />
     {loading ? <Text>{t('common.loading')}</Text> : null}
-    {error ? <Text accessibilityRole="alert">{error}</Text> : null}
+    {error ? <Text accessibilityRole="alert">{t('common.error')}</Text> : null}
     {!loading && !shift ? <EmptyState body={t('shift.notFound')} title={t('common.error')} /> : null}
     {shift ? <ShiftDetailView
       onCancel={() => requestScoped('cancel')}

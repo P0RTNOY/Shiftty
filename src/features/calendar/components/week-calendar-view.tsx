@@ -43,7 +43,8 @@ export function WeekCalendarView({
   const scrollRef = useRef<ScrollView>(null);
 
   const data = buildWeekCalendarData(weekOf, shifts, timezone, locale, isRtl);
-  const displayDays = isRtl ? [...data.days].reverse() : data.days;
+  const displayDays = data.days;
+  const direction = isRtl ? 'row-reverse' : 'row';
 
   // Scroll to 7am on mount
   React.useEffect(() => {
@@ -63,11 +64,11 @@ export function WeekCalendarView({
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Navigation bar */}
-      <View style={[styles.nav, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={onNavigatePrev} accessibilityLabel={t('calendar.previousWeek')} style={styles.navBtn}>
+      <View style={[styles.nav, { borderBottomColor: colors.border, flexDirection: direction }]}>
+        <TouchableOpacity accessibilityLabel={t('calendar.previousWeek')} accessibilityRole="button" onPress={onNavigatePrev} style={styles.navBtn}>
           <Ionicons name={isRtl ? 'chevron-forward' : 'chevron-back'} size={22} color={colors.primary} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={onNavigateToday} style={styles.navToday}>
+        <TouchableOpacity accessibilityLabel={t('calendar.today')} accessibilityRole="button" onPress={onNavigateToday} style={styles.navToday}>
           <Text style={[styles.navTodayText, { color: colors.primary }]}>{t('calendar.today')}</Text>
         </TouchableOpacity>
         <Text style={[styles.navTitle, { color: colors.text }]}>
@@ -75,13 +76,13 @@ export function WeekCalendarView({
           {' – '}
           {new Date(data.weekEnd).toLocaleDateString(locale, { month: 'short', day: 'numeric' })}
         </Text>
-        <TouchableOpacity onPress={onNavigateNext} accessibilityLabel={t('calendar.nextWeek')} style={styles.navBtn}>
+        <TouchableOpacity accessibilityLabel={t('calendar.nextWeek')} accessibilityRole="button" onPress={onNavigateNext} style={styles.navBtn}>
           <Ionicons name={isRtl ? 'chevron-back' : 'chevron-forward'} size={22} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
       {/* Day headers */}
-      <View style={[styles.dayHeaders, { marginLeft: TIME_LABEL_WIDTH, borderBottomColor: colors.border }]}>
+      <View style={[styles.dayHeaders, { marginStart: TIME_LABEL_WIDTH, borderBottomColor: colors.border, flexDirection: direction }]}>
         {displayDays.map(({ day }) => (
           <View key={day.localDate} style={[styles.dayHeaderCell, day.isToday && { backgroundColor: colors.primary + '22' }]}>
             <Text style={[styles.dayHeaderLabel, { color: day.isToday ? colors.primary : colors.textMuted }]}>
@@ -93,7 +94,7 @@ export function WeekCalendarView({
 
       {/* Grid */}
       <ScrollView ref={scrollRef} style={styles.gridScroll} contentContainerStyle={{ height: TOTAL_HEIGHT }}>
-        <View style={styles.gridRow}>
+        <View style={[styles.gridRow, { flexDirection: direction }]}>
           {/* Time labels */}
           <View style={[styles.timeLabels, { width: TIME_LABEL_WIDTH }]}>
             {Array.from({ length: 24 }, (_, h) => (
@@ -158,8 +159,11 @@ function ShiftBlock({ block, color, onPress, colors }: ShiftBlockProps) {
   return (
     <TouchableOpacity
       accessible
+      accessibilityLabel={block.shift.title ?? formatBlockTime(block.startMinutes)}
       accessibilityRole="button"
+      accessibilityState={{ disabled: !onPress }}
       disabled={!onPress}
+      hitSlop={12}
       onPress={onPress}
       style={[
         styles.shiftBlock,
@@ -195,13 +199,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs,
     paddingVertical: spacing.xs,
   },
-  navBtn: { padding: spacing.xs },
-  navToday: { padding: spacing.xs },
+  navBtn: { alignItems: 'center', justifyContent: 'center', minHeight: 44, minWidth: 44 },
+  navToday: { alignItems: 'center', justifyContent: 'center', minHeight: 44, paddingHorizontal: spacing.xs },
   navTodayText: { fontSize: typography.caption, fontWeight: '600' },
   navTitle: { flex: 1, fontSize: typography.caption, textAlign: 'center' },
   dayHeaders: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
     height: DAY_HEADER_HEIGHT,
   },
   dayHeaderCell: {
@@ -213,7 +216,7 @@ const styles = StyleSheet.create({
   },
   dayHeaderLabel: { fontSize: 11, fontWeight: '600', textAlign: 'center' },
   gridScroll: { flex: 1 },
-  gridRow: { flexDirection: 'row' },
+  gridRow: {},
   timeLabels: {},
   timeLabel: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 2 },
   timeLabelText: { fontSize: 9, paddingHorizontal: 2, textAlign: 'right' },

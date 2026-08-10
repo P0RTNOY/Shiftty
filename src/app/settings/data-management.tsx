@@ -10,6 +10,7 @@ import { shareFile } from '@/features/exports/adapters/file-share-adapter';
 import { readTextFile } from '@/features/exports/adapters/file-read-adapter';
 import { router } from 'expo-router';
 import { SettingsBackButton } from '@/features/settings/components/settings-back-button';
+import { reportUnexpectedError } from '@/shared/utils/report-unexpected-error';
 
 export default function DataManagementScreen() {
   const { colors } = useAppTheme();
@@ -36,8 +37,9 @@ export default function DataManagementScreen() {
         mimeType: 'application/json',
         dialogTitle: 'ייצוא גיבוי נתונים'
       });
-    } catch (e: any) {
-      Alert.alert('שגיאה בגיבוי', e.message);
+    } catch (error) {
+      reportUnexpectedError('backup.export', error);
+      Alert.alert(t('common.error'));
     } finally {
       setLoading(false);
     }
@@ -61,7 +63,8 @@ export default function DataManagementScreen() {
       const validation = await orchestrator.validateBackup(content);
       
       if (!validation.valid || !validation.envelope) {
-        Alert.alert('שגיאה בשחזור', 'קובץ הגיבוי לא תקין או פגום.\n' + (validation.errors || []).join('\n'));
+        reportUnexpectedError('backup.validate', validation.errors);
+        Alert.alert('שגיאה בשחזור', 'קובץ הגיבוי לא תקין או פגום.');
         return;
       }
 
@@ -80,7 +83,8 @@ export default function DataManagementScreen() {
               if (result.success) {
                 Alert.alert('הצלחה', 'הנתונים מוזגו בהצלחה.');
               } else {
-                Alert.alert('שגיאה', result.message || 'אירעה שגיאה במיזוג.');
+                reportUnexpectedError('backup.restore.merge', result.message);
+                Alert.alert(t('common.error'), 'לא ניתן היה למזג את הגיבוי. הנתונים הקיימים לא שונו.');
               }
             } 
           },
@@ -94,14 +98,16 @@ export default function DataManagementScreen() {
               if (result.success) {
                 Alert.alert('הצלחה', 'הנתונים שוחזרו בהצלחה.');
               } else {
-                Alert.alert('שגיאה', result.message || 'אירעה שגיאה בשחזור.');
+                reportUnexpectedError('backup.restore.replace', result.message);
+                Alert.alert(t('common.error'), 'לא ניתן היה לשחזר את הגיבוי. הנתונים הקיימים לא שונו.');
               }
             } 
           }
         ]
       );
-    } catch (e: any) {
-      Alert.alert('שגיאה בקריאת קובץ', e.message);
+    } catch (error) {
+      reportUnexpectedError('backup.read', error);
+      Alert.alert('שגיאה בקריאת קובץ', 'לא ניתן היה לקרוא את קובץ הגיבוי.');
     } finally {
       setLoading(false);
     }
@@ -119,30 +125,14 @@ export default function DataManagementScreen() {
           onPress: async () => {
             try {
               setLoading(true);
-              await db.withTransactionAsync(async () => {
-                await db.execAsync(`
-                  DELETE FROM scheduled_notification_records;
-                  DELETE FROM prediction_feedback;
-                  DELETE FROM salary_calculation_snapshots;
-                  DELETE FROM break_sessions;
-                  DELETE FROM recurrence_exceptions;
-                  DELETE FROM shifts;
-                  DELETE FROM recurrence_series;
-                  DELETE FROM shift_templates;
-                  DELETE FROM pay_rules;
-                  DELETE FROM roles;
-                  DELETE FROM workplaces;
-                  DELETE FROM salary_profiles;
-                  DELETE FROM export_history;
-                  DELETE FROM export_presets;
-                  DELETE FROM app_settings;
-                `);
-              });
+              const result = await new BackupOrchestrator(db).clearAllData();
+              if (!result.success) throw new Error(result.message ?? 'Clear all failed');
               Alert.alert('הצלחה', 'כל הנתונים נמחקו.', [
                 { text: 'אישור', onPress: () => router.replace('/') } // Go to onboarding later
               ]);
-            } catch (e: any) {
-              Alert.alert('שגיאה במחיקה', e.message);
+            } catch (error) {
+              reportUnexpectedError('backup.clearAll', error);
+              Alert.alert('שגיאה במחיקה', 'לא ניתן היה למחוק את הנתונים. הנתונים הקיימים נשמרו.');
             } finally {
               setLoading(false);
             }

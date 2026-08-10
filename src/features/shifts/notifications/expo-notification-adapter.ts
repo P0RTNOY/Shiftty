@@ -7,6 +7,7 @@
 
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import { reportUnexpectedError } from '@/shared/utils/report-unexpected-error';
 
 export interface NotificationAdapter {
   getPermissionStatus(): Promise<'granted' | 'denied' | 'undetermined'>;
@@ -38,31 +39,22 @@ class ExpoNotificationAdapter implements NotificationAdapter {
     data: Record<string, unknown>,
   ): Promise<string | null> {
     if (Platform.OS === 'web') return null;
-    try {
-      const id = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: titleKey, // Caller resolves i18n before passing
-          body: bodyKey,
-          data: { ...data, logicalKey, bodyParams },
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date: scheduledFor,
-        },
-      });
-      return id;
-    } catch {
-      return null;
-    }
+    return Notifications.scheduleNotificationAsync({
+      content: {
+        title: titleKey, // Caller resolves i18n before passing
+        body: bodyKey,
+        data: { ...data, logicalKey, bodyParams },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: scheduledFor,
+      },
+    });
   }
 
   async cancelNotification(nativeId: string): Promise<void> {
     if (Platform.OS === 'web') return;
-    try {
-      await Notifications.cancelScheduledNotificationAsync(nativeId);
-    } catch {
-      // Ignore — notification may have already fired
-    }
+    await Notifications.cancelScheduledNotificationAsync(nativeId);
   }
 
   async cancelAllByOwner(owner: string): Promise<void> {
@@ -71,7 +63,9 @@ class ExpoNotificationAdapter implements NotificationAdapter {
     await Promise.all(
       scheduled
         .filter((n) => n.content.data?.owner === owner)
-        .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier).catch(() => undefined)),
+        .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier).catch((error: unknown) => {
+          reportUnexpectedError('notifications.cancelAll', error);
+        })),
     );
   }
 }

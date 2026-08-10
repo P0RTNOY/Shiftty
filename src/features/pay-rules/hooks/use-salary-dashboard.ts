@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Shift } from '@/domain/entities';
 import { SalaryCalculationCoordinator, type SalaryBatchResult } from '@/features/pay-rules/services/salary-calculation-coordinator';
 import { useRepositories } from '@/features/shifts/hooks/use-repositories';
+import { reportUnexpectedError } from '@/shared/utils/report-unexpected-error';
 
 export function useSalaryDashboard(shifts: readonly Shift[], calculatedAt: string, activeEnd?: string, reportingRange?: { start: string; end: string }) {
   const repositories = useRepositories();
@@ -15,7 +16,7 @@ export function useSalaryDashboard(shifts: readonly Shift[], calculatedAt: strin
   useEffect(() => {
     let current = true;
     void coordinator.calculateMany(shifts, calculatedAt, activeEnd, { reportingRange: stableReportingRange }).then((value) => { if (current) { setSummary(value); setError(null); } })
-      .catch((caught) => { if (current) setError(caught instanceof Error ? caught.message : String(caught)); })
+      .catch((caught) => { if (current) { reportUnexpectedError('salary.dashboard', caught); setError(caught instanceof Error ? caught.message : String(caught)); } })
       .finally(() => { if (current) setLoading(false); });
     return () => { current = false; };
   }, [activeEnd, calculatedAt, coordinator, shifts, stableReportingRange]);

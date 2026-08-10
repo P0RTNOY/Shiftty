@@ -1,12 +1,14 @@
 // @ts-nocheck
 import { execFileSync } from 'child_process';
-import { mkdtempSync, rmSync } from 'fs';
+import { copyFileSync, existsSync, mkdtempSync, rmSync, unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
 export function createRealSqliteDb() {
   const dir = mkdtempSync(join(tmpdir(), 'mock-sqlite-'));
   const dbPath = join(dir, 'db.sqlite');
+  const transactionBackupPath = join(dir, 'transaction-backup.sqlite');
+  let transactionDepth = 0;
   
   function runSql(sql: string, params: any[] = []) {
     let finalSql = sql;
@@ -54,7 +56,24 @@ export function createRealSqliteDb() {
       return res && res.length > 0 ? res[0] : null;
     },
     withTransactionAsync: async (callback: () => Promise<void>) => {
-      await callback();
+      if (transactionDepth > 0) {
+        await callback();
+        return;
+      }
+      transactionDepth += 1;
+      if (existsSync(dbPath)) copyFileSync(dbPath, transactionBackupPath);
+      try {
+        await callback();
+        if (existsSync(transactionBackupPath)) unlinkSync(transactionBackupPath);
+      } catch (error) {
+        if (existsSync(transactionBackupPath)) {
+          copyFileSync(transactionBackupPath, dbPath);
+          unlinkSync(transactionBackupPath);
+        }
+        throw error;
+      } finally {
+        transactionDepth -= 1;
+      }
     },
     closeAsync: async () => {
       rmSync(dir, { recursive: true, force: true });

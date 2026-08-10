@@ -1,23 +1,41 @@
 import { useLocalSearchParams } from 'expo-router';
-import { StyleSheet, Switch, Text, View, ScrollView } from 'react-native';
+import { ActivityIndicator, StyleSheet, Switch, Text, View, ScrollView } from 'react-native';
 
 import { AppScreen } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { spacing, typography, useAppTheme } from '@/shared/theme';
 import { useWorkplaceNotificationSettings } from '@/features/notifications/hooks/use-workplace-notification-settings';
+import { SettingsBackButton } from '@/features/settings/components/settings-back-button';
+import { useNotificationReconciler } from '@/features/shifts/hooks/use-notification-reconciler';
+import { reportUnexpectedError } from '@/shared/utils/report-unexpected-error';
 
 export default function WorkplaceNotificationOverridesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colors } = useAppTheme();
   const { isRtl, t } = useTranslation();
+  const { reconcileAll } = useNotificationReconciler();
   const {
     globalSettings,
     workplaceOverride,
+    loading,
+    saving,
+    error,
     updateWorkplaceOverride,
     clearWorkplaceOverride,
   } = useWorkplaceNotificationSettings(id as string);
 
-  if (!globalSettings) return null;
+  if (loading || !globalSettings) {
+    return (
+      <AppScreen title={t('settings.overrideWorkplaceSettings')}>
+        <SettingsBackButton />
+        <View style={styles.loading}>
+          <ActivityIndicator accessibilityLabel={t('common.loading')} color={colors.primary} />
+          <Text style={{ color: colors.textMuted }}>{t('common.loading')}</Text>
+          {error ? <Text accessibilityRole="alert" style={{ color: colors.danger }}>{t('common.error')}</Text> : null}
+        </View>
+      </AppScreen>
+    );
+  }
 
   const hasOverride = workplaceOverride != null;
   const override = workplaceOverride;
@@ -30,6 +48,7 @@ export default function WorkplaceNotificationOverridesScreen() {
     } else {
       await clearWorkplaceOverride();
     }
+    await reconcileAll(new Date()).catch((caught: unknown) => reportUnexpectedError('workplace-notification-settings.reconcile', caught));
   };
 
   const updateSetting = async (key: keyof NonNullable<typeof override>, value: boolean) => {
@@ -37,6 +56,7 @@ export default function WorkplaceNotificationOverridesScreen() {
     await updateWorkplaceOverride({
       [key]: value,
     });
+    await reconcileAll(new Date()).catch((caught: unknown) => reportUnexpectedError('workplace-notification-settings.reconcile', caught));
   };
 
   const headingStyle = [
@@ -47,7 +67,9 @@ export default function WorkplaceNotificationOverridesScreen() {
 
   return (
     <AppScreen title={t('settings.overrideWorkplaceSettings')}>
+      <SettingsBackButton />
       <ScrollView contentContainerStyle={styles.container}>
+        {error ? <Text accessibilityRole="alert" style={{ color: colors.danger, textAlign: isRtl ? 'right' : 'left' }}>{t('common.error')}</Text> : null}
         <View style={styles.section}>
           <Text style={headingStyle}>{t('settings.overrideWorkplaceSettings')}</Text>
           <View style={[styles.row, { backgroundColor: colors.surface, flexDirection: direction }]}>
@@ -56,6 +78,10 @@ export default function WorkplaceNotificationOverridesScreen() {
               <Text style={[styles.description, { color: colors.textMuted }]}>{t('settings.enableOverrideDescription')}</Text>
             </View>
             <Switch
+              accessibilityLabel={t('settings.enableOverride')}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: hasOverride, disabled: saving }}
+              disabled={saving}
               value={hasOverride}
               onValueChange={toggleOverride}
               trackColor={{ true: colors.primary, false: colors.border }}
@@ -70,30 +96,35 @@ export default function WorkplaceNotificationOverridesScreen() {
               label={t('settings.scheduledShiftReminders')}
               description={t('settings.scheduledShiftRemindersDesc')}
               value={override?.scheduledShiftReminders ?? globalSettings.scheduledShiftReminders}
+              disabled={saving}
               onValueChange={(val) => updateSetting('scheduledShiftReminders', val)}
             />
             <SettingSwitch
               label={t('settings.missedClockIn')}
               description={t('settings.missedClockInDesc')}
               value={override?.missedClockInReminders ?? globalSettings.missedClockInReminders}
+              disabled={saving}
               onValueChange={(val) => updateSetting('missedClockInReminders', val)}
             />
             <SettingSwitch
               label={t('settings.expectedEnd')}
               description={t('settings.expectedEndDesc')}
               value={override?.expectedEndReminders ?? globalSettings.expectedEndReminders}
+              disabled={saving}
               onValueChange={(val) => updateSetting('expectedEndReminders', val)}
             />
             <SettingSwitch
               label={t('settings.overdueShift')}
               description={t('settings.overdueShiftDesc')}
               value={override?.overdueShiftReminders ?? globalSettings.overdueShiftReminders}
+              disabled={saving}
               onValueChange={(val) => updateSetting('overdueShiftReminders', val)}
             />
             <SettingSwitch
               label={t('settings.longBreak')}
               description={t('settings.longBreakDesc')}
               value={override?.longBreakReminders ?? globalSettings.longBreakReminders}
+              disabled={saving}
               onValueChange={(val) => updateSetting('longBreakReminders', val)}
             />
           </View>
@@ -103,7 +134,7 @@ export default function WorkplaceNotificationOverridesScreen() {
   );
 }
 
-function SettingSwitch({ label, description, value, onValueChange }: { label: string; description?: string; value: boolean; onValueChange: (v: boolean) => void }) {
+function SettingSwitch({ label, description, value, disabled, onValueChange }: { label: string; description?: string; value: boolean; disabled: boolean; onValueChange: (v: boolean) => void }) {
   const { colors } = useAppTheme();
   const { isRtl } = useTranslation();
   const direction = isRtl ? 'row-reverse' : 'row';
@@ -115,6 +146,10 @@ function SettingSwitch({ label, description, value, onValueChange }: { label: st
         {description && <Text style={[styles.description, { color: colors.textMuted }]}>{description}</Text>}
       </View>
       <Switch
+        accessibilityLabel={label}
+        accessibilityRole="switch"
+        accessibilityState={{ checked: value, disabled }}
+        disabled={disabled}
         value={value}
         onValueChange={onValueChange}
         trackColor={{ true: colors.primary, false: colors.border }}
@@ -124,6 +159,7 @@ function SettingSwitch({ label, description, value, onValueChange }: { label: st
 }
 
 const styles = StyleSheet.create({
+  loading: { alignItems: 'center', flex: 1, gap: spacing.sm, justifyContent: 'center' },
   container: { padding: spacing.md, gap: spacing.xl },
   section: { gap: spacing.sm },
   heading: { fontSize: typography.caption, fontWeight: '700', paddingHorizontal: spacing.xs },

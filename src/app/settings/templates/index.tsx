@@ -29,6 +29,9 @@ export default function TemplatesListScreen() {
         contentContainerStyle={styles.list}
         ListHeaderComponent={
           <TouchableOpacity
+            accessibilityLabel={showArchived ? t('templates.hideArchived') : t('templates.showArchived')}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: showArchived }}
             style={styles.archiveToggle}
             onPress={() => setShowArchived((v) => !v)}
           >
@@ -51,8 +54,8 @@ export default function TemplatesListScreen() {
             onPress={handlePress}
             onArchive={archive}
             onRestore={restore}
-            onDuplicate={async (id) => {
-              await duplicate(id, `${item.name} (עותק)`);
+            onDuplicate={async (id, newName) => {
+              await duplicate(id, newName);
             }}
           />
         )}
@@ -71,7 +74,7 @@ export default function TemplatesListScreen() {
 
 const styles = StyleSheet.create({
   list: { padding: spacing.md },
-  archiveToggle: { alignSelf: 'flex-end', marginBottom: spacing.sm },
+  archiveToggle: { alignItems: 'center', alignSelf: 'flex-end', justifyContent: 'center', marginBottom: spacing.sm, minHeight: 44 },
   archiveToggleText: { fontSize: typography.caption },
   empty: { alignItems: 'center', gap: spacing.sm, marginTop: spacing.xxl },
   emptyTitle: { fontSize: typography.title, fontWeight: '700' },

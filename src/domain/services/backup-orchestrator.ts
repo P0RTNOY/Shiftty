@@ -26,6 +26,7 @@ export class BackupOrchestrator {
       salarySnapshots: await this.fetchAll('salary_calculation_snapshots', this.mapSalarySnapshot),
       predictionFeedback: await this.fetchAll('prediction_feedback', this.mapPredictionFeedback),
       scheduledNotifications: await this.fetchAll('scheduled_notification_records', this.mapScheduledNotification),
+      workplaceNotificationOverrides: await this.fetchAll('workplace_notification_overrides', this.mapWorkplaceNotificationOverride),
       exportPresets: await this.fetchAll('export_presets', this.mapExportPreset),
       exportHistory: await this.fetchAll('export_history', this.mapExportHistory),
       appSettings: await this.fetchAll('app_settings', this.mapAppSetting),
@@ -51,6 +52,7 @@ export class BackupOrchestrator {
         salarySnapshots: data.salarySnapshots.length,
         predictionFeedback: data.predictionFeedback.length,
         scheduledNotifications: data.scheduledNotifications.length,
+        workplaceNotificationOverrides: data.workplaceNotificationOverrides.length,
         exportPresets: data.exportPresets.length,
         exportHistory: data.exportHistory.length,
         appSettings: data.appSettings.length,
@@ -66,7 +68,7 @@ export class BackupOrchestrator {
       const parsed = JSON.parse(jsonString);
       const envelope = parseBackupEnvelope(parsed);
       
-      const errors = this.validateRelationalIntegrity(envelope.data);
+      const errors = this.validateRelationalIntegrity(envelope.data, envelope.counts);
       if (errors.length > 0) {
         return { valid: false, errors };
       }
@@ -76,15 +78,47 @@ export class BackupOrchestrator {
     }
   }
 
-  private validateRelationalIntegrity(data: BackupDataV1): string[] {
+  private validateRelationalIntegrity(data: BackupDataV1, counts: BackupEnvelopeV1['counts']): string[] {
     const errors: string[] = [];
+    const actualCounts: BackupEnvelopeV1['counts'] = {
+      salaryProfiles: data.salaryProfiles.length,
+      payRules: data.payRules.length,
+      workplaces: data.workplaces.length,
+      roles: data.roles.length,
+      shiftTemplates: data.shiftTemplates.length,
+      shifts: data.shifts.length,
+      breakSessions: data.breakSessions.length,
+      recurrenceSeries: data.recurrenceSeries.length,
+      recurrenceExceptions: data.recurrenceExceptions.length,
+      salarySnapshots: data.salarySnapshots.length,
+      predictionFeedback: data.predictionFeedback.length,
+      scheduledNotifications: data.scheduledNotifications.length,
+      workplaceNotificationOverrides: data.workplaceNotificationOverrides.length,
+      exportPresets: data.exportPresets.length,
+      exportHistory: data.exportHistory.length,
+      appSettings: data.appSettings.length,
+    };
+    for (const [key, actual] of Object.entries(actualCounts)) {
+      if (counts[key as keyof typeof counts] !== actual) errors.push(`Backup count mismatch for ${key}`);
+    }
     const wpIds = new Set(data.workplaces.map(w => w.id));
     const roleIds = new Set(data.roles.map(r => r.id));
     const shiftIds = new Set(data.shifts.map(s => s.id));
+    const profileIds = new Set(data.salaryProfiles.map((profile) => profile.id));
+    const templateIds = new Set(data.shiftTemplates.map((template) => template.id));
+    const seriesIds = new Set(data.recurrenceSeries.map((series) => series.id));
+    const breakIds = new Set(data.breakSessions.map((session) => session.id));
 
     // Validations: Unique IDs
     if (wpIds.size !== data.workplaces.length) errors.push('Duplicate workplace IDs found');
+    if (roleIds.size !== data.roles.length) errors.push('Duplicate role IDs found');
     if (shiftIds.size !== data.shifts.length) errors.push('Duplicate shift IDs found');
+    if (profileIds.size !== data.salaryProfiles.length) errors.push('Duplicate salary profile IDs found');
+    if (templateIds.size !== data.shiftTemplates.length) errors.push('Duplicate shift template IDs found');
+    if (seriesIds.size !== data.recurrenceSeries.length) errors.push('Duplicate recurrence series IDs found');
+    if (breakIds.size !== data.breakSessions.length) errors.push('Duplicate break session IDs found');
+    if (new Set(data.scheduledNotifications.map((item) => item.logicalKey)).size !== data.scheduledNotifications.length) errors.push('Duplicate scheduled notification keys found');
+    if (new Set(data.appSettings.map((item) => item.key)).size !== data.appSettings.length) errors.push('Duplicate app setting keys found');
 
     // FK Checks
     for (const r of data.roles) {
@@ -93,9 +127,47 @@ export class BackupOrchestrator {
     for (const s of data.shifts) {
       if (!wpIds.has(s.workplaceId)) errors.push(`Shift ${s.id} references missing workplace ${s.workplaceId}`);
       if (s.roleId && !roleIds.has(s.roleId)) errors.push(`Shift ${s.id} references missing role ${s.roleId}`);
+      if (s.salaryProfileId && !profileIds.has(s.salaryProfileId)) errors.push(`Shift ${s.id} references missing salary profile ${s.salaryProfileId}`);
+      if (s.shiftTemplateId && !templateIds.has(s.shiftTemplateId)) errors.push(`Shift ${s.id} references missing template ${s.shiftTemplateId}`);
+      if (s.recurrenceGroupId && !seriesIds.has(s.recurrenceGroupId)) errors.push(`Shift ${s.id} references missing recurrence series ${s.recurrenceGroupId}`);
+    }
+    for (const workplace of data.workplaces) {
+      if (workplace.salaryProfileId && !profileIds.has(workplace.salaryProfileId)) errors.push(`Workplace ${workplace.id} references missing salary profile ${workplace.salaryProfileId}`);
+    }
+    for (const profile of data.salaryProfiles) {
+      if (profile.workplaceId && !wpIds.has(profile.workplaceId)) errors.push(`Salary profile ${profile.id} references missing workplace ${profile.workplaceId}`);
+    }
+    for (const rule of data.payRules) {
+      if (!profileIds.has(rule.salaryProfileId)) errors.push(`Pay rule ${rule.id} references missing salary profile ${rule.salaryProfileId}`);
+    }
+    for (const template of data.shiftTemplates) {
+      if (template.workplaceId && !wpIds.has(template.workplaceId)) errors.push(`Shift template ${template.id} references missing workplace ${template.workplaceId}`);
+      if (template.roleId && !roleIds.has(template.roleId)) errors.push(`Shift template ${template.id} references missing role ${template.roleId}`);
+      if (template.salaryProfileId && !profileIds.has(template.salaryProfileId)) errors.push(`Shift template ${template.id} references missing salary profile ${template.salaryProfileId}`);
+    }
+    for (const series of data.recurrenceSeries) {
+      if (!wpIds.has(series.template.workplaceId)) errors.push(`Recurrence series ${series.id} references missing workplace ${series.template.workplaceId}`);
+      if (series.template.roleId && !roleIds.has(series.template.roleId)) errors.push(`Recurrence series ${series.id} references missing role ${series.template.roleId}`);
+      if (series.template.shiftTemplateId && !templateIds.has(series.template.shiftTemplateId)) errors.push(`Recurrence series ${series.id} references missing template ${series.template.shiftTemplateId}`);
     }
     for (const b of data.breakSessions) {
       if (!shiftIds.has(b.shiftId)) errors.push(`Break ${b.id} references missing shift ${b.shiftId}`);
+    }
+    for (const exception of data.recurrenceExceptions) {
+      if (!seriesIds.has(exception.seriesId)) errors.push(`Recurrence exception ${exception.id} references missing series ${exception.seriesId}`);
+      if (exception.shiftId && !shiftIds.has(exception.shiftId)) errors.push(`Recurrence exception ${exception.id} references missing shift ${exception.shiftId}`);
+    }
+    for (const snapshot of data.salarySnapshots) {
+      if (!shiftIds.has(snapshot.shiftId)) errors.push(`Salary snapshot ${snapshot.id} references missing shift ${snapshot.shiftId}`);
+      if (snapshot.salaryProfileId && !profileIds.has(snapshot.salaryProfileId)) errors.push(`Salary snapshot ${snapshot.id} references missing salary profile ${snapshot.salaryProfileId}`);
+    }
+    for (const notification of data.scheduledNotifications) {
+      if (notification.shiftId && !shiftIds.has(notification.shiftId)) errors.push(`Scheduled notification ${notification.logicalKey} references missing shift ${notification.shiftId}`);
+      if (notification.breakSessionId && !breakIds.has(notification.breakSessionId)) errors.push(`Scheduled notification ${notification.logicalKey} references missing break ${notification.breakSessionId}`);
+      if (notification.workplaceId && !wpIds.has(notification.workplaceId)) errors.push(`Scheduled notification ${notification.logicalKey} references missing workplace ${notification.workplaceId}`);
+    }
+    for (const override of data.workplaceNotificationOverrides) {
+      if (!wpIds.has(override.workplaceId)) errors.push(`Notification override references missing workplace ${override.workplaceId}`);
     }
 
     // Active shift rules
@@ -143,6 +215,7 @@ export class BackupOrchestrator {
         await this.db.runAsync('DELETE FROM prediction_feedback');
         await this.db.runAsync('DELETE FROM salary_calculation_snapshots');
         await this.db.runAsync('DELETE FROM scheduled_notification_records');
+        await this.db.runAsync('DELETE FROM workplace_notification_overrides');
         await this.db.runAsync('DELETE FROM break_sessions');
         await this.db.runAsync('DELETE FROM recurrence_exceptions');
         await this.db.runAsync('DELETE FROM shifts');
@@ -183,17 +256,17 @@ export class BackupOrchestrator {
           }
         }
         for (const r of data.roles) {
-          await this.db.runAsync('INSERT INTO roles (id, workplace_id, name, hourly_rate_minor, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [r.id, r.workplaceId, r.name, r.hourlyRateMinor || null, r.isArchived ? 1 : 0, r.createdAt, r.updatedAt]);
+          await this.db.runAsync('INSERT INTO roles (id, workplace_id, name, hourly_rate_minor, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [r.id, r.workplaceId, r.name, r.hourlyRateMinor ?? null, r.isArchived ? 1 : 0, r.createdAt, r.updatedAt]);
         }
         for (const t of data.shiftTemplates) {
-          await this.db.runAsync('INSERT INTO shift_templates (id, name, default_start_time, default_end_time, expected_break_minutes, expected_break_type, workplace_id, role_id, salary_profile_id, valid_weekdays, color_token, is_archived, expected_duration_minutes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [t.id, t.name, t.defaultStartTime, t.defaultEndTime, t.expectedBreakMinutes, t.expectedBreakType || null, t.workplaceId || null, t.roleId || null, t.salaryProfileId || null, t.validWeekdays ? JSON.stringify(t.validWeekdays) : null, t.colorToken || null, t.isArchived ? 1 : 0, t.expectedDurationMinutes || null, t.createdAt, t.updatedAt]);
+          await this.db.runAsync('INSERT INTO shift_templates (id, name, default_start_time, default_end_time, expected_break_minutes, expected_break_type, workplace_id, role_id, salary_profile_id, valid_weekdays, color_token, is_archived, expected_duration_minutes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [t.id, t.name, t.defaultStartTime, t.defaultEndTime, t.expectedBreakMinutes, t.expectedBreakType ?? null, t.workplaceId ?? null, t.roleId ?? null, t.salaryProfileId ?? null, t.validWeekdays ? JSON.stringify(t.validWeekdays) : null, t.colorToken ?? null, t.isArchived ? 1 : 0, t.expectedDurationMinutes ?? null, t.createdAt, t.updatedAt]);
         }
         for (const rs of data.recurrenceSeries) {
           await this.db.runAsync('INSERT INTO recurrence_series (id, rule_json, template_json, disabled_from, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)', [rs.id, JSON.stringify(rs.rule), JSON.stringify(rs.template), rs.disabledFrom || null, rs.createdAt, rs.updatedAt]);
         }
         for (const s of data.shifts) {
           await this.db.runAsync('INSERT INTO shifts (id, workplace_id, role_id, salary_profile_id, title, notes, scheduled_start, scheduled_end, actual_start, actual_end, payable_start, payable_end, expected_break_minutes, actual_break_minutes, payable_break_minutes, status, hourly_rate_snapshot_minor, expected_gross_pay_minor, actual_gross_pay_minor, payable_gross_pay_minor, shift_template_id, recurrence_group_id, recurrence_original_start, recurrence_exception_type, cancelled_at, expected_end, active_origin, payable_source, completed_at, timezone, hourly_rate_override_minor, fixed_bonus_override_minor, travel_reimbursement_override_minor, salary_calculation_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-            s.id, s.workplaceId, s.roleId || null, s.salaryProfileId || null, s.title || null, s.notes || null, s.scheduledStart || null, s.scheduledEnd || null, s.actualStart || null, s.actualEnd || null, s.payableStart || null, s.payableEnd || null, s.expectedBreakMinutes, s.actualBreakMinutes || null, s.payableBreakMinutes || null, s.status, s.hourlyRateSnapshotMinor, s.expectedGrossPayMinor || null, s.actualGrossPayMinor || null, s.payableGrossPayMinor || null, s.shiftTemplateId || null, s.recurrenceGroupId || null, s.recurrenceOriginalStart || null, s.recurrenceExceptionType || null, s.cancelledAt || null, s.expectedEnd || null, s.activeOrigin || null, s.payableSource || null, s.completedAt || null, s.timezone, s.hourlyRateOverrideMinor || null, s.fixedBonusOverrideMinor || null, s.travelReimbursementOverrideMinor || null, s.salaryCalculationStatus, s.createdAt, s.updatedAt
+            s.id, s.workplaceId, s.roleId ?? null, s.salaryProfileId ?? null, s.title ?? null, s.notes ?? null, s.scheduledStart ?? null, s.scheduledEnd ?? null, s.actualStart ?? null, s.actualEnd ?? null, s.payableStart ?? null, s.payableEnd ?? null, s.expectedBreakMinutes, s.actualBreakMinutes ?? null, s.payableBreakMinutes ?? null, s.status, s.hourlyRateSnapshotMinor, s.expectedGrossPayMinor ?? null, s.actualGrossPayMinor ?? null, s.payableGrossPayMinor ?? null, s.shiftTemplateId ?? null, s.recurrenceGroupId ?? null, s.recurrenceOriginalStart ?? null, s.recurrenceExceptionType ?? null, s.cancelledAt ?? null, s.expectedEnd ?? null, s.activeOrigin ?? null, s.payableSource ?? null, s.completedAt ?? null, s.timezone, s.hourlyRateOverrideMinor ?? null, s.fixedBonusOverrideMinor ?? null, s.travelReimbursementOverrideMinor ?? null, s.salaryCalculationStatus, s.createdAt, s.updatedAt
           ]);
         }
         for (const re of data.recurrenceExceptions) {
@@ -203,7 +276,7 @@ export class BackupOrchestrator {
           await this.db.runAsync('INSERT INTO break_sessions (id, shift_id, start_at, end_at, is_paid, source, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [b.id, b.shiftId, b.start, b.end ?? null, b.isPaid ? 1 : 0, b.source, b.notes ?? null, b.createdAt, b.updatedAt]);
         }
         for (const ss of data.salarySnapshots) {
-          await this.db.runAsync('INSERT INTO salary_calculation_snapshots (id, shift_id, version, status, context, salary_profile_id, resolved_rate_minor, payable_minutes, regular_minutes, special_rate_minutes, base_pay_minor, premium_pay_minor, fixed_bonuses_minor, reimbursements_minor, total_gross_pay_minor, result_json, engine_version, calculated_at, is_current, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [ss.id, ss.shiftId, ss.version, ss.status, ss.result.context, ss.salaryProfileId || null, ss.result.resolvedBaseHourlyRateMinor || null, ss.result.payableMinutes, ss.result.regularMinutes, ss.result.specialRateMinutes, ss.result.basePayMinor, ss.result.premiumPayMinor, ss.result.fixedBonusesMinor, ss.result.reimbursementsMinor, ss.result.totalGrossPayMinor || null, JSON.stringify(ss.result), ss.result.engineVersion, ss.result.calculatedAt, ss.isCurrent ? 1 : 0, ss.createdAt]);
+          await this.db.runAsync('INSERT INTO salary_calculation_snapshots (id, shift_id, version, status, context, salary_profile_id, resolved_rate_minor, payable_minutes, regular_minutes, special_rate_minutes, base_pay_minor, premium_pay_minor, fixed_bonuses_minor, reimbursements_minor, total_gross_pay_minor, result_json, engine_version, calculated_at, is_current, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [ss.id, ss.shiftId, ss.version, ss.status, ss.result.context, ss.salaryProfileId ?? null, ss.result.resolvedBaseHourlyRateMinor ?? null, ss.result.payableMinutes, ss.result.regularMinutes, ss.result.specialRateMinutes, ss.result.basePayMinor, ss.result.premiumPayMinor, ss.result.fixedBonusesMinor, ss.result.reimbursementsMinor, ss.result.totalGrossPayMinor ?? null, JSON.stringify(ss.result), ss.result.engineVersion, ss.result.calculatedAt, ss.isCurrent ? 1 : 0, ss.createdAt]);
         }
         for (const pf of data.predictionFeedback) {
           await this.db.runAsync('INSERT INTO prediction_feedback (id, feedback_type, engine_version, candidate_source, candidate_source_id, score, accepted_fields_json, rejected_fields_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [pf.id, pf.feedbackType, pf.engineVersion, pf.candidateSource, pf.candidateSourceId, pf.score, JSON.stringify(pf.acceptedFields), JSON.stringify(pf.rejectedFields), pf.createdAt]);
@@ -212,18 +285,12 @@ export class BackupOrchestrator {
           // Native ID is intentionally stripped on restore.
           await this.db.runAsync('INSERT INTO scheduled_notification_records (logical_key, type, scheduled_for, shift_id, break_session_id, workplace_id, title_key, body_key, body_params_json, native_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [sn.logicalKey, sn.type, sn.scheduledFor, sn.shiftId || null, sn.breakSessionId || null, sn.workplaceId || null, sn.titleKey, sn.bodyKey, sn.bodyParams ? JSON.stringify(sn.bodyParams) : null, null, sn.createdAt, sn.updatedAt]);
         }
-
-        // PRAGMA foreign_key_check
-        const fkIssues = await this.db.getAllAsync<any>('PRAGMA foreign_key_check');
-        if (fkIssues.length > 0) {
-          throw new Error('Foreign key constraint violation after restore');
+        for (const override of data.workplaceNotificationOverrides) {
+          await this.insertWorkplaceNotificationOverride(override, override.workplaceId);
         }
 
-        // Run count checks to verify nothing was dropped silently
-        const shiftCount = await this.db.getFirstAsync<{count: number}>('SELECT COUNT(*) as count FROM shifts');
-        if ((shiftCount?.count || 0) !== data.shifts.length) {
-          throw new Error(`Shift count mismatch: expected ${data.shifts.length}, got ${shiftCount?.count}`);
-        }
+        await this.assertDatabaseIntegrity();
+        await this.assertReplaceCounts(data);
       });
       return { success: true };
     } catch (e: any) {
@@ -238,11 +305,25 @@ export class BackupOrchestrator {
     }
     const { data } = validation.envelope;
 
+    const importedActive = data.shifts.find((shift) => shift.status === 'active');
+    if (importedActive) {
+      const localActive = await this.db.getFirstAsync<{ id: string; created_at: string; updated_at: string }>(
+        "SELECT id, created_at, updated_at FROM shifts WHERE status = 'active' LIMIT 1",
+      );
+      const samePersistedShift = localActive?.id === importedActive.id
+        && localActive.created_at === importedActive.createdAt
+        && localActive.updated_at === importedActive.updatedAt;
+      if (localActive && !samePersistedShift) {
+        return { success: false, message: 'Active shift conflict' };
+      }
+    }
+
     try {
       await this.db.withTransactionAsync(async () => {
         await this.db.runAsync('PRAGMA defer_foreign_keys = ON');
 
         const idMap = new Map<string, string>();
+        const insertedWorkplaceIds = new Set<string>();
         
         const remapId = async (table: string, oldId: string, fieldsToCheck: any): Promise<{id: string, isNew: boolean, skip: boolean}> => {
           const existing = await this.db.getFirstAsync<any>(`SELECT * FROM ${table} WHERE id = ?`, [oldId]);
@@ -269,7 +350,10 @@ export class BackupOrchestrator {
         }
         for (const w of data.workplaces) {
           const { id, skip } = await remapId('workplaces', w.id, w);
-          if (!skip) await this.db.runAsync('INSERT INTO workplaces (id, name, address, default_hourly_rate_minor, default_break_minutes, salary_profile_id, color, default_travel_reimbursement_minor, default_shift_bonus_minor, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, w.name, w.address || null, w.defaultHourlyRateMinor ?? null, w.defaultBreakMinutes ?? 0, null, w.color || null, w.defaultTravelReimbursementMinor ?? 0, w.defaultShiftBonusMinor ?? 0, w.isArchived ? 1 : 0, w.createdAt, w.updatedAt]);
+          if (!skip) {
+            await this.db.runAsync('INSERT INTO workplaces (id, name, address, default_hourly_rate_minor, default_break_minutes, salary_profile_id, color, default_travel_reimbursement_minor, default_shift_bonus_minor, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, w.name, w.address ?? null, w.defaultHourlyRateMinor ?? null, w.defaultBreakMinutes ?? 0, null, w.color ?? null, w.defaultTravelReimbursementMinor ?? 0, w.defaultShiftBonusMinor ?? 0, w.isArchived ? 1 : 0, w.createdAt, w.updatedAt]);
+            insertedWorkplaceIds.add(id);
+          }
         }
         for (const sp of data.salaryProfiles) {
           const { id, skip } = await remapId('salary_profiles', sp.id, sp);
@@ -282,21 +366,31 @@ export class BackupOrchestrator {
         for (const w of data.workplaces) {
           if (w.salaryProfileId) {
             const mappedProfileId = getMappedId(w.salaryProfileId);
-            const mappedWorkplaceId = idMap.get(w.id) || w.id; // Get the mapped ID if it was inserted/remapped
-            await this.db.runAsync('UPDATE workplaces SET salary_profile_id = ? WHERE id = ?', [mappedProfileId, mappedWorkplaceId]);
+            const mappedWorkplaceId = idMap.get(w.id) || w.id;
+            if (insertedWorkplaceIds.has(mappedWorkplaceId)) {
+              await this.db.runAsync('UPDATE workplaces SET salary_profile_id = ? WHERE id = ?', [mappedProfileId, mappedWorkplaceId]);
+            }
           }
         }
         for (const r of data.roles) {
           const { id, skip } = await remapId('roles', r.id, r);
-          if (!skip) await this.db.runAsync('INSERT INTO roles (id, workplace_id, name, hourly_rate_minor, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [id, getMappedId(r.workplaceId), r.name, r.hourlyRateMinor || null, r.isArchived ? 1 : 0, r.createdAt, r.updatedAt]);
+          if (!skip) await this.db.runAsync('INSERT INTO roles (id, workplace_id, name, hourly_rate_minor, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [id, getMappedId(r.workplaceId), r.name, r.hourlyRateMinor ?? null, r.isArchived ? 1 : 0, r.createdAt, r.updatedAt]);
         }
         for (const t of data.shiftTemplates) {
           const { id, skip } = await remapId('shift_templates', t.id, t);
-          if (!skip) await this.db.runAsync('INSERT INTO shift_templates (id, name, default_start_time, default_end_time, expected_break_minutes, expected_break_type, workplace_id, role_id, salary_profile_id, valid_weekdays, color_token, is_archived, expected_duration_minutes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, t.name, t.defaultStartTime, t.defaultEndTime, t.expectedBreakMinutes, t.expectedBreakType || null, getMappedId(t.workplaceId), getMappedId(t.roleId), getMappedId(t.salaryProfileId), t.validWeekdays ? JSON.stringify(t.validWeekdays) : null, t.colorToken || null, t.isArchived ? 1 : 0, t.expectedDurationMinutes || null, t.createdAt, t.updatedAt]);
+          if (!skip) await this.db.runAsync('INSERT INTO shift_templates (id, name, default_start_time, default_end_time, expected_break_minutes, expected_break_type, workplace_id, role_id, salary_profile_id, valid_weekdays, color_token, is_archived, expected_duration_minutes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, t.name, t.defaultStartTime, t.defaultEndTime, t.expectedBreakMinutes, t.expectedBreakType ?? null, getMappedId(t.workplaceId), getMappedId(t.roleId), getMappedId(t.salaryProfileId), t.validWeekdays ? JSON.stringify(t.validWeekdays) : null, t.colorToken ?? null, t.isArchived ? 1 : 0, t.expectedDurationMinutes ?? null, t.createdAt, t.updatedAt]);
         }
         for (const rs of data.recurrenceSeries) {
           const { id, skip } = await remapId('recurrence_series', rs.id, rs);
-          if (!skip) await this.db.runAsync('INSERT INTO recurrence_series (id, rule_json, template_json, disabled_from, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)', [id, JSON.stringify(rs.rule), JSON.stringify(rs.template), rs.disabledFrom || null, rs.createdAt, rs.updatedAt]);
+          if (!skip) {
+            const template = {
+              ...rs.template,
+              workplaceId: getMappedId(rs.template.workplaceId) ?? rs.template.workplaceId,
+              ...(rs.template.roleId ? { roleId: getMappedId(rs.template.roleId) ?? rs.template.roleId } : {}),
+              ...(rs.template.shiftTemplateId ? { shiftTemplateId: getMappedId(rs.template.shiftTemplateId) ?? rs.template.shiftTemplateId } : {}),
+            };
+            await this.db.runAsync('INSERT INTO recurrence_series (id, rule_json, template_json, disabled_from, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)', [id, JSON.stringify(rs.rule), JSON.stringify(template), rs.disabledFrom || null, rs.createdAt, rs.updatedAt]);
+          }
         }
         for (const s of data.shifts) {
           let { id, skip } = await remapId('shifts', s.id, s);
@@ -304,10 +398,13 @@ export class BackupOrchestrator {
           if (!skip && s.recurrenceGroupId && s.recurrenceOriginalStart) {
             const mGroup = getMappedId(s.recurrenceGroupId);
             const semanticMatch = await this.db.getFirstAsync('SELECT id FROM shifts WHERE recurrence_group_id = ? AND recurrence_original_start = ?', [mGroup, s.recurrenceOriginalStart]);
-            if (semanticMatch) skip = true;
+            if (semanticMatch && typeof semanticMatch === 'object' && 'id' in semanticMatch) {
+              skip = true;
+              idMap.set(s.id, String((semanticMatch as { id: string }).id));
+            }
           }
           if (!skip) await this.db.runAsync('INSERT INTO shifts (id, workplace_id, role_id, salary_profile_id, title, notes, scheduled_start, scheduled_end, actual_start, actual_end, payable_start, payable_end, expected_break_minutes, actual_break_minutes, payable_break_minutes, status, hourly_rate_snapshot_minor, expected_gross_pay_minor, actual_gross_pay_minor, payable_gross_pay_minor, shift_template_id, recurrence_group_id, recurrence_original_start, recurrence_exception_type, cancelled_at, expected_end, active_origin, payable_source, completed_at, timezone, hourly_rate_override_minor, fixed_bonus_override_minor, travel_reimbursement_override_minor, salary_calculation_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-            id, getMappedId(s.workplaceId), getMappedId(s.roleId), getMappedId(s.salaryProfileId), s.title || null, s.notes || null, s.scheduledStart || null, s.scheduledEnd || null, s.actualStart || null, s.actualEnd || null, s.payableStart || null, s.payableEnd || null, s.expectedBreakMinutes, s.actualBreakMinutes || null, s.payableBreakMinutes || null, s.status === 'active' ? 'completed' : s.status, s.hourlyRateSnapshotMinor, s.expectedGrossPayMinor || null, s.actualGrossPayMinor || null, s.payableGrossPayMinor || null, getMappedId(s.shiftTemplateId), getMappedId(s.recurrenceGroupId), s.recurrenceOriginalStart || null, s.recurrenceExceptionType || null, s.cancelledAt || null, s.expectedEnd || null, s.activeOrigin || null, s.payableSource || null, s.completedAt || null, s.timezone, s.hourlyRateOverrideMinor || null, s.fixedBonusOverrideMinor || null, s.travelReimbursementOverrideMinor || null, s.salaryCalculationStatus, s.createdAt, s.updatedAt
+            id, getMappedId(s.workplaceId), getMappedId(s.roleId), getMappedId(s.salaryProfileId), s.title ?? null, s.notes ?? null, s.scheduledStart ?? null, s.scheduledEnd ?? null, s.actualStart ?? null, s.actualEnd ?? null, s.payableStart ?? null, s.payableEnd ?? null, s.expectedBreakMinutes, s.actualBreakMinutes ?? null, s.payableBreakMinutes ?? null, s.status, s.hourlyRateSnapshotMinor, s.expectedGrossPayMinor ?? null, s.actualGrossPayMinor ?? null, s.payableGrossPayMinor ?? null, getMappedId(s.shiftTemplateId), getMappedId(s.recurrenceGroupId), s.recurrenceOriginalStart ?? null, s.recurrenceExceptionType ?? null, s.cancelledAt ?? null, s.expectedEnd ?? null, s.activeOrigin ?? null, s.payableSource ?? null, s.completedAt ?? null, s.timezone, s.hourlyRateOverrideMinor ?? null, s.fixedBonusOverrideMinor ?? null, s.travelReimbursementOverrideMinor ?? null, s.salaryCalculationStatus, s.createdAt, s.updatedAt
           ]);
         }
         for (const re of data.recurrenceExceptions) {
@@ -320,8 +417,30 @@ export class BackupOrchestrator {
         }
         for (const ss of data.salarySnapshots) {
           const { id, skip } = await remapId('salary_calculation_snapshots', ss.id, ss);
-          if (!skip) await this.db.runAsync('INSERT INTO salary_calculation_snapshots (id, shift_id, version, status, context, salary_profile_id, resolved_rate_minor, payable_minutes, regular_minutes, special_rate_minutes, base_pay_minor, premium_pay_minor, fixed_bonuses_minor, reimbursements_minor, total_gross_pay_minor, result_json, engine_version, calculated_at, is_current, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, getMappedId(ss.shiftId), ss.version, ss.status, ss.result.context, getMappedId(ss.salaryProfileId), ss.result.resolvedBaseHourlyRateMinor || null, ss.result.payableMinutes, ss.result.regularMinutes, ss.result.specialRateMinutes, ss.result.basePayMinor, ss.result.premiumPayMinor, ss.result.fixedBonusesMinor, ss.result.reimbursementsMinor, ss.result.totalGrossPayMinor || null, JSON.stringify(ss.result), ss.result.engineVersion, ss.result.calculatedAt, 0, ss.createdAt]); // is_current = 0 on merge to be safe
+          if (!skip) await this.db.runAsync('INSERT INTO salary_calculation_snapshots (id, shift_id, version, status, context, salary_profile_id, resolved_rate_minor, payable_minutes, regular_minutes, special_rate_minutes, base_pay_minor, premium_pay_minor, fixed_bonuses_minor, reimbursements_minor, total_gross_pay_minor, result_json, engine_version, calculated_at, is_current, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, getMappedId(ss.shiftId), ss.version, ss.status, ss.result.context, getMappedId(ss.salaryProfileId), ss.result.resolvedBaseHourlyRateMinor ?? null, ss.result.payableMinutes, ss.result.regularMinutes, ss.result.specialRateMinutes, ss.result.basePayMinor, ss.result.premiumPayMinor, ss.result.fixedBonusesMinor, ss.result.reimbursementsMinor, ss.result.totalGrossPayMinor ?? null, JSON.stringify(ss.result), ss.result.engineVersion, ss.result.calculatedAt, 0, ss.createdAt]); // is_current = 0 on merge to be safe
         }
+
+        for (const feedback of data.predictionFeedback) {
+          const { id, skip } = await remapId('prediction_feedback', feedback.id, feedback);
+          if (!skip) await this.db.runAsync('INSERT INTO prediction_feedback (id, feedback_type, engine_version, candidate_source, candidate_source_id, score, accepted_fields_json, rejected_fields_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, feedback.feedbackType, feedback.engineVersion, feedback.candidateSource, feedback.candidateSourceId, feedback.score, JSON.stringify(feedback.acceptedFields), JSON.stringify(feedback.rejectedFields), feedback.createdAt]);
+        }
+        for (const setting of data.appSettings) {
+          await this.db.runAsync('INSERT INTO app_settings (key, value_json, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO NOTHING', [setting.key, setting.valueJson, setting.updatedAt]);
+        }
+        for (const override of data.workplaceNotificationOverrides) {
+          const workplaceId = getMappedId(override.workplaceId);
+          if (workplaceId) await this.insertWorkplaceNotificationOverride(override, workplaceId, true);
+        }
+        for (const notification of data.scheduledNotifications) {
+          await this.db.runAsync(`INSERT INTO scheduled_notification_records
+            (logical_key, type, scheduled_for, shift_id, break_session_id, workplace_id, title_key, body_key, body_params_json, native_id, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?) ON CONFLICT(logical_key) DO NOTHING`, [
+            notification.logicalKey, notification.type, notification.scheduledFor, getMappedId(notification.shiftId), getMappedId(notification.breakSessionId), getMappedId(notification.workplaceId),
+            notification.titleKey, notification.bodyKey, notification.bodyParams ? JSON.stringify(notification.bodyParams) : null, notification.createdAt, notification.updatedAt,
+          ]);
+        }
+
+        await this.assertDatabaseIntegrity();
       });
       return { success: true };
     } catch (e: any) {
@@ -334,6 +453,7 @@ export class BackupOrchestrator {
       await this.db.withTransactionAsync(async () => {
         await this.db.execAsync(`
           DELETE FROM scheduled_notification_records;
+          DELETE FROM workplace_notification_overrides;
           DELETE FROM prediction_feedback;
           DELETE FROM salary_calculation_snapshots;
           DELETE FROM break_sessions;
@@ -353,6 +473,64 @@ export class BackupOrchestrator {
       return { success: true };
     } catch (e: any) {
       return { success: false, message: e.message };
+    }
+  }
+
+  private async insertWorkplaceNotificationOverride(
+    override: BackupDataV1['workplaceNotificationOverrides'][number],
+    workplaceId: string,
+    preserveExisting = false,
+  ): Promise<void> {
+    const conflict = preserveExisting ? 'ON CONFLICT(workplace_id) DO NOTHING' : '';
+    await this.db.runAsync(`INSERT INTO workplace_notification_overrides
+      (workplace_id, scheduled_shift_reminders, shift_reminder_offsets_json,
+       missed_clock_in_reminders, missed_clock_in_grace_minutes, expected_end_reminders,
+       overdue_shift_reminders, long_break_reminders, long_unpaid_break_threshold_minutes,
+       long_paid_break_threshold_minutes, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ${conflict}`, [
+      workplaceId,
+      override.scheduledShiftReminders == null ? null : override.scheduledShiftReminders ? 1 : 0,
+      override.shiftReminderOffsets == null ? null : JSON.stringify(override.shiftReminderOffsets),
+      override.missedClockInReminders == null ? null : override.missedClockInReminders ? 1 : 0,
+      override.missedClockInGraceMinutes ?? null,
+      override.expectedEndReminders == null ? null : override.expectedEndReminders ? 1 : 0,
+      override.overdueShiftReminders == null ? null : override.overdueShiftReminders ? 1 : 0,
+      override.longBreakReminders == null ? null : override.longBreakReminders ? 1 : 0,
+      override.longUnpaidBreakThresholdMinutes ?? null,
+      override.longPaidBreakThresholdMinutes ?? null,
+      override.updatedAt,
+    ]);
+  }
+
+  private async assertDatabaseIntegrity(): Promise<void> {
+    const fkIssues = await this.db.getAllAsync<Record<string, unknown>>('PRAGMA foreign_key_check');
+    if (fkIssues.length > 0) throw new Error('Foreign key constraint violation after restore');
+    const integrity = await this.db.getFirstAsync<{ integrity_check: string }>('PRAGMA integrity_check');
+    if (integrity?.integrity_check !== 'ok') throw new Error('Database integrity check failed after restore');
+  }
+
+  private async assertReplaceCounts(data: BackupDataV1): Promise<void> {
+    const expectedByTable: readonly [string, number][] = [
+      ['salary_profiles', data.salaryProfiles.length],
+      ['pay_rules', data.payRules.length],
+      ['workplaces', data.workplaces.length],
+      ['roles', data.roles.length],
+      ['shift_templates', data.shiftTemplates.length],
+      ['shifts', data.shifts.length],
+      ['break_sessions', data.breakSessions.length],
+      ['recurrence_series', data.recurrenceSeries.length],
+      ['recurrence_exceptions', data.recurrenceExceptions.length],
+      ['salary_calculation_snapshots', data.salarySnapshots.length],
+      ['prediction_feedback', data.predictionFeedback.length],
+      ['scheduled_notification_records', data.scheduledNotifications.length],
+      ['workplace_notification_overrides', data.workplaceNotificationOverrides.length],
+      ['export_presets', data.exportPresets.length],
+      ['export_history', data.exportHistory.length],
+      ['app_settings', data.appSettings.length],
+    ];
+    for (const [table, expected] of expectedByTable) {
+      const row = await this.db.getFirstAsync<{ count: number }>(`SELECT COUNT(*) AS count FROM ${table}`);
+      if ((row?.count ?? 0) !== expected) throw new Error(`Restore count mismatch for ${table}`);
     }
   }
 
@@ -462,6 +640,20 @@ export class BackupOrchestrator {
     breakSessionId: row.break_session_id || undefined, workplaceId: row.workplace_id || undefined, titleKey: row.title_key,
     bodyKey: row.body_key, bodyParams: row.body_params_json ? JSON.parse(row.body_params_json) : undefined,
     nativeId: undefined, createdAt: row.created_at, updatedAt: row.updated_at
+  });
+
+  private mapWorkplaceNotificationOverride = (row: any) => ({
+    workplaceId: row.workplace_id,
+    scheduledShiftReminders: row.scheduled_shift_reminders == null ? undefined : row.scheduled_shift_reminders === 1,
+    shiftReminderOffsets: row.shift_reminder_offsets_json ? JSON.parse(row.shift_reminder_offsets_json) : undefined,
+    missedClockInReminders: row.missed_clock_in_reminders == null ? undefined : row.missed_clock_in_reminders === 1,
+    missedClockInGraceMinutes: row.missed_clock_in_grace_minutes,
+    expectedEndReminders: row.expected_end_reminders == null ? undefined : row.expected_end_reminders === 1,
+    overdueShiftReminders: row.overdue_shift_reminders == null ? undefined : row.overdue_shift_reminders === 1,
+    longBreakReminders: row.long_break_reminders == null ? undefined : row.long_break_reminders === 1,
+    longUnpaidBreakThresholdMinutes: row.long_unpaid_break_threshold_minutes,
+    longPaidBreakThresholdMinutes: row.long_paid_break_threshold_minutes,
+    updatedAt: row.updated_at,
   });
 
   private mapExportPreset = (row: any) => ({

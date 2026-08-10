@@ -20,10 +20,10 @@
 import type { Shift, BreakSession } from '@/domain/entities';
 import type { ScheduledNotificationRepository } from '@/domain/repositories';
 import type { NotificationSettingsRepository } from '@/domain/repositories/notification-settings-repository';
-import type { WorkplaceNotificationOverride } from '@/domain/entities/notification-preferences';
 import { resolveNotificationPreferences } from '@/domain/entities/notification-preferences';
 import { buildNotificationPlan } from '@/domain/services/notification-planner';
 import type { NotificationAdapter } from './expo-notification-adapter';
+import { reportUnexpectedError } from '@/shared/utils/report-unexpected-error';
 
 export interface ReconcileInput {
   now: Date;
@@ -45,17 +45,24 @@ export class NotificationReconciler {
   async reconcile(input: ReconcileInput): Promise<void> {
     // Check permission first
     const permission = await this.adapter.getPermissionStatus();
-    if (permission === 'denied') {
+    if (permission !== 'granted') {
       return; // Core functionality unaffected
     }
 
     // Load preferences
     const globalPrefs = await this.notifSettings.getGlobal();
-    let override: WorkplaceNotificationOverride | null = null;
-    if (input.workplaceId) {
-      override = await this.notifSettings.getWorkplaceOverride(input.workplaceId);
-    }
-    const resolved = resolveNotificationPreferences(globalPrefs, override);
+    const workplaceIds = new Set(input.upcomingShifts.map((shift) => shift.workplaceId));
+    if (input.activeShift) workplaceIds.add(input.activeShift.workplaceId);
+    if (input.workplaceId) workplaceIds.add(input.workplaceId);
+    const overrideEntries = await Promise.all([...workplaceIds].map(async (workplaceId) => [
+      workplaceId,
+      await this.notifSettings.getWorkplaceOverride(workplaceId),
+    ] as const));
+    const preferencesByWorkplace = new Map(overrideEntries.map(([workplaceId, override]) => [
+      workplaceId,
+      resolveNotificationPreferences(globalPrefs, override),
+    ] as const));
+    const resolved = resolveNotificationPreferences(globalPrefs, null);
 
     // Load existing records
     const existingRecords = await this.scheduledNotifs.listAll();
@@ -68,6 +75,7 @@ export class NotificationReconciler {
       activeShift: input.activeShift,
       activeBreak: input.activeBreak,
       preferences: resolved,
+      preferencesByWorkplace,
       existingRecords,
     });
 
@@ -76,9 +84,11 @@ export class NotificationReconciler {
     for (const logicalKey of plan.cancellations) {
       const record = existingByKey.get(logicalKey);
       if (record?.nativeId) {
-        await this.adapter.cancelNotification(record.nativeId).catch(() => undefined);
+        await this.adapter.cancelNotification(record.nativeId).catch((error: unknown) => {
+          reportUnexpectedError('notifications.cancel', error);
+        });
       }
-      await this.scheduledNotifs.deleteByLogicalKey(logicalKey).catch(() => undefined);
+      await this.scheduledNotifs.deleteByLogicalKey(logicalKey);
     }
 
     // Schedule new/changed notifications
@@ -89,7 +99,9 @@ export class NotificationReconciler {
       // Cancel existing native notification for this key before rescheduling
       const existing = existingByKey.get(notification.logicalKey);
       if (existing?.nativeId) {
-        await this.adapter.cancelNotification(existing.nativeId).catch(() => undefined);
+        await this.adapter.cancelNotification(existing.nativeId).catch((error: unknown) => {
+          reportUnexpectedError('notifications.cancel', error);
+        });
       }
 
       // Resolve translated text
@@ -122,7 +134,8 @@ export class NotificationReconciler {
         if (nativeId) {
           await this.scheduledNotifs.updateNativeId(notification.logicalKey, nativeId);
         }
-      } catch {
+      } catch (error) {
+        reportUnexpectedError('notifications.schedule', error);
         // Scheduling failure does not corrupt data
       }
     }
@@ -132,7 +145,9 @@ export class NotificationReconciler {
     const records = await this.scheduledNotifs.listByShiftId(shiftId);
     for (const record of records) {
       if (record.nativeId) {
-        await this.adapter.cancelNotification(record.nativeId).catch(() => undefined);
+        await this.adapter.cancelNotification(record.nativeId).catch((error: unknown) => {
+          reportUnexpectedError('notifications.cancel', error);
+        });
       }
     }
     await this.scheduledNotifs.deleteByShiftId(shiftId);

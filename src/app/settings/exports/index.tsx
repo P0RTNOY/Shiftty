@@ -10,6 +10,7 @@ import { generatePdfHtml } from '@/domain/services/pdf-html-generator';
 import { shareFile } from '@/features/exports/adapters/file-share-adapter';
 import { processPdf } from '@/features/exports/adapters/print-share-adapter';
 import { SettingsBackButton } from '@/features/settings/components/settings-back-button';
+import { reportUnexpectedError } from '@/shared/utils/report-unexpected-error';
 
 export default function ExportsScreen() {
   const { colors } = useAppTheme();
@@ -60,8 +61,9 @@ export default function ExportsScreen() {
         content,
         mimeType: 'text/csv',
       });
-    } catch (e: any) {
-      Alert.alert('שגיאה', e.message);
+    } catch (error) {
+      reportUnexpectedError('export.csv', error);
+      Alert.alert(t('common.error'));
     } finally {
       setLoading(false);
     }
@@ -77,8 +79,9 @@ export default function ExportsScreen() {
         content,
         mimeType: 'text/calendar',
       });
-    } catch (e: any) {
-      Alert.alert('שגיאה', e.message);
+    } catch (error) {
+      reportUnexpectedError('export.ics', error);
+      Alert.alert(t('common.error'));
     } finally {
       setLoading(false);
     }
@@ -103,8 +106,9 @@ export default function ExportsScreen() {
         filename: `report_${Date.now()}.pdf`,
         action: 'share'
       });
-    } catch (e: any) {
-      Alert.alert('שגיאה', e.message);
+    } catch (error) {
+      reportUnexpectedError('export.pdf', error);
+      Alert.alert(t('common.error'));
     } finally {
       setLoading(false);
     }

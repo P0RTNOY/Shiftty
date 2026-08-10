@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { Stack } from 'expo-router';
 
 import type { NotificationPreferences } from '@/domain/entities/notification-preferences';
@@ -9,26 +9,34 @@ import { useTranslation } from '@/shared/i18n';
 import { spacing, typography, useAppTheme } from '@/shared/theme';
 import { useNotificationSettings } from '@/features/notifications/hooks/use-notification-settings';
 import { SettingsBackButton } from '@/features/settings/components/settings-back-button';
+import { useNotificationReconciler } from '@/features/shifts/hooks/use-notification-reconciler';
+import { reportUnexpectedError } from '@/shared/utils/report-unexpected-error';
 
 const OFFSET_OPTIONS = [1440, 120, 60, 30, 15, 0] as const;
 
 export default function NotificationSettingsScreen() {
-  const { t } = useTranslation();
+  const { isRtl, t } = useTranslation();
   const { colors } = useAppTheme();
-  const { preferences, permissionStatus, loading, save, requestPermission } = useNotificationSettings();
+  const { preferences, permissionStatus, loading, saving, error, save, requestPermission } = useNotificationSettings();
+  const { reconcileAll } = useNotificationReconciler();
 
   if (loading || !preferences) {
     return (
       <AppScreen title={t('notification.settings.title')}>
         <Stack.Screen options={{ title: t('notification.settings.title') }} />
         <SettingsBackButton />
-        <View style={styles.center} />
+        <View style={styles.center}>
+          <ActivityIndicator accessibilityLabel={t('common.loading')} color={colors.primary} />
+          <Text style={{ color: colors.textMuted }}>{t('common.loading')}</Text>
+          {error ? <Text accessibilityRole="alert" style={{ color: colors.danger }}>{t('common.error')}</Text> : null}
+        </View>
       </AppScreen>
     );
   }
 
   async function toggle<K extends keyof NotificationPreferences>(key: K, value: NotificationPreferences[K]) {
     await save({ ...preferences!, [key]: value });
+    await reconcileAll(new Date()).catch((caught: unknown) => reportUnexpectedError('notification-settings.reconcile', caught));
   }
 
   async function handlePermissionRequest() {
@@ -37,6 +45,9 @@ export default function NotificationSettingsScreen() {
       return;
     }
     const status = await requestPermission();
+    if (status === 'granted') {
+      await reconcileAll(new Date()).catch((caught: unknown) => reportUnexpectedError('notification-settings.reconcile', caught));
+    }
     if (status === 'denied') {
       Alert.alert(t('notification.permissionDeniedTitle'), t('notification.permissionDeniedBody'));
     }
@@ -47,9 +58,13 @@ export default function NotificationSettingsScreen() {
   );
 
   const renderToggleRow = (label: string, value: boolean, onToggle: (v: boolean) => void, testID?: string) => (
-    <View style={[styles.row, { borderBottomColor: colors.border }]}>
+    <View style={[styles.row, { borderBottomColor: colors.border, flexDirection: isRtl ? 'row-reverse' : 'row' }]}>
       <Text style={[styles.rowLabel, { color: colors.text }]}>{label}</Text>
       <Switch
+        accessibilityLabel={label}
+        accessibilityRole="switch"
+        accessibilityState={{ checked: value, disabled: saving }}
+        disabled={saving}
         testID={testID}
         value={value}
         onValueChange={onToggle}
@@ -64,6 +79,7 @@ export default function NotificationSettingsScreen() {
       <Stack.Screen options={{ title: t('notification.settings.title') }} />
       <SettingsBackButton />
       <ScrollView contentContainerStyle={styles.content}>
+        {error ? <Text accessibilityRole="alert" style={{ color: colors.danger, textAlign: isRtl ? 'right' : 'left' }}>{t('common.error')}</Text> : null}
         {/* Permission banner */}
         {permissionStatus !== 'granted' && (
           <View style={[styles.permissionBanner, { backgroundColor: colors.surfaceMuted }]}>
@@ -101,6 +117,10 @@ export default function NotificationSettingsScreen() {
               const active = preferences.shiftReminderOffsets.includes(offset);
               return (
                 <TouchableOpacity
+                  accessibilityLabel={t(`notification.offset.${offset}` as `notification.offset.${typeof offset}`)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: active, disabled: saving }}
+                  disabled={saving}
                   key={offset}
                   style={[styles.offsetChip, { backgroundColor: active ? colors.primary : colors.surfaceMuted }]}
                   onPress={() => {
@@ -126,7 +146,7 @@ export default function NotificationSettingsScreen() {
           (v) => void toggle('missedClockInReminders', v),
         )}
 
-        {renderSectionHeader('שמירת משמרת פעילה')}
+        {renderSectionHeader(t('notification.activeShiftSafety'))}
         {renderToggleRow(
           t('notification.expectedEndReminders'),
           preferences.expectedEndReminders,
@@ -148,14 +168,14 @@ export default function NotificationSettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1 },
+  center: { alignItems: 'center', flex: 1, gap: spacing.sm, justifyContent: 'center' },
   content: { padding: spacing.md, gap: spacing.xxs },
   permissionBanner: { borderRadius: 12, gap: spacing.sm, marginBottom: spacing.md, padding: spacing.md },
   permissionText: { fontSize: typography.body, lineHeight: 22, textAlign: 'center' },
   sectionHeader: { fontSize: typography.caption, marginBottom: spacing.xs, marginTop: spacing.md, textTransform: 'uppercase' },
-  row: { alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.sm },
+  row: { alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, justifyContent: 'space-between', paddingVertical: spacing.sm },
   rowLabel: { flex: 1, fontSize: typography.body },
   offsetsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm, marginTop: spacing.xs },
-  offsetChip: { borderRadius: 20, paddingHorizontal: spacing.sm, paddingVertical: spacing.xxs },
+  offsetChip: { alignItems: 'center', borderRadius: 22, justifyContent: 'center', minHeight: 44, paddingHorizontal: spacing.sm },
   offsetText: { fontSize: typography.caption },
 });

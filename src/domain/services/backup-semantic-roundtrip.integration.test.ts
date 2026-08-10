@@ -42,14 +42,18 @@ describe('Backup Semantic Round-trip Integration', () => {
       INSERT INTO shifts (
         id, workplace_id, role_id, salary_profile_id, title, notes,
         scheduled_start, scheduled_end, actual_start, actual_end, 
-        expected_break_minutes, status, hourly_rate_snapshot_minor,
+        expected_break_minutes, actual_break_minutes, payable_break_minutes, status, hourly_rate_snapshot_minor,
+        expected_gross_pay_minor, actual_gross_pay_minor, payable_gross_pay_minor,
+        hourly_rate_override_minor, fixed_bonus_override_minor, travel_reimbursement_override_minor,
         shift_template_id, cancelled_at, completed_at, timezone,
         active_origin,
         created_at, updated_at
       ) VALUES (
         'sh1', 'wp1', 'r1', NULL, 'Shift 1', NULL,
         NULL, NULL, '2026-08-01T09:00:00Z', NULL,
-        30, 'active', 5000,
+        30, 0, 0, 'active', 5000,
+        0, 0, 0,
+        0, 0, 0,
         NULL, NULL, NULL, 'Asia/Jerusalem',
         'unscheduled',
         '2026-08-01T00:00:00Z', '2026-08-01T00:00:00Z'
@@ -64,6 +68,13 @@ describe('Backup Semantic Round-trip Integration', () => {
 
     // Scheduled Notifications (shift_id, break_session_id are nullable, native_id is nullable)
     await db.execAsync(`INSERT INTO scheduled_notification_records (logical_key, type, scheduled_for, shift_id, break_session_id, workplace_id, title_key, body_key, body_params_json, native_id, created_at, updated_at) VALUES ('ntf1', 'missed_clock_in', '2026-08-01T10:00:00Z', NULL, NULL, NULL, 'title', 'body', NULL, NULL, '2026-08-01T00:00:00Z', '2026-08-01T00:00:00Z')`);
+
+    await db.execAsync(`INSERT INTO workplace_notification_overrides (
+      workplace_id, scheduled_shift_reminders, shift_reminder_offsets_json,
+      missed_clock_in_reminders, missed_clock_in_grace_minutes, expected_end_reminders,
+      overdue_shift_reminders, long_break_reminders, long_unpaid_break_threshold_minutes,
+      long_paid_break_threshold_minutes, updated_at
+    ) VALUES ('wp1', 0, '[0,15]', 0, 0, 0, 0, 0, 0, 0, '2026-08-01T00:00:00Z')`);
 
     // 2. Export Backup A
     const backupA = await orchestrator.generateBackup();
@@ -88,5 +99,24 @@ describe('Backup Semantic Round-trip Integration', () => {
     expect(backupB.data.breakSessions?.[0]?.end).toBeUndefined();
     expect(backupB.data.recurrenceSeries?.[0]?.disabledFrom).toBeUndefined();
     expect(backupB.data.scheduledNotifications?.[0]?.shiftId).toBeUndefined();
+    expect(backupB.data.shifts[0]).toMatchObject({
+      actualBreakMinutes: 0,
+      payableBreakMinutes: 0,
+      expectedGrossPayMinor: 0,
+      actualGrossPayMinor: 0,
+      payableGrossPayMinor: 0,
+      hourlyRateOverrideMinor: 0,
+      fixedBonusOverrideMinor: 0,
+      travelReimbursementOverrideMinor: 0,
+    });
+    expect((backupB.data as any).workplaceNotificationOverrides).toEqual([
+      expect.objectContaining({
+        workplaceId: 'wp1',
+        scheduledShiftReminders: false,
+        shiftReminderOffsets: [0, 15],
+        missedClockInGraceMinutes: 0,
+        longUnpaidBreakThresholdMinutes: 0,
+      }),
+    ]);
   });
 });

@@ -24,15 +24,16 @@ describe('ics-generator', () => {
 
   it('generates valid ICS with UTC timestamps (Z) and escapes text', () => {
     const result = generateIcs([baseShift]);
+    const unfolded = result.replace(/\r\n /g, '');
     expect(result).toContain('BEGIN:VCALENDAR');
     expect(result).toContain('BEGIN:VEVENT');
     // Asia/Jerusalem +03:00 means 10:30 local is 07:30 UTC
     expect(result).toContain('DTSTART:20260804T073000Z');
     expect(result).toContain('DTEND:20260804T160000Z');
     // Title escaping: comma
-    expect(result).toContain('SUMMARY:משמרת בוקר\\, בדיקה');
+    expect(unfolded).toContain('SUMMARY:משמרת בוקר\\, בדיקה');
     // Description escaping: comma, semicolon, backslash, newline
-    expect(result).toContain('DESCRIPTION:הערה: לשים לב לפרטים\\; חשוב מאוד\\\\כאן\\nשורה חדשה');
+    expect(unfolded).toContain('DESCRIPTION:הערה: לשים לב לפרטים\\; חשוב מאוד\\\\כאן\\nשורה חדשה');
   });
 
   it('folds lines longer than 70 characters', () => {
@@ -43,6 +44,25 @@ describe('ics-generator', () => {
     const result = generateIcs([longShift]);
     // It should fold the line at 70 chars with CRLF + space
     expect(result).toMatch(/\r\n /);
+  });
+
+  it('folds every physical line to at most 75 UTF-8 octets without splitting Unicode', () => {
+    const notes = `תחילת הערה ${'😀משמרת'.repeat(30)} סוף`;
+    const result = generateIcs([{ ...baseShift, notes }]);
+    const physicalLines = result.split('\r\n').filter(Boolean);
+
+    for (const line of physicalLines) {
+      expect(Buffer.byteLength(line, 'utf8')).toBeLessThanOrEqual(75);
+    }
+    expect(result.replace(/\r\n /g, '')).toContain(`DESCRIPTION:${notes}`);
+  });
+
+  it('keeps the UID stable when an existing shift time changes', () => {
+    const first = generateIcs([baseShift]).match(/UID:(.+)\r\n/)?.[1];
+    const updated = generateIcs([{ ...baseShift, payableStart: '2026-08-04T11:00:00+03:00', payableEnd: '2026-08-04T19:30:00+03:00' }]).match(/UID:(.+)\r\n/)?.[1];
+
+    expect(first).toBe('shift-1@shiftty.app');
+    expect(updated).toBe(first);
   });
 
   it('excludes salary by default', () => {

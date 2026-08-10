@@ -47,4 +47,94 @@ describe('Expo Router route tree', () => {
     expect(fs.existsSync(p.join(p.resolve('.'), 'src', 'app', '(tabs)', 'add-shift.tsx'))).toBe(false);
     expect(he['nav.calendar']).toBe('לוח שנה');
   });
+
+  it('does not expose caught native or database messages from hardened routes', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('fs');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const p = require('path');
+    const appDir = p.join(p.resolve('.'), 'src', 'app');
+    const routes = [
+      ['onboarding', 'workplace.tsx'],
+      ['settings', 'data-management.tsx'],
+      ['settings', 'exports', 'index.tsx'],
+      ['shifts', '[id]', 'index.tsx'],
+      ['shifts', '[id]', 'edit.tsx'],
+      ['shifts', 'new.tsx'],
+      ['shifts', 'apply-suggestion.tsx'],
+    ];
+
+    for (const segments of routes) {
+      const source = fs.readFileSync(p.join(appDir, ...segments), 'utf8');
+      expect(source).not.toMatch(/Alert\.alert\([\s\S]{0,200}(?:caught|error|e)\.message/);
+      expect(source).not.toMatch(/Alert\.alert\([\s\S]{0,200}String\((?:caught|error|e)\)/);
+    }
+  });
+
+  it('keeps explicit loading and safe error states on Calendar and Reports', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('fs');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const p = require('path');
+    const tabsDir = p.join(p.resolve('.'), 'src', 'app', '(tabs)');
+
+    for (const route of ['calendar.tsx', 'reports.tsx']) {
+      const source = fs.readFileSync(p.join(tabsDir, route), 'utf8');
+      expect(source).toContain("t('common.loading')");
+      expect(source).toContain("t('common.error')");
+      expect(source).toMatch(/accessibilityRole="alert"/);
+    }
+  });
+
+  it('keeps notification settings non-blank, localized, and guarded while saving', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('fs');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const p = require('path');
+    const appDir = p.join(p.resolve('.'), 'src', 'app');
+    const routes = [
+      ['settings', 'notifications.tsx'],
+      ['settings', 'workplaces', '[id]', 'notifications.tsx'],
+    ];
+
+    for (const segments of routes) {
+      const source = fs.readFileSync(p.join(appDir, ...segments), 'utf8');
+      expect(source).toContain("t('common.loading')");
+      expect(source).toContain("t('common.error')");
+      expect(source).toMatch(/accessibilityRole="alert"/);
+      expect(source).toMatch(/accessibilityRole="switch"/);
+      expect(source).toMatch(/disabled=\{saving\}/);
+    }
+
+    const globalSource = fs.readFileSync(p.join(appDir, 'settings', 'notifications.tsx'), 'utf8');
+    expect(globalSource).not.toContain('שמירת משמרת פעילה');
+  });
+
+  it('keeps template, suggestion, and picker controls screen-reader addressable', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('fs');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const p = require('path');
+    const root = p.resolve('.');
+    const templateCard = fs.readFileSync(p.join(root, 'src', 'features', 'templates', 'components', 'template-card.tsx'), 'utf8');
+    const templateList = fs.readFileSync(p.join(root, 'src', 'app', 'settings', 'templates', 'index.tsx'), 'utf8');
+    const suggestionCard = fs.readFileSync(p.join(root, 'src', 'features', 'shifts', 'components', 'smart-suggestion-card.tsx'), 'utf8');
+    const applySuggestion = fs.readFileSync(p.join(root, 'src', 'app', 'shifts', 'apply-suggestion.tsx'), 'utf8');
+
+    expect(templateCard).toMatch(/accessibilityRole="button"/);
+    expect(templateList).toMatch(/accessibilityRole="switch"/);
+    expect(suggestionCard.match(/accessibilityRole="button"/g)).toHaveLength(4);
+    expect(applySuggestion.match(/accessibilityRole="switch"/g)).toHaveLength(2);
+  });
+
+  it('keeps per-workplace notification overrides reachable from workplace settings', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('fs');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const p = require('path');
+    const source = fs.readFileSync(p.join(p.resolve('.'), 'src', 'app', 'settings', 'workplaces.tsx'), 'utf8');
+
+    expect(source).toContain('settings.notificationWorkplace');
+    expect(source).toContain('/notifications`');
+  });
 });

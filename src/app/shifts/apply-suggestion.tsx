@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { AppScreen, PrimaryButton, SecondaryButton } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
@@ -11,6 +11,7 @@ import { useShiftTemplates } from '@/features/shifts/hooks/use-shift-templates';
 import { useRepositories } from '@/features/shifts/hooks/use-repositories';
 import { createScheduledShift } from '@/domain/services/shift-factory';
 import { createId } from '@/shared/utils/id';
+import { reportUnexpectedError } from '@/shared/utils/report-unexpected-error';
 
 export default function ApplySuggestionScreen() {
   const { colors } = useAppTheme();
@@ -89,7 +90,8 @@ export default function ApplySuggestionScreen() {
         router.replace(`/shifts/${shift.id}/edit`);
       }
     } catch (err) {
-      console.error(err);
+      reportUnexpectedError('suggestion.apply', err);
+      Alert.alert(t('common.error'));
     }
   };
 
@@ -106,7 +108,8 @@ export default function ApplySuggestionScreen() {
       });
       router.back();
     } catch (err) {
-      console.error(err);
+      reportUnexpectedError('suggestion.reject', err);
+      Alert.alert(t('common.error'));
     }
   };
 
@@ -125,7 +128,7 @@ export default function ApplySuggestionScreen() {
               <Text style={[styles.label, { color: colors.text }]}>{t('suggestion.workplace')}</Text>
               <Text style={[styles.description, { color: colors.primary }]}>{workplace?.name ?? '—'}</Text>
             </View>
-            <Switch value={acceptWorkplace} onValueChange={setAcceptWorkplace} trackColor={{ true: colors.primary, false: colors.border }} />
+            <Switch accessibilityLabel={t('suggestion.workplace')} accessibilityRole="switch" accessibilityState={{ checked: acceptWorkplace }} value={acceptWorkplace} onValueChange={setAcceptWorkplace} trackColor={{ true: colors.primary, false: colors.border }} />
           </View>
 
           <View style={[styles.row, { backgroundColor: colors.surface, flexDirection: direction }]}>
@@ -133,7 +136,7 @@ export default function ApplySuggestionScreen() {
               <Text style={[styles.label, { color: colors.text }]}>{t('suggestion.time')}</Text>
               <Text style={[styles.description, { color: colors.primary }]}>{candidate.suggestedScheduledStart ? new Date(candidate.suggestedScheduledStart).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : ''} - {candidate.suggestedScheduledEnd ? new Date(candidate.suggestedScheduledEnd).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : ''}</Text>
             </View>
-            <Switch value={acceptTime} onValueChange={setAcceptTime} trackColor={{ true: colors.primary, false: colors.border }} />
+            <Switch accessibilityLabel={t('suggestion.time')} accessibilityRole="switch" accessibilityState={{ checked: acceptTime }} value={acceptTime} onValueChange={setAcceptTime} trackColor={{ true: colors.primary, false: colors.border }} />
           </View>
         </View>
 

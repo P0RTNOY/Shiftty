@@ -20,7 +20,7 @@ const CONFIDENCE_CONFIG = {
 } as const;
 
 export function SmartSuggestionCard({ candidate, onApplyAll, onApplySelected, onReject }: SmartSuggestionCardProps) {
-  const { t } = useTranslation();
+  const { isRtl, t } = useTranslation();
   const { colors } = useAppTheme();
   const [showReasons, setShowReasons] = useState(false);
 
@@ -49,7 +49,7 @@ export function SmartSuggestionCard({ candidate, onApplyAll, onApplySelected, on
       ]}
     >
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}>
         <Text style={styles.icon}>{config.icon}</Text>
         <View style={styles.headerText}>
           <Text style={[styles.title, { color: colors.text }]}>{t('prediction.title')}</Text>
@@ -64,7 +64,7 @@ export function SmartSuggestionCard({ candidate, onApplyAll, onApplySelected, on
 
       {/* Suggested times */}
       {(candidate.suggestedScheduledStart || candidate.suggestedScheduledEnd) && (
-        <View style={[styles.timeRow, { backgroundColor: colors.surfaceMuted }]}>
+        <View style={[styles.timeRow, { backgroundColor: colors.surfaceMuted, flexDirection: isRtl ? 'row-reverse' : 'row' }]}>
           {candidate.suggestedScheduledStart && (
             <View style={styles.timeItem}>
               <Text style={[styles.timeLabel, { color: colors.textMuted }]}>
@@ -99,7 +99,7 @@ export function SmartSuggestionCard({ candidate, onApplyAll, onApplySelected, on
       )}
 
       {/* Why section */}
-      <TouchableOpacity onPress={toggleReasons} style={styles.whyRow}>
+      <TouchableOpacity accessibilityLabel={t('prediction.whyTitle')} accessibilityRole="button" accessibilityState={{ expanded: showReasons }} onPress={toggleReasons} style={[styles.whyRow, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}>
         <Text style={[styles.whyLabel, { color: colors.primary }]}>
           {t('prediction.whyTitle')}
         </Text>
@@ -124,7 +124,7 @@ export function SmartSuggestionCard({ candidate, onApplyAll, onApplySelected, on
       )}
 
       {/* Action buttons */}
-      <View style={styles.actions}>
+      <View style={[styles.actions, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}>
         <TouchableOpacity
           style={[styles.applyBtn, { backgroundColor: colors.primary }]}
           onPress={() => onApplyAll(candidate)}
@@ -147,7 +147,7 @@ export function SmartSuggestionCard({ candidate, onApplyAll, onApplySelected, on
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity onPress={onReject} style={styles.rejectRow}>
+      <TouchableOpacity accessibilityLabel={t('prediction.reject')} accessibilityRole="button" onPress={onReject} style={styles.rejectRow}>
         <Text style={[styles.rejectText, { color: colors.textMuted }]}>{t('prediction.reject')}</Text>
       </TouchableOpacity>
     </View>
@@ -176,7 +176,6 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    flexDirection: 'row',
     gap: spacing.sm,
     padding: spacing.md,
   },
@@ -185,15 +184,15 @@ const styles = StyleSheet.create({
   title: { fontSize: typography.body, fontWeight: '700' },
   confidence: { fontSize: typography.caption },
   sourceLabel: { fontSize: typography.caption, textAlign: 'right' },
-  timeRow: { flexDirection: 'row', gap: spacing.md, padding: spacing.md },
+  timeRow: { gap: spacing.md, padding: spacing.md },
   timeItem: { flex: 1 },
   timeLabel: { fontSize: typography.caption },
   timeValue: { fontSize: typography.title, fontWeight: '700' },
   whyRow: {
     alignItems: 'center',
-    flexDirection: 'row',
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
+    minHeight: 44,
     paddingVertical: spacing.xs,
   },
   whyLabel: { flex: 1, fontSize: typography.caption },
@@ -201,11 +200,11 @@ const styles = StyleSheet.create({
   reasonRow: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.xs },
   reasonBullet: { fontSize: 20, lineHeight: 20 },
   reasonText: { flex: 1, fontSize: typography.caption, lineHeight: 18 },
-  actions: { flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
-  applyBtn: { alignItems: 'center', borderRadius: radius.md, flex: 1, padding: spacing.sm },
+  actions: { gap: spacing.sm, padding: spacing.md },
+  applyBtn: { alignItems: 'center', borderRadius: radius.md, flex: 1, justifyContent: 'center', minHeight: 44, padding: spacing.sm },
   applyBtnText: { fontSize: typography.body, fontWeight: '600' },
-  selectBtn: { alignItems: 'center', borderRadius: radius.md, borderWidth: 1.5, flex: 1, padding: spacing.sm },
+  selectBtn: { alignItems: 'center', borderRadius: radius.md, borderWidth: 1.5, flex: 1, justifyContent: 'center', minHeight: 44, padding: spacing.sm },
   selectBtnText: { fontSize: typography.body, fontWeight: '600' },
-  rejectRow: { alignItems: 'center', paddingBottom: spacing.md },
+  rejectRow: { alignItems: 'center', justifyContent: 'center', minHeight: 44, paddingHorizontal: spacing.md },
   rejectText: { fontSize: typography.caption },
 });

@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 import type { NotificationPreferences, WorkplaceNotificationOverride } from '@/domain/entities/notification-preferences';
 import { SqliteNotificationSettingsRepository } from '@/data/repositories/sqlite-notification-settings-repository';
 import { expoNotificationAdapter, noOpNotificationAdapter } from '@/features/shifts/notifications/expo-notification-adapter';
+import { reportUnexpectedError } from '@/shared/utils/report-unexpected-error';
 
 const adapter = Platform.OS === 'web' ? noOpNotificationAdapter : expoNotificationAdapter;
 
@@ -18,9 +19,11 @@ export function useWorkplaceNotificationSettings(workplaceId: string) {
   const [permissionStatus, setPermissionStatus] = useState<'granted' | 'denied' | 'undetermined'>('undetermined');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
+    setError(false);
     try {
       const [global, override, status] = await Promise.all([
         repo.getGlobal(),
@@ -30,6 +33,9 @@ export function useWorkplaceNotificationSettings(workplaceId: string) {
       setGlobalSettings(global);
       setWorkplaceOverride(override);
       setPermissionStatus(status);
+    } catch (caught) {
+      reportUnexpectedError('workplace-notification-settings.refresh', caught);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -39,18 +45,29 @@ export function useWorkplaceNotificationSettings(workplaceId: string) {
   useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
 
   async function requestPermission() {
-    const status = await adapter.requestPermission();
-    setPermissionStatus(status);
-    return status;
+    setError(false);
+    try {
+      const status = await adapter.requestPermission();
+      setPermissionStatus(status);
+      return status;
+    } catch (caught) {
+      reportUnexpectedError('workplace-notification-settings.permission', caught);
+      setError(true);
+      return 'undetermined' as const;
+    }
   }
 
   async function updateWorkplaceOverride(updated: Partial<WorkplaceNotificationOverride>) {
     setSaving(true);
+    setError(false);
     try {
       const current = workplaceOverride || { workplaceId };
       const next = { ...current, ...updated };
       await repo.updateWorkplaceOverride(next as WorkplaceNotificationOverride);
       setWorkplaceOverride(next as WorkplaceNotificationOverride);
+    } catch (caught) {
+      reportUnexpectedError('workplace-notification-settings.save', caught);
+      setError(true);
     } finally {
       setSaving(false);
     }
@@ -58,9 +75,13 @@ export function useWorkplaceNotificationSettings(workplaceId: string) {
 
   async function clearWorkplaceOverride() {
     setSaving(true);
+    setError(false);
     try {
       await repo.clearWorkplaceOverride(workplaceId);
       setWorkplaceOverride(null);
+    } catch (caught) {
+      reportUnexpectedError('workplace-notification-settings.clear', caught);
+      setError(true);
     } finally {
       setSaving(false);
     }
@@ -72,6 +93,7 @@ export function useWorkplaceNotificationSettings(workplaceId: string) {
     permissionStatus,
     loading,
     saving,
+    error,
     refresh,
     updateWorkplaceOverride,
     clearWorkplaceOverride,

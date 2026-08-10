@@ -9,6 +9,7 @@ import { recurrenceSeriesSchema, recurrenceExceptionSchema } from './recurrence'
 import { salaryCalculationSnapshotSchema } from './salary-calculation';
 import { predictionFeedbackSchema } from './prediction-feedback';
 import { scheduledNotificationRecordSchema } from './scheduled-notification';
+import { workplaceNotificationOverrideSchema } from './notification-preferences';
 import { ExportPresetSchema } from './export-preset';
 import { ExportHistorySchema } from './export-history';
 
@@ -32,6 +33,7 @@ export const BackupDataSchemaV1 = z.object({
   salarySnapshots: z.array(salaryCalculationSnapshotSchema),
   predictionFeedback: z.array(predictionFeedbackSchema),
   scheduledNotifications: z.array(scheduledNotificationRecordSchema),
+  workplaceNotificationOverrides: z.array(workplaceNotificationOverrideSchema).default([]),
   exportPresets: z.array(ExportPresetSchema),
   exportHistory: z.array(ExportHistorySchema),
   appSettings: z.array(AppSettingSchema),
@@ -50,6 +52,7 @@ export const BackupCountsSchema = z.object({
   salarySnapshots: z.number().int().nonnegative(),
   predictionFeedback: z.number().int().nonnegative(),
   scheduledNotifications: z.number().int().nonnegative(),
+  workplaceNotificationOverrides: z.number().int().nonnegative().default(0),
   exportPresets: z.number().int().nonnegative(),
   exportHistory: z.number().int().nonnegative(),
   appSettings: z.number().int().nonnegative(),
@@ -80,7 +83,7 @@ export function parseBackupEnvelope(input: unknown): BackupEnvelopeV1 {
   }
   
   if (parsedBase.data.backupVersion !== 1) {
-    throw new Error(`Unsupported backup version: \${parsedBase.data.backupVersion}`);
+    throw new Error(`Unsupported backup version: ${parsedBase.data.backupVersion}`);
   }
 
   return BackupEnvelopeV1Schema.parse(input);

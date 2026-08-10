@@ -14,6 +14,17 @@ import type { Shift } from '@/domain/entities';
 import { createShift } from '@/test/fixtures';
 
 describe('Home reporting-bounds preparation', () => {
+  it('refreshes the month query immediately after quick clock-out completion', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('fs');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require('path');
+    const source = fs.readFileSync(path.join(path.resolve('.'), 'src', 'app', '(tabs)', 'index.tsx'), 'utf8');
+
+    expect(source).toContain('refresh: refreshShifts');
+    expect(source).toMatch(/await active\.completeShift\([\s\S]{0,700}await refreshShifts\(\)/);
+  });
+
   it('uses resolveLocalDateTime (not resolveLocalShiftRange) for month bounds', () => {
     const today = format(new Date(), 'yyyy-MM-dd');
     const monthStart = `${today.slice(0, 7)}-01`;

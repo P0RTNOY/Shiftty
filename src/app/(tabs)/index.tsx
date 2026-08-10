@@ -22,6 +22,7 @@ import { resolveLocalDateTime } from '@/shared/utils/zoned-time';
 import { formatDurationLong } from '@/shared/utils/duration-format';
 import { createId } from '@/shared/utils/id';
 import { systemClock } from '@/shared/utils/clock';
+import { resolveActiveCalculationEnd } from '@/features/pay-rules/services/active-calculation-time';
 
 export default function HomeScreen() {
   const { colors } = useAppTheme();
@@ -31,7 +32,7 @@ export default function HomeScreen() {
   const nextMonthStart = format(addMonths(new Date(`${monthStart}T12:00:00`), 1), 'yyyy-MM-dd');
   const start = resolveLocalDateTime(monthStart, '00:00');
   const end = resolveLocalDateTime(nextMonthStart, '00:00');
-  const { shifts, loading, error } = useShifts({ endsAfter: start, startsBefore: end, rangeSource: 'salary' });
+  const { shifts, loading, error, refresh: refreshShifts } = useShifts({ endsAfter: start, startsBefore: end, rangeSource: 'salary' });
   const { workplaces, roles } = useWorkplaces();
   const { templates } = useShiftTemplates();
   const active = useActiveShift();
@@ -46,11 +47,15 @@ export default function HomeScreen() {
   const [staleDismissed, setStaleDismissed] = useState<string | null>(null);
   const [clockInWorkplaceIds, setClockInWorkplaceIds] = useState<string[] | null>(null);
   const [clockOutAt, setClockOutAt] = useState<string | null>(null);
+  const liveNow = now.toISOString();
+  const activeCalculationEnd = active.activeShift?.actualStart
+    ? resolveActiveCalculationEnd(active.activeShift.actualStart, liveNow)
+    : liveNow;
   const summary = summarizeShifts(shifts);
   const nextShift = shifts.filter((shift) => shift.status === 'scheduled' && shift.scheduledStart && new Date(shift.scheduledStart) >= new Date()).sort((a, b) => a.scheduledStart!.localeCompare(b.scheduledStart!))[0];
   const salaryShifts = useMemo(() => active.activeShift ? [active.activeShift] : shifts, [active.activeShift, shifts]);
   const reportingRange = useMemo(() => ({ start, end }), [end, start]);
-  const salary = useSalaryDashboard(salaryShifts, active.activeShift ? now.toISOString() : calculatedAt, active.activeShift ? now.toISOString() : undefined, active.activeShift ? undefined : reportingRange);
+  const salary = useSalaryDashboard(salaryShifts, active.activeShift ? activeCalculationEnd : calculatedAt, active.activeShift ? activeCalculationEnd : undefined, active.activeShift ? undefined : reportingRange);
   const activeSalaryShifts = useMemo(() => active.activeShift ? [active.activeShift] : [], [active.activeShift]);
   const candidateExpectedEnd = active.activeShift?.expectedEnd ?? active.activeShift?.scheduledEnd;
   const activeExpectedEnd = candidateExpectedEnd && active.activeShift?.actualStart && Date.parse(candidateExpectedEnd) > Date.parse(active.activeShift.actualStart) ? candidateExpectedEnd : undefined;
@@ -116,6 +121,7 @@ export default function HomeScreen() {
           payableSource: 'actual',
           closeOpenBreak: active.breaks.some((item) => !item.end),
         });
+        await refreshShifts();
         setClockOutAt(null);
       } catch {
         Alert.alert(t('common.error'), t('active.mutationError'));

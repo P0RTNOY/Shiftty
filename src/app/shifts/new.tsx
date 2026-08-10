@@ -16,6 +16,7 @@ import { confirmAlert } from '@/shared/utils/confirm-alert';
 import { createId } from '@/shared/utils/id';
 import { formatLocalDateKey, formatLocalTime } from '@/shared/utils/zoned-time';
 import { SalaryCalculationCoordinator } from '@/features/pay-rules';
+import { reportUnexpectedError } from '@/shared/utils/report-unexpected-error';
 
 export default function NewShiftScreen() {
   const params = useLocalSearchParams<{ mode?: string; date?: string; duplicate?: string }>();
@@ -71,10 +72,13 @@ export default function NewShiftScreen() {
         await shiftRepository.create(shift);
         if (shift.status === 'completed') {
           try { await salaryCoordinator.finalizeCompletedShift(shift, shift.completedAt ?? shift.updatedAt); }
-          catch (caught) { Alert.alert(t('salary.missingConfig'), caught instanceof Error ? caught.message : String(caught)); }
+          catch (caught) { reportUnexpectedError('shift.new.finalizeSalary', caught); Alert.alert(t('salary.missingConfig'), t('salary.snapshotFailed')); }
         }
         router.replace(`/shifts/${shift.id}`);
       }
+    } catch (caught) {
+      reportUnexpectedError('shift.new.save', caught);
+      throw caught;
     } finally {
       setSaving(false);
     }

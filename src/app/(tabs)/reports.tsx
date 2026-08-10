@@ -29,7 +29,7 @@ export default function ReportsScreen() {
     start: resolveLocalDateTime(monthStart, '00:00'),
     end: resolveLocalDateTime(nextMonth, '00:00'),
   }), [monthStart, nextMonth]);
-  const { shifts, loading } = useShifts({ endsAfter: reportingRange.start, startsBefore: reportingRange.end, rangeSource: 'salary' });
+  const { shifts, loading, error } = useShifts({ endsAfter: reportingRange.start, startsBefore: reportingRange.end, rangeSource: 'salary' });
   const filtered = useMemo(() => shifts.filter((shift) => (
     (workplaceId === 'all' || shift.workplaceId === workplaceId)
     && (roleId === 'all' || shift.roleId === roleId)
@@ -48,6 +48,9 @@ export default function ReportsScreen() {
         </Text>
         <FilterButton label={t('reports.nextMonth')} onPress={() => setMonth((value) => addMonths(value, 1))} />
       </View>
+
+      {loading || salary.loading ? <Text style={{ color: colors.textMuted, textAlign: align }}>{t('common.loading')}</Text> : null}
+      {error || salary.error ? <Text accessibilityRole="alert" style={{ color: colors.danger, textAlign: align }}>{t('common.error')}</Text> : null}
 
       {summary.invalidCount > 0 ? (
         <Text accessibilityRole="alert" style={{ color: colors.warning, textAlign: align }}>

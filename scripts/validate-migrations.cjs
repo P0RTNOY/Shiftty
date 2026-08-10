@@ -11,8 +11,8 @@ if (migrations.length !== 6) throw new Error(`Expected six migrations, found ${m
 
 const directory = mkdtempSync(join(tmpdir(), 'shifty-migrations-'));
 try {
-  for (const startingVersion of [0, 1, 2, 3, 4, 5]) validateUpgrade(startingVersion);
-  process.stdout.write('Migration 6 smoke tests passed for empty, v1, v2, v3, v4, and v5 databases.\n');
+  for (const startingVersion of [0, 1, 2, 3, 4, 5, 6]) validateUpgrade(startingVersion);
+  process.stdout.write('Migration 6 smoke tests passed for empty, v1, v2, v3, v4, v5, and current v6 databases.\n');
 } finally {
   rmSync(directory, { recursive: true, force: true });
 }

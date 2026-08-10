@@ -36,9 +36,23 @@ describe('ExpoNotificationAdapter', () => {
       expect(Notifications.scheduleNotificationAsync).toHaveBeenCalled();
     });
 
+    it('propagates native scheduling failures to the reconciler', async () => {
+      const nativeError = new Error('schedule failed');
+      (Notifications.scheduleNotificationAsync as jest.Mock).mockRejectedValueOnce(nativeError);
+
+      await expect(expoNotificationAdapter.scheduleNotification('key', new Date(), 'title', 'body', {}, {})).rejects.toBe(nativeError);
+    });
+
     it('cancelNotification calls expo', async () => {
       await expoNotificationAdapter.cancelNotification('native-1');
       expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('native-1');
+    });
+
+    it('propagates native cancellation failures to the reconciler', async () => {
+      const nativeError = new Error('cancel failed');
+      (Notifications.cancelScheduledNotificationAsync as jest.Mock).mockRejectedValueOnce(nativeError);
+
+      await expect(expoNotificationAdapter.cancelNotification('native-1')).rejects.toBe(nativeError);
     });
 
     it('cancelAllByOwner fetches and filters', async () => {

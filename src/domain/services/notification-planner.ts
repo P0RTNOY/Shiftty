@@ -40,6 +40,7 @@ export interface NotificationPlannerInput {
   activeShift: Shift | null;
   activeBreak: BreakSession | null;
   preferences: ResolvedNotificationPreferences;
+  preferencesByWorkplace?: ReadonlyMap<string, ResolvedNotificationPreferences>;
   existingRecords: readonly ScheduledNotificationRecord[];
 }
 
@@ -57,35 +58,38 @@ export function buildNotificationPlan(input: NotificationPlannerInput): Notifica
   const { now } = input;
 
   // --- Scheduled shift reminders + missed clock-in ---
-  if (input.preferences.scheduledShiftReminders) {
-    for (const shift of input.upcomingShifts) {
+  for (const shift of input.upcomingShifts) {
+      const shiftPreferences = input.preferencesByWorkplace?.get(shift.workplaceId) ?? input.preferences;
+      if (!shiftPreferences.scheduledShiftReminders && !shiftPreferences.missedClockInReminders) continue;
       if (!['scheduled'].includes(shift.status)) continue;
       if (!shift.scheduledStart) continue;
 
       const scheduledStart = parseISO(shift.scheduledStart);
       if (isBefore(scheduledStart, addMinutes(now, -1))) continue; // past
 
-      for (const offsetMinutes of input.preferences.shiftReminderOffsets) {
-        const fireAt = addMinutes(scheduledStart, -offsetMinutes);
-        if (!isAfter(fireAt, now)) continue;
+      if (shiftPreferences.scheduledShiftReminders) {
+        for (const offsetMinutes of shiftPreferences.shiftReminderOffsets) {
+          const fireAt = addMinutes(scheduledStart, -offsetMinutes);
+          if (!isAfter(fireAt, now)) continue;
 
-        const adjusted = adjustForQuietHours(fireAt, input.preferences.quietHours, false, input.timezone);
+          const adjusted = adjustForQuietHours(fireAt, shiftPreferences.quietHours, false, input.timezone);
 
-        planned.push({
-          logicalKey: `shift_reminder:${shift.id}:${offsetMinutes}`,
-          type: 'shift_reminder',
-          scheduledFor: adjusted.toISOString(),
-          shiftId: shift.id,
-          workplaceId: shift.workplaceId,
-          titleKey: 'notification.shiftReminderTitle',
-          bodyKey: 'notification.shiftReminderBody',
-          bodyParams: { offsetMinutes },
-        });
+          planned.push({
+            logicalKey: `shift_reminder:${shift.id}:${offsetMinutes}`,
+            type: 'shift_reminder',
+            scheduledFor: adjusted.toISOString(),
+            shiftId: shift.id,
+            workplaceId: shift.workplaceId,
+            titleKey: 'notification.shiftReminderTitle',
+            bodyKey: 'notification.shiftReminderBody',
+            bodyParams: { offsetMinutes },
+          });
+        }
       }
 
       // Missed clock-in reminder
-      if (input.preferences.missedClockInReminders) {
-        const graceEnd = addMinutes(scheduledStart, input.preferences.missedClockInGraceMinutes);
+      if (shiftPreferences.missedClockInReminders) {
+        const graceEnd = addMinutes(scheduledStart, shiftPreferences.missedClockInGraceMinutes);
         if (isAfter(graceEnd, now)) {
           planned.push({
             logicalKey: `missed_clock_in:${shift.id}`,
@@ -98,21 +102,21 @@ export function buildNotificationPlan(input: NotificationPlannerInput): Notifica
           });
         }
       }
-    }
   }
 
   // --- Active shift notifications ---
   if (input.activeShift && input.activeShift.status === 'active') {
     const shift = input.activeShift;
+    const activePreferences = input.preferencesByWorkplace?.get(shift.workplaceId) ?? input.preferences;
     const expectedEnd = shift.expectedEnd ?? shift.scheduledEnd;
 
-    if (expectedEnd && input.preferences.expectedEndReminders) {
+    if (expectedEnd && activePreferences.expectedEndReminders) {
       const expectedEndDate = parseISO(expectedEnd);
 
       // 15 min before
       const soonAt = addMinutes(expectedEndDate, -15);
       if (isAfter(soonAt, now)) {
-        const adjusted = adjustForQuietHours(soonAt, input.preferences.quietHours, input.preferences.quietHours?.allowActiveShiftBypass ?? true, input.timezone);
+        const adjusted = adjustForQuietHours(soonAt, activePreferences.quietHours, activePreferences.quietHours?.allowActiveShiftBypass ?? true, input.timezone);
         planned.push({
           logicalKey: `expected_end_soon:${shift.id}`,
           type: 'expected_end_soon',
@@ -126,7 +130,7 @@ export function buildNotificationPlan(input: NotificationPlannerInput): Notifica
 
       // At expected end
       if (isAfter(expectedEndDate, now)) {
-        const adjusted = adjustForQuietHours(expectedEndDate, input.preferences.quietHours, input.preferences.quietHours?.allowActiveShiftBypass ?? true, input.timezone);
+        const adjusted = adjustForQuietHours(expectedEndDate, activePreferences.quietHours, activePreferences.quietHours?.allowActiveShiftBypass ?? true, input.timezone);
         planned.push({
           logicalKey: `expected_end:${shift.id}`,
           type: 'expected_end',
@@ -139,11 +143,11 @@ export function buildNotificationPlan(input: NotificationPlannerInput): Notifica
       }
 
       // Overdue escalation
-      if (input.preferences.overdueShiftReminders) {
+      if (activePreferences.overdueShiftReminders) {
         for (const overdueOffset of OVERDUE_OFFSETS_MINUTES) {
           const overdueAt = addMinutes(expectedEndDate, overdueOffset);
           if (isAfter(overdueAt, now)) {
-            const adjusted = adjustForQuietHours(overdueAt, input.preferences.quietHours, input.preferences.quietHours?.allowActiveShiftBypass ?? true, input.timezone);
+            const adjusted = adjustForQuietHours(overdueAt, activePreferences.quietHours, activePreferences.quietHours?.allowActiveShiftBypass ?? true, input.timezone);
             planned.push({
               logicalKey: `overdue_shift:${shift.id}:${overdueOffset}`,
               type: 'overdue_shift',
@@ -160,15 +164,15 @@ export function buildNotificationPlan(input: NotificationPlannerInput): Notifica
     }
 
     // Long break reminder
-    if (input.activeBreak && input.preferences.longBreakReminders) {
+    if (input.activeBreak && activePreferences.longBreakReminders) {
       const breakStart = parseISO(input.activeBreak.start);
       const isPaid = input.activeBreak.isPaid;
       const threshold = isPaid
-        ? input.preferences.longPaidBreakThresholdMinutes
-        : input.preferences.longUnpaidBreakThresholdMinutes;
+        ? activePreferences.longPaidBreakThresholdMinutes
+        : activePreferences.longUnpaidBreakThresholdMinutes;
       const breakAt = addMinutes(breakStart, threshold);
       if (isAfter(breakAt, now)) {
-        const adjusted = adjustForQuietHours(breakAt, input.preferences.quietHours, input.preferences.quietHours?.allowActiveShiftBypass ?? true, input.timezone);
+        const adjusted = adjustForQuietHours(breakAt, activePreferences.quietHours, activePreferences.quietHours?.allowActiveShiftBypass ?? true, input.timezone);
         planned.push({
           logicalKey: `long_break:${shift.id}:${input.activeBreak.id}`,
           type: 'long_break',
@@ -199,7 +203,7 @@ export function buildNotificationPlan(input: NotificationPlannerInput): Notifica
   const toSchedule: PlannedNotification[] = [];
   for (const notification of planned) {
     const existing = existingByKey.get(notification.logicalKey);
-    if (!existing || existing.scheduledFor !== notification.scheduledFor) {
+    if (!existing || !existing.nativeId || existing.scheduledFor !== notification.scheduledFor) {
       toSchedule.push(notification);
     }
   }
