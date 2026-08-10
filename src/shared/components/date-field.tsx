@@ -23,7 +23,7 @@ export function DateTimeField({ value, onChange, mode, label, disabled }: Picker
   const [tempValue, setTempValue] = useState(value);
 
   const displayValue = mode === 'date' 
-    ? new Intl.DateTimeFormat(intlLocale, { dateStyle: 'long' }).format(value)
+    ? new Intl.DateTimeFormat(intlLocale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(value)
     : new Intl.DateTimeFormat(intlLocale, { hour: '2-digit', minute: '2-digit', hour12: false }).format(value);
 
   const handleChange = (event: any, selectedDate?: Date) => {
