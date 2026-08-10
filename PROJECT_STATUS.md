@@ -4,7 +4,7 @@ Last updated: 2026-08-10
 
 ## Current milestone
 
-Development is at the **iOS release-candidate closure checkpoint** on branch `codex/initial-shifty-foundation`. RC1.5A-E and Phase 7 are implemented, tested, committed, and pushed. The four approved destructive iOS Simulator checks have now been completed against disposable data, including a regression repair discovered by the native deletion pass.
+Development is in a **dogfooding freeze** on branch `codex/initial-shifty-foundation`. RC1.5A-E and Phase 7 are implemented, tested, committed, and pushed. The four approved destructive iOS Simulator checks have been completed against disposable data, including a regression repair discovered by the native deletion pass. No new product phase or feature work is active.
 
 The planned MVP is source-complete, all automated gates are green, and the iOS Simulator RC is approved for controlled dogfooding. Practical Android execution remains externally blocked because no emulator, AVD, or physical device is available locally; this is an environment limitation, not a repository failure.
 
@@ -13,6 +13,10 @@ The product direction remains: **powerful engine, extremely simple interface**, 
 ## Git baseline
 
 - Branch: `codex/initial-shifty-foundation`
+- Freeze-entry HEAD: `29ea3743f015df1c2020fa4757423bceb6433d6c` (`docs: record destructive iOS RC verification`)
+- Remote state at freeze entry: `origin/codex/initial-shifty-foundation` pointed to the same commit; ahead/behind was `0/0` after fetch.
+- Published dogfooding HEAD: the documentation-only commit containing this status (`docs: prepare Shiftty for dogfooding`), directly on top of the freeze-entry HEAD; its exact SHA is reported in the dogfooding handoff.
+- Published remote state: the local branch and `origin/codex/initial-shifty-foundation` are aligned at ahead/behind `0/0` after the dogfooding documentation push.
 - Completed-shift deletion repair: `9bf6c0c` (`fix(shifts): delete completed shifts without scheduled times`)
 - Release-hardening implementation: `5ab90a7` (`fix(rc): harden data integrity and native recovery`)
 - Progressive frontend simplification: `b407191` (`feat(rc1.5): complete progressive frontend simplification`)
@@ -87,6 +91,8 @@ Passed natively on iOS:
 - Notification permission, persisted native IDs, restart reconciliation, global settings, and workplace override disable/restore behavior.
 - PDF, CSV, ICS, and backup all opened native share sheets. Backup output contained shifts, recurrence state, notification metadata with native IDs stripped, and valid counts. Restore merge passed.
 
+Latest successful simulator verification: 2026-08-10 on iPhone 17 Pro with iOS 26.5. The complete non-destructive matrix, all four destructive checks, final backup restore, database integrity/foreign-key checks, Home/Calendar/Reports rendering, and cold-restart persistence passed.
+
 ### Destructive iOS Simulator release-candidate checks
 
 Scope was limited to disposable Shiftty data on the iPhone 17 Pro simulator running iOS 26.5. The preserved external backup remained at `shiftty_backup_2026-08-09.json`; its SHA-256 stayed `706c356953843a4dbdb20fc156028f3e314b7db9c23dee012cc0ca348ed4c941` throughout.
@@ -141,14 +147,15 @@ Remaining Android checklist:
 - Verify notification permission, scheduling, preferences, workplace overrides, and foreground/startup reconciliation.
 - Verify PDF/CSV/ICS share flows, backup export, restore merge/replace, clear-all, final restore, SQLite integrity, and foreign keys.
 
-## Release readiness and next step
+## Release readiness and freeze rule
 
-There is no known P0/P1 source or iOS Simulator blocker. The iOS Simulator RC is approved for controlled dogfooding; the simulator is left populated from the preserved backup and passes restart, integrity, foreign-key, Home, Calendar, and Reports checks.
+There are zero known iOS P0/P1 blockers. The iOS Simulator RC is approved for controlled dogfooding; the simulator is left populated from the preserved backup and passes restart, integrity, foreign-key, Home, Calendar, and Reports checks.
 
-The safest next development step is controlled iOS dogfooding without starting a new feature phase, while retaining the external backup. When an Android runtime becomes available, execute the checklist above and record platform-specific findings; Android remains a separately documented external-runtime gate.
+During the dogfooding freeze, use the existing candidate and record findings in `DOGFOODING_ISSUES.md`; do not start another product phase. When an Android runtime becomes available, execute the checklist above and record platform-specific findings; Android remains a separately documented external-runtime gate rather than an iOS RC failure.
 
 ## Recent development history
 
+- `29ea374` recorded the completed destructive iOS Simulator verification and RC approval
 - `9bf6c0c` fixed actual-only completed-shift deletion and added screen-level regression coverage
 - `5ab90a7` hardened backup/restore, exports, notifications, safe errors, accessibility, migrations, recurrence persistence, and active salary recovery
 - `b407191` completed RC1.5E progressive frontend simplification

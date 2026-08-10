@@ -4,11 +4,11 @@ Shiftty is a Hebrew-first, local-first shift and salary assistant for hourly wor
 
 ## Current state
 
-The application includes onboarding, workplaces and roles, shift planning and live tracking, salary rules and snapshots, recurrence, templates and suggestions, forecasts, reports, exports, notifications, backup/restore, and Hebrew RTL presentation. RC1 reliability, RC1.5A-E frontend simplification, and Phase 7 release hardening are implemented; the full automated gate set and the non-destructive iOS simulator matrix are green.
+The application includes onboarding, workplaces and roles, shift planning and live tracking, salary rules and snapshots, recurrence, templates and suggestions, forecasts, reports, exports, notifications, backup/restore, and Hebrew RTL presentation. RC1 reliability, RC1.5A-E frontend simplification, and Phase 7 release hardening are implemented; the full automated gate set and the complete iOS Simulator matrix are green.
 
-The current candidate is ready for controlled iOS dogfooding, but final release-candidate completion is still gated by approval for destructive simulator verification and by Android execution in an environment with an emulator or device.
+The iOS Simulator release candidate, including destructive backup/restore verification, is approved for controlled dogfooding. Android and physical-iPhone verification remain pending and are tracked separately in the project status.
 
-See [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the current evidence-based milestone, known gaps, and next development step. The frontend audit and approved simplification sequence are in [`docs/frontend-audit.md`](docs/frontend-audit.md) and [`docs/frontend-simplification-plan.md`](docs/frontend-simplification-plan.md).
+See [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the current evidence-based milestone and known gaps, and [`DOGFOODING.md`](DOGFOODING.md) for the frozen-candidate launch and daily-use checklist. The frontend audit and approved simplification sequence are in [`docs/frontend-audit.md`](docs/frontend-audit.md) and [`docs/frontend-simplification-plan.md`](docs/frontend-simplification-plan.md).
 
 ## Development
 
