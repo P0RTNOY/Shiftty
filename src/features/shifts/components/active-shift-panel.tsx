@@ -34,9 +34,12 @@ function ActiveShiftTimer({ shift }: { shift: Shift }) {
   const elapsedMs = Math.max(0, now.getTime() - Date.parse(shift.actualStart!));
 
   return (
-    <Text accessibilityLabel={`${t('active.elapsed')} ${formatTimer(elapsedMs)}`} style={[styles.timer, { color: colors.text }]}>
-      {formatTimer(elapsedMs)}
-    </Text>
+    <View style={styles.timerGroup}>
+      <Text style={[styles.timerLabel, { color: colors.textMuted }]}>{t('active.elapsed')}</Text>
+      <Text accessibilityLabel={`${t('active.elapsed')} ${formatTimer(elapsedMs)}`} style={[styles.timer, { color: colors.text }]}>
+        {formatTimer(elapsedMs)}
+      </Text>
+    </View>
   );
 }
 
@@ -47,9 +50,12 @@ function ActiveBreakTimer({ session }: { session: BreakSession }) {
   const elapsedMs = Math.max(0, now.getTime() - Date.parse(session.start));
 
   return (
-    <Text accessibilityLabel={`${t('active.breakDuration')} ${formatTimer(elapsedMs)}`} style={[styles.breakTimer, { color: colors.warning }]}>
-      {formatTimer(elapsedMs)}
-    </Text>
+    <View style={styles.timerGroup}>
+      <Text style={[styles.timerLabel, { color: colors.textMuted }]}>{t('active.breakDuration')}</Text>
+      <Text accessibilityLabel={`${t('active.breakDuration')} ${formatTimer(elapsedMs)}`} style={[styles.breakTimer, { color: colors.warning }]}>
+        {formatTimer(elapsedMs)}
+      </Text>
+    </View>
   );
 }
 
@@ -109,6 +115,8 @@ const styles = StyleSheet.create({
   title: { fontSize: typography.heading, fontWeight: '800' },
   meta: { fontSize: typography.body },
   provisional: { fontSize: typography.title, fontWeight: '800' },
+  timerGroup: { alignItems: 'center', gap: spacing.xxs },
+  timerLabel: { fontSize: typography.caption, fontWeight: '700' },
   timer: { fontSize: 46, fontVariant: ['tabular-nums'], fontWeight: '800', textAlign: 'center' },
   breakTimer: { fontSize: typography.heading, fontVariant: ['tabular-nums'], fontWeight: '800', textAlign: 'center' },
 });

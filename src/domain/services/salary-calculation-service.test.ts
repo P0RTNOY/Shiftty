@@ -32,6 +32,20 @@ describe('salary calculation engine', () => {
     expect(result).toMatchObject({ grossMinutes: 480, paidBreakMinutes: 30, unpaidBreakMinutes: 0, payableMinutes: 480, totalGrossPayMinor: 48000 });
   });
 
+  it('does not deduct a planned break when the policy only pays recorded break sessions', () => {
+    const shift = createShift({ scheduledStart: regularShift.scheduledStart, scheduledEnd: regularShift.scheduledEnd, expectedBreakMinutes: 30, hourlyRateSnapshotMinor: 0 });
+    const result = calculateSalary({ shift, profile: createSalaryProfile({ baseHourlyRateMinor: 6000, breakPolicy: 'perBreak' }), rules: [], breaks: [], holidayIntervals: [], calculatedAt });
+
+    expect(result).toMatchObject({ grossMinutes: 480, paidBreakMinutes: 0, unpaidBreakMinutes: 0, payableMinutes: 480, totalGrossPayMinor: 48000 });
+  });
+
+  it('still deducts a planned break when an unpaid expected-break policy is explicit', () => {
+    const shift = createShift({ scheduledStart: regularShift.scheduledStart, scheduledEnd: regularShift.scheduledEnd, expectedBreakMinutes: 30, hourlyRateSnapshotMinor: 0 });
+    const result = calculateSalary({ shift, profile: createSalaryProfile({ baseHourlyRateMinor: 6000, breakPolicy: 'unpaid' }), rules: [], breaks: [], holidayIntervals: [], calculatedAt });
+
+    expect(result).toMatchObject({ grossMinutes: 480, paidBreakMinutes: 0, unpaidBreakMinutes: 30, payableMinutes: 450, totalGrossPayMinor: 45000 });
+  });
+
   it('splits a cross-midnight night window into regular and special segments', () => {
     const shift = createShift({ scheduledStart: '2026-07-15T20:00:00+03:00', scheduledEnd: '2026-07-16T02:00:00+03:00', expectedBreakMinutes: 0, hourlyRateSnapshotMinor: 0 });
     const night = createPayRule({ id: 'night', name: 'Night', conditions: [{ type: 'timeWindow', startTime: '22:00', endTime: '06:00' }], effect: { type: 'multiplier', basisPoints: 12500 } });

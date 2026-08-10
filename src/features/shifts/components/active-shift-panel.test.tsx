@@ -22,6 +22,8 @@ describe('ActiveShiftPanel', () => {
     const onEndBreak = jest.fn();
     renderApp(<ActiveShiftPanel breaks={[createBreak({ end: undefined, start: '2026-07-15T16:52:00+03:00' })]} now={new Date('2026-07-15T17:00:00+03:00')} onEndBreak={onEndBreak} onEndShift={jest.fn()} onManageBreaks={jest.fn()} onOpenDetails={jest.fn()} onStartBreak={jest.fn()} shift={shift} workplaceName="קפה העיר" />);
     expect(screen.getByText('בהפסקה')).toBeTruthy();
+    expect(screen.getByText('זמן כולל')).toBeTruthy();
+    expect(screen.getByText('משך ההפסקה הנוכחית')).toBeTruthy();
     fireEvent.press(screen.getByRole('button', { name: 'חזרה לעבודה' }));
     expect(onEndBreak).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('button', { name: 'הפסקה' })).toBeNull();

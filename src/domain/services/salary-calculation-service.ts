@@ -197,7 +197,15 @@ function resolveBreaks(input: SalaryCalculationInput, range: TimeRange, context:
   });
   const scheduledPaidMinutes = context === 'scheduled' && input.profile?.breakPolicy === 'paid' ? input.shift.expectedBreakMinutes : 0;
   const paidMinutes = clipped.filter((item) => item.isPaid).reduce((sum, item) => sum + item.minutes, 0) + scheduledPaidMinutes;
-  const persistedUnpaid = context === 'completed' ? input.shift.payableBreakMinutes ?? 0 : context === 'scheduled' ? (input.profile?.breakPolicy === 'paid' ? 0 : input.shift.expectedBreakMinutes) : undefined;
+  const persistedUnpaid = context === 'completed'
+    ? input.shift.payableBreakMinutes ?? 0
+    : context === 'scheduled'
+      ? input.profile?.breakPolicy === 'unpaid'
+        ? input.shift.expectedBreakMinutes
+        : input.profile?.breakPolicy === 'paid'
+          ? 0
+          : undefined
+      : undefined;
   const availableUnpaid = clipped.filter((item) => !item.isPaid);
   const desired = persistedUnpaid ?? availableUnpaid.reduce((sum, item) => sum + item.minutes, 0);
   const unpaidIntervals: TimeRange[] = [];

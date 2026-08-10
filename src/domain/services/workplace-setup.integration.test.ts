@@ -47,6 +47,7 @@ describe('WorkplaceSetupService Integration', () => {
     expect(spRows[0].id).toBe(result.profileId);
     expect(spRows[0].workplace_id).toBe(result.workplaceId);
     expect(spRows[0].standard_hourly_rate_minor).toBe(5850);
+    expect(spRows[0].break_policy).toBe('perBreak');
 
     // Verify repository reload matches
     const loadedWorkplace = await workplaceRepo.getById(result.workplaceId);

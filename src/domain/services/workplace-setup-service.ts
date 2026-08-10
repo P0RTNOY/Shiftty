@@ -29,7 +29,7 @@ export class WorkplaceSetupService {
       name: `פרופיל בסיסי - ${options.name}`,
       currency: options.currency || 'ILS',
       baseHourlyRateMinor: options.standardHourlyRateMinor,
-      breakPolicy: 'unpaid',
+      breakPolicy: 'perBreak',
       timezone: options.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Jerusalem',
       defaultTravelReimbursementMinor: 0,
       defaultShiftBonusMinor: 0,

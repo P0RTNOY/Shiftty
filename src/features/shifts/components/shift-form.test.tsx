@@ -55,6 +55,13 @@ describe('ShiftForm', () => {
     expect(screen.getByText('משמרת חוזרת')).toBeTruthy();
   });
 
+  it('starts a new shift with zero break minutes even when the workplace has a legacy default', () => {
+    renderApp(<ShiftForm initialDate="2026-08-10" mode="scheduled" workplaces={[workplace]} onSave={jest.fn()} />);
+
+    fireEvent.press(screen.getByRole('button', { name: 'אפשרויות נוספות' }));
+    expect(screen.getByLabelText('הפסקה מתוכננת בדקות')).toHaveProp('value', '0');
+  });
+
   it('mirrors actual times into payable values until the user edits payable time', async () => {
     const onSave = jest.fn();
     renderApp(<ShiftForm initialDate="2026-07-10" mode="completed" workplaces={[workplace]} onSave={onSave} />);
