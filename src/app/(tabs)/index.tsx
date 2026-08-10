@@ -166,8 +166,7 @@ export default function HomeScreen() {
         onChoose={(workplaceId) => void startAtWorkplace(workplaceId)}
         workplaces={workplaces.filter((item) => clockInWorkplaceIds.includes(item.id))}
       /> : null}
-      <SecondaryButton label={t('home.addFuture')} onPress={() => router.push('/shifts/new?mode=scheduled')} />
-      <SecondaryButton label={t('home.addCompleted')} onPress={() => router.push('/shifts/new?mode=completed')} />
+      <SecondaryButton label={t('home.addShift')} onPress={() => router.push('/shifts/new')} />
 
       <View style={styles.section}>
         <Text

@@ -48,6 +48,24 @@ describe('Expo Router route tree', () => {
     expect(he['nav.calendar']).toBe('לוח שנה');
   });
 
+  it('routes ordinary Home and Calendar creation through one inferred Add Shift flow', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('fs');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const p = require('path');
+    const appDir = p.join(p.resolve('.'), 'src', 'app');
+    const home = fs.readFileSync(p.join(appDir, '(tabs)', 'index.tsx'), 'utf8');
+    const calendar = fs.readFileSync(p.join(appDir, '(tabs)', 'calendar.tsx'), 'utf8');
+    const compatibilityRoute = fs.readFileSync(p.join(appDir, 'add-shift.tsx'), 'utf8');
+
+    expect(home).toContain("router.push('/shifts/new')");
+    expect(home).not.toContain('home.addFuture');
+    expect(home).not.toContain('home.addCompleted');
+    expect(calendar).toContain('/shifts/new?date=');
+    expect(calendar).not.toContain('mode=scheduled');
+    expect(compatibilityRoute).toContain('<Redirect href="/shifts/new" />');
+  });
+
   it('does not expose caught native or database messages from hardened routes', () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const fs = require('fs');

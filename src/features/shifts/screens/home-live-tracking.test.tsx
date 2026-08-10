@@ -56,6 +56,9 @@ describe('Home live tracking state', () => {
   it('shows the start-now action when no shift is active', () => {
     mockActiveHook.mockReturnValue(emptyActive); renderApp(<HomeScreen />);
     expect(screen.getByRole('button', { name: 'כניסה' })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'הוספת משמרת' })).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'הוספת משמרת עתידית' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'הוספת משמרת שהושלמה' })).toBeNull();
   });
 
   it('starts the nearby scheduled shift from the primary clock-in action', async () => {

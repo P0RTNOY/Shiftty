@@ -6,6 +6,7 @@ import { Alert } from 'react-native';
 import type { RecurrenceSeries, Shift } from '@/domain/entities';
 import { calculateShiftDuration, generateRecurrenceOccurrences, getEffectiveShiftRange, isCompletedShiftFutureDated } from '@/domain/services';
 import { ShiftForm, type RecurrenceDraft } from '@/features/shifts/components/shift-form';
+import { useActiveShift } from '@/features/shifts/hooks/use-active-shift';
 import { useRepositories } from '@/features/shifts/hooks/use-repositories';
 import { useShift } from '@/features/shifts/hooks/use-shifts';
 import { useShiftTemplates } from '@/features/shifts/hooks/use-shift-templates';
@@ -20,12 +21,13 @@ import { reportUnexpectedError } from '@/shared/utils/report-unexpected-error';
 
 export default function NewShiftScreen() {
   const params = useLocalSearchParams<{ mode?: string; date?: string; duplicate?: string }>();
-  const mode = params.mode === 'completed' ? 'completed' : 'scheduled';
+  const mode = params.mode === 'completed' ? 'completed' : params.mode === 'scheduled' ? 'scheduled' : 'auto';
   const repositories = useRepositories(); const { shifts: shiftRepository, recurrence: recurrenceRepository } = repositories;
   const salaryCoordinator = useMemo(() => new SalaryCalculationCoordinator(repositories), [repositories]);
   const { shift: duplicateSource } = useShift(params.duplicate);
   const { workplaces, roles } = useWorkplaces();
   const { templates } = useShiftTemplates();
+  const active = useActiveShift();
   const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -46,6 +48,12 @@ export default function NewShiftScreen() {
   } : undefined, [duplicateSource]);
   const goBack = async () => {
     if (!dirty || await confirmAlert(t('form.unsavedTitle'), t('form.unsavedBody'), t('common.cancel'), t('common.confirm'), true)) router.back();
+  };
+  const promptCurrentShift = (shift: Shift) => {
+    Alert.alert(t('form.currentShiftTitle'), t('form.currentShiftBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('active.startNow'), onPress: () => void active.startUnscheduled(shift).then(() => router.replace('/')).catch((caught) => { reportUnexpectedError('shift.new.startCurrent', caught); Alert.alert(t('common.error'), t('active.mutationError')); }) },
+    ]);
   };
 
   const save = async (shift: Shift, recurrence?: RecurrenceDraft) => {
@@ -84,9 +92,9 @@ export default function NewShiftScreen() {
     }
   };
 
-  return <AppScreen title={mode === 'completed' ? t('addShift.completed') : t('addShift.future')}>
+  return <AppScreen title={mode === 'auto' ? t('addShift.title') : mode === 'completed' ? t('addShift.completed') : t('addShift.future')}>
     <SecondaryButton label={t('common.back')} onPress={() => void goBack()} />
-    <ShiftForm initialDate={params.date} initialShift={duplicateInitial} mode={mode} onDirtyChange={setDirty} onSave={save} roles={roles} saving={saving} templates={templates} workplaces={workplaces} />
+    <ShiftForm initialDate={params.date} initialShift={duplicateInitial} mode={mode} onCurrentShift={promptCurrentShift} onDirtyChange={setDirty} onSave={save} roles={roles} saving={saving || active.busy} templates={templates} workplaces={workplaces} />
     {!workplaces.length ? <SecondaryButton label={t('form.manageWorkplaces')} onPress={() => router.push('/settings/workplaces')} /> : null}
   </AppScreen>;
 }

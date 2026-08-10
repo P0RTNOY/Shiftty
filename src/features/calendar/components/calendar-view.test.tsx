@@ -13,7 +13,7 @@ describe('CalendarView', () => {
 
     expect(screen.getByText('עדיין אין משמרות ביומן')).toBeTruthy();
     fireEvent.press(screen.getByText('15'));
-    fireEvent.press(screen.getByRole('button', { name: 'הוספת משמרת עתידית' }));
+    fireEvent.press(screen.getByRole('button', { name: 'הוספת משמרת' }));
     expect(onCreateShift).toHaveBeenCalledWith('2026-07-15');
   });
 
@@ -21,7 +21,7 @@ describe('CalendarView', () => {
     const onCreateShift = jest.fn();
     renderApp(<CalendarView mode={mode} monthDate="2026-07-01" onCreateShift={onCreateShift} onModeChange={jest.fn()} onNextMonth={jest.fn()} onOpenShift={jest.fn()} onPreviousMonth={jest.fn()} onSelectDate={jest.fn()} selectedDate="2026-07-15" shifts={[]} workplaces={[]} />);
 
-    fireEvent.press(screen.getByRole('button', { name: 'הוספת משמרת עתידית' }));
+    fireEvent.press(screen.getByRole('button', { name: 'הוספת משמרת' }));
     expect(onCreateShift).toHaveBeenCalledWith('2026-07-15');
   });
 

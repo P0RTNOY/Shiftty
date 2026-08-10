@@ -97,7 +97,7 @@ export function CalendarView(props: Props) {
       <ShiftList roles={props.roles ?? []} shifts={agendaShifts} templates={props.templates ?? []} workplaces={props.workplaces} onOpenShift={props.onOpenShift} onStartShift={props.onStartShift} />
       {!agendaShifts.length ? <EmptyState body={t('calendar.emptyBody')} title={t('calendar.empty')} /> : null}
     </>}
-    <PrimaryButton label={t('home.addFuture')} onPress={() => props.onCreateShift(props.selectedDate)} />
+    <PrimaryButton label={t('home.addShift')} onPress={() => props.onCreateShift(props.selectedDate)} />
   </View>;
 }
 

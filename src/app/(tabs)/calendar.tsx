@@ -31,7 +31,7 @@ export default function CalendarScreen() {
     <AppScreen title={t('calendar.title')}>
       {loading ? <Text style={{ color: colors.textMuted }}>{t('common.loading')}</Text> : null}
       {error ? <Text accessibilityRole="alert" style={{ color: colors.danger }}>{t('common.error')}</Text> : null}
-      <CalendarView mode={mode} monthDate={monthDate} onCreateShift={(date) => router.push(`/shifts/new?mode=scheduled&date=${date}`)} onModeChange={setMode} onNextMonth={() => moveMonth(1)} onOpenShift={(shift) => router.push(`/shifts/${shift.id}`)} onStartShift={(shift) => router.push(`/shifts/start?shiftId=${shift.id}`)} onPreviousMonth={() => moveMonth(-1)} onSelectDate={setSelectedDate} roles={roles} selectedDate={selectedDate} shifts={shifts} templates={templates} workplaces={workplaces} />
+      <CalendarView mode={mode} monthDate={monthDate} onCreateShift={(date) => router.push(`/shifts/new?date=${date}`)} onModeChange={setMode} onNextMonth={() => moveMonth(1)} onOpenShift={(shift) => router.push(`/shifts/${shift.id}`)} onStartShift={(shift) => router.push(`/shifts/start?shiftId=${shift.id}`)} onPreviousMonth={() => moveMonth(-1)} onSelectDate={setSelectedDate} roles={roles} selectedDate={selectedDate} shifts={shifts} templates={templates} workplaces={workplaces} />
     </AppScreen>
   );
 }

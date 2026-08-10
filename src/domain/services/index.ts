@@ -14,6 +14,7 @@ export * from './shift-prediction-engine';
 export * from './shift-status-service';
 export * from './shift-time-service';
 export * from './live-shift-service';
+export * from './manual-shift-classification-service';
 export * from './nearby-shift-service';
 export * from './payable-time-service';
 export * from './rate-resolution-service';
