@@ -11,11 +11,15 @@ import { readTextFile } from '@/features/exports/adapters/file-read-adapter';
 import { router } from 'expo-router';
 import { SettingsBackButton } from '@/features/settings/components/settings-back-button';
 import { reportUnexpectedError } from '@/shared/utils/report-unexpected-error';
+import { SqliteShiftRepository } from '@/data/repositories';
+import { useAppStore } from '@/features/settings/store/app-store';
+import { synchronizeActiveShiftAfterDataMutation } from '@/features/settings/services/data-management-state-service';
 
 export default function DataManagementScreen() {
   const { colors } = useAppTheme();
   const { t, isRtl } = useTranslation();
   const db = useSQLiteContext();
+  const setActiveShift = useAppStore((state) => state.setActiveShift);
   const [loading, setLoading] = useState(false);
 
   const textStyle = [styles.text, { color: colors.text, textAlign: isRtl ? ('right' as const) : ('left' as const) }];
@@ -81,6 +85,7 @@ export default function DataManagementScreen() {
               const result = await orchestrator.restoreMerge(content);
               setLoading(false);
               if (result.success) {
+                await synchronizeActiveShiftAfterDataMutation('restore', new SqliteShiftRepository(db), setActiveShift);
                 Alert.alert('הצלחה', 'הנתונים מוזגו בהצלחה.');
               } else {
                 reportUnexpectedError('backup.restore.merge', result.message);
@@ -96,6 +101,7 @@ export default function DataManagementScreen() {
               const result = await orchestrator.restoreReplace(content);
               setLoading(false);
               if (result.success) {
+                await synchronizeActiveShiftAfterDataMutation('restore', new SqliteShiftRepository(db), setActiveShift);
                 Alert.alert('הצלחה', 'הנתונים שוחזרו בהצלחה.');
               } else {
                 reportUnexpectedError('backup.restore.replace', result.message);
@@ -127,8 +133,9 @@ export default function DataManagementScreen() {
               setLoading(true);
               const result = await new BackupOrchestrator(db).clearAllData();
               if (!result.success) throw new Error(result.message ?? 'Clear all failed');
+              await synchronizeActiveShiftAfterDataMutation('clear', new SqliteShiftRepository(db), setActiveShift);
               Alert.alert('הצלחה', 'כל הנתונים נמחקו.', [
-                { text: 'אישור', onPress: () => router.replace('/') } // Go to onboarding later
+                { text: 'אישור', onPress: () => router.replace('/') }
               ]);
             } catch (error) {
               reportUnexpectedError('backup.clearAll', error);

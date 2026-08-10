@@ -5,7 +5,7 @@ import type { RecurrenceRepository, ShiftRepository, ShiftTemplateRepository } f
 import { restoreActiveShift } from '@/domain/services';
 import { checkAllSeriesRollingWindows } from '@/domain/services/recurrence-window-service';
 import { createScheduledShift } from '@/domain/services/shift-factory';
-import { createId } from '@/shared/utils/id';
+import { formatLocalDateKey } from '@/shared/utils/zoned-time';
 
 type BootstrapStatus = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -31,45 +31,50 @@ export const useAppStore = create<AppState>((set) => ({
       // 2. Extend recurrence rolling windows
       const allSeries = await repos.recurrence.listAll();
       const shiftsBySeries = new Map<string, string[]>();
-      
-      // We need to fetch existing shift dates for each series to know what's already generated
+      const seriesWithExceptions = [];
+
       for (const series of allSeries) {
-        const generatedShifts = await repos.shifts.list({ recurrenceGroupId: series.id });
-        shiftsBySeries.set(series.id, generatedShifts.map((s: Shift) => s.scheduledStart!.split('T')[0]!));
+        const [generatedShifts, exceptions] = await Promise.all([
+          repos.shifts.list({ recurrenceGroupId: series.id }),
+          repos.recurrence.listExceptions(series.id),
+        ]);
+        shiftsBySeries.set(series.id, generatedShifts.flatMap((shift: Shift) => {
+          const start = shift.recurrenceOriginalStart ?? shift.scheduledStart;
+          return start ? [formatLocalDateKey(start, series.rule.timezone)] : [];
+        }));
+        seriesWithExceptions.push({ series, exceptions });
       }
 
       const windowResults = checkAllSeriesRollingWindows(
-        allSeries.map((s: RecurrenceSeries) => ({ series: s, exceptions: [] })), // Real exceptions should be loaded if supported in the future
+        seriesWithExceptions,
         shiftsBySeries,
         new Date()
       );
 
-      // Save generated occurrences
       const nowString = new Date().toISOString();
       for (const [seriesId, result] of windowResults.entries()) {
         if (result.needsExtension && result.occurrencesToCreate.length > 0) {
           const series = allSeries.find((s: RecurrenceSeries) => s.id === seriesId)!;
-          const template = await repos.templates.getById(series.template.shiftTemplateId ?? series.template.workplaceId); // This is just mock logic for bootstrap, real factory is complex
-          if (template) {
-            for (const occurrence of result.occurrencesToCreate) {
-              const shift = createScheduledShift({
-                workplaceId: series.template.workplaceId,
-                roleId: series.template.roleId,
-                shiftTemplateId: series.template.shiftTemplateId,
-                hourlyRateSnapshotMinor: series.template.hourlyRateSnapshotMinor,
-                date: occurrence.localDate,
-                startTime: series.template.startTime,
-                endTime: series.template.endTime,
-                expectedBreakMinutes: series.template.expectedBreakMinutes,
-              }, {
-                id: createId('shift'),
-                now: nowString,
-                timezone: series.rule.timezone,
-              });
-              
-              await repos.shifts.create({ ...shift, recurrenceGroupId: series.id });
-            }
-          }
+          const occurrences = result.occurrencesToCreate.map((occurrence) => {
+            const shift = createScheduledShift({
+              workplaceId: series.template.workplaceId,
+              roleId: series.template.roleId,
+              shiftTemplateId: series.template.shiftTemplateId,
+              title: series.template.title,
+              notes: series.template.notes,
+              hourlyRateSnapshotMinor: series.template.hourlyRateSnapshotMinor,
+              date: occurrence.localDate,
+              startTime: series.template.startTime,
+              endTime: series.template.endTime,
+              expectedBreakMinutes: series.template.expectedBreakMinutes,
+            }, {
+              id: occurrence.id,
+              now: nowString,
+              timezone: series.rule.timezone,
+            });
+            return { ...shift, recurrenceGroupId: series.id, recurrenceOriginalStart: occurrence.scheduledStart };
+          });
+          await repos.recurrence.materializeOccurrences(series, occurrences);
         }
       }
 
