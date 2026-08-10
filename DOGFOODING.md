@@ -87,7 +87,17 @@ Do not repair or rewrite affected data merely to make the report look clean. Pre
 ## Known limitations
 
 - Android has not been verified because no emulator, AVD, or physical Android device is currently available. This is an external verification gap, not an iOS RC failure.
-- A corrected physical-iPhone Preview build is still required because the application icon and JavaScript behavior changed. Its build ID and install link belong in `PROJECT_STATUS.md` after the final EAS attempt.
+- The single corrected physical-iPhone EAS Preview attempt stopped before upload/build creation because internal distribution requires Apple Developer credentials that are not available to EAS. No corrected standalone install link or QR exists; the older app already installed on the iPhone is stale.
+- A free Personal Team Xcode install can support temporary development testing but is not equivalent to a standalone EAS Preview and requires the development runtime/Metro.
 - Physical-iPhone behavior still needs follow-up for notification delivery timing, calendar import interoperability, native share targets, keyboard avoidance, and dynamic-text extremes.
 - Simulator notification permission, scheduling, metadata persistence, and reconciliation passed, but simulator delivery timing is not representative of physical-device behavior, including background execution, Focus modes, and power management.
 - This is an internal Expo development-client build. It requires Metro to serve the current JavaScript bundle and is not evidence of App Store distribution behavior.
+
+When an Apple Developer Program team or valid internal-distribution `credentials.json` becomes available, the intended standalone build command remains:
+
+```sh
+cd /Users/portnoy/Documents/Shiftty
+eas build --platform ios --profile preview
+```
+
+Do not use `development-simulator` for a physical iPhone.
