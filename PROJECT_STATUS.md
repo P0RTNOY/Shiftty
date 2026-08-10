@@ -4,18 +4,19 @@ Last updated: 2026-08-10
 
 ## Current milestone
 
-Development is at the **Phase 7 release-hardening checkpoint** on branch `codex/initial-shifty-foundation`. RC1.5A-E is implemented, tested, natively walked through on iOS, committed, and pushed. The release-hardening implementation is published at `5ab90a7`.
+Development is at the **iOS release-candidate closure checkpoint** on branch `codex/initial-shifty-foundation`. RC1.5A-E and Phase 7 are implemented, tested, committed, and pushed. The four approved destructive iOS Simulator checks have now been completed against disposable data, including a regression repair discovered by the native deletion pass.
 
-The current planned MVP is source-complete and its automated gates are green. Non-destructive iOS release-candidate flows have also passed. A final release-candidate claim remains gated by explicit approval for four destructive simulator checks and by practical Android execution, for which no emulator/device runtime is available locally.
+The planned MVP is source-complete, all automated gates are green, and the iOS Simulator RC is approved for controlled dogfooding. Practical Android execution remains externally blocked because no emulator, AVD, or physical device is available locally; this is an environment limitation, not a repository failure.
 
 The product direction remains: **powerful engine, extremely simple interface**, with the everyday flow centered on `כניסה → הפסקה → יציאה` while scheduled/actual/payable ranges, salary snapshots and rules, recurrence, templates, predictions, notifications, exports, backup/restore, and recovery stay available underneath.
 
 ## Git baseline
 
 - Branch: `codex/initial-shifty-foundation`
+- Completed-shift deletion repair: `9bf6c0c` (`fix(shifts): delete completed shifts without scheduled times`)
 - Release-hardening implementation: `5ab90a7` (`fix(rc): harden data integrity and native recovery`)
 - Progressive frontend simplification: `b407191` (`feat(rc1.5): complete progressive frontend simplification`)
-- Both commits are published to `origin/codex/initial-shifty-foundation`.
+- These commits are published to `origin/codex/initial-shifty-foundation`.
 - No dependency or native-module change was introduced during Phase 7.
 
 ## Implemented and source-verified
@@ -47,16 +48,16 @@ The product direction remains: **powerful engine, extremely simple interface**, 
 
 ## Automated validation
 
-Fresh results after the final pre-commit review fixes:
+Fresh results after the destructive native pass and completed-shift deletion repair:
 
 | Check | Result |
 | --- | --- |
 | `npm run typecheck` | Passed |
 | `npm run lint` | Passed with zero warnings |
-| `npm test -- --runInBand` | Passed; 83 suites, 378 tests, 0 skipped, process exit 0 |
+| `npm test -- --runInBand` | Passed; 84 suites, 379 tests, 0 skipped, process exit 0 |
 | `npm run validate:migrations` | Passed for empty and v1-v6 databases |
 | `npm run validate:expo` | Passed; 36 static routes exported |
-| `npx expo config --type public --json` | Passed; iOS and Android identifiers resolve to `com.shifty.app` |
+| `npx expo config --type public` | Passed; iOS and Android identifiers resolve to `com.shifty.app` |
 | `npx expo install --check` | Passed; dependencies are SDK-compatible |
 | Expo Router test leak check | Passed; no test/spec files under `src/app` |
 | `git diff --check` | Passed |
@@ -86,16 +87,41 @@ Passed natively on iOS:
 - Notification permission, persisted native IDs, restart reconciliation, global settings, and workplace override disable/restore behavior.
 - PDF, CSV, ICS, and backup all opened native share sheets. Backup output contained shifts, recurrence state, notification metadata with native IDs stripped, and valid counts. Restore merge passed.
 
+### Destructive iOS Simulator release-candidate checks
+
+Scope was limited to disposable Shiftty data on the iPhone 17 Pro simulator running iOS 26.5. The preserved external backup remained at `shiftty_backup_2026-08-09.json`; its SHA-256 stayed `706c356953843a4dbdb20fc156028f3e314b7db9c23dee012cc0ca348ed4c941` throughout.
+
+Permanent deletion:
+
+- A standalone scheduled shift deleted successfully; its row and scheduled-notification metadata were absent afterward.
+- The first completed, break-bearing, and completed cross-midnight deletion attempts reproduced `RangeError: Invalid time value`. SQLite rolled each attempt back cleanly with `PRAGMA integrity_check = ok` and no foreign-key violations.
+- Root cause: Shift Details formatted a recurrence local date unconditionally, although actual-only completed shifts have no scheduled timestamp. Commit `9bf6c0c` limits that calculation to recurring shifts and adds a screen-level regression test.
+- Native retest passed for an actual-only completed shift, a completed shift with a persisted break, and a cross-midnight scheduled shift. Shift rows and dependent salary snapshots, break sessions, and notification records were removed. Home, Calendar, and Reports refreshed without stale entities.
+
+Active cancel/discard:
+
+- Pre-state had no active shift. A disposable unscheduled active shift was created for the secondary workplace and then removed through **Delete the new shift** plus destructive confirmation.
+- The active row and all dependent break, snapshot, and notification rows were absent afterward; the active count returned to zero. Home, Calendar, and Reports remained render-safe.
+- The development client briefly surfaced a caught salary-dashboard diagnostic during the deletion transition, but no stale entity or persisted corruption remained; the final cold restart was clean.
+
+Restore-replace:
+
+- Pre-state contained 2 workplaces, 1 salary profile, 12 shifts, 3 breaks, 1 recurrence series, 1 recurrence exception, 10 salary snapshots, and 6 notification records.
+- Replace restored the preserved backup to exactly 1 workplace, 1 salary profile, 4 shifts (3 completed, 1 scheduled), 1 break, 3 salary snapshots, 3 notification records, 1 app-setting record, and no recurrence or active-shift records. Backup/live entity ID sets and notification logical keys matched exactly.
+- The disposable secondary workplace, recurrence series, previously deleted scheduled shift, and discarded active shift were absent, proving replacement rather than merge.
+- Restore is enclosed in one SQLite transaction, validates integrity and declared counts before commit, and has integration coverage for rollback after an injected mid-replacement write failure. Native execution produced a complete backup state with no hybrid rows.
+- Workplace/salary-profile, shift/workplace, break/shift, snapshot/shift, and notification/shift reference checks all returned zero invalid references. `PRAGMA integrity_check` returned `ok`; `PRAGMA foreign_key_check` returned no rows.
+
+Clear-all and final restore:
+
+- Clear-all reduced every intended application table to zero rows while preserving all six schema migrations. SQLite integrity remained `ok` and foreign-key violations remained zero.
+- The app returned to the welcome/onboarding flow with no active-shift or old-data UI. The preserved backup remained externally accessible with the same hash.
+- A temporary onboarding workplace/profile was created only to regain the in-app restore screen; restore-replace then removed both temporary IDs and restored the preserved backup exactly.
+- The final simulator database again contains 1 workplace, 1 salary profile, 4 shifts, 1 break, 3 salary snapshots, and 3 notification records, with no active shift. A terminate/launch cycle reopened the populated Home screen; Calendar and Reports rendered the restored data.
+
 ## Remaining native/manual verification
 
-These actions are intentionally not executed without approval at their destructive confirmation boundary:
-
-- Permanently delete disposable scheduled, completed, break-bearing, and cross-midnight shifts and verify all dependent views refresh.
-- Destructively cancel/discard a disposable active shift and verify recovery semantics.
-- Restore-replace from a validated backup, which overwrites the simulator database.
-- Clear all simulator data, then restore the preserved fixture backup.
-
-Lower-risk physical-device follow-up remains useful for notification delivery timing, calendar import interoperability, share targets, keyboard avoidance, and dynamic-text extremes.
+All planned iOS Simulator destructive and non-destructive RC checks are complete. Lower-risk physical-device follow-up remains useful for notification delivery timing, calendar import interoperability, share targets, keyboard avoidance, and dynamic-text extremes, but none is a P0/P1 blocker for controlled simulator-based iOS dogfooding.
 
 ## Android blocker
 
@@ -105,16 +131,25 @@ Android execution is externally blocked in the current environment:
 - No Android `emulator` or `avdmanager` executable is available.
 - No local Android Virtual Device is configured.
 
-Remaining Android checklist: install/build the development client, onboarding, native date/time picker, clock-in/break/clock-out and restart recovery, completed/future/cross-midnight shifts, navigation, Calendar/Reports, notifications, export/share, backup/restore, and light/dark RTL smoke testing.
+Remaining Android checklist:
+
+- Install/build the development client and confirm cold-start persistence.
+- Complete onboarding and workplace/salary-profile creation.
+- Verify native date/time pickers, completed/future/equal-time/cross-midnight shifts, and permanent deletion cascades.
+- Verify clock-in, active timer, break/resume, clock-out, active discard, stale recovery, and process-restart restoration.
+- Exercise Home, Calendar month/week/agenda, Reports, Settings, and major light/dark RTL states.
+- Verify notification permission, scheduling, preferences, workplace overrides, and foreground/startup reconciliation.
+- Verify PDF/CSV/ICS share flows, backup export, restore merge/replace, clear-all, final restore, SQLite integrity, and foreign keys.
 
 ## Release readiness and next step
 
-There is no known P0/P1 source or iOS non-destructive blocker. The current build is suitable for controlled iOS dogfooding and release-candidate testing, but final RC completion is not claimed yet.
+There is no known P0/P1 source or iOS Simulator blocker. The iOS Simulator RC is approved for controlled dogfooding; the simulator is left populated from the preserved backup and passes restart, integrity, foreign-key, Home, Calendar, and Reports checks.
 
-The safest next step is to obtain one explicit batch approval for the four destructive iOS simulator checks above, execute them against disposable/preserved fixture data, restore the simulator to a usable state, and record the results. Android remains a separately documented external-runtime gate.
+The safest next development step is controlled iOS dogfooding without starting a new feature phase, while retaining the external backup. When an Android runtime becomes available, execute the checklist above and record platform-specific findings; Android remains a separately documented external-runtime gate.
 
 ## Recent development history
 
+- `9bf6c0c` fixed actual-only completed-shift deletion and added screen-level regression coverage
 - `5ab90a7` hardened backup/restore, exports, notifications, safe errors, accessibility, migrations, recurrence persistence, and active salary recovery
 - `b407191` completed RC1.5E progressive frontend simplification
 - `94c6d8b` simplified navigation, Calendar, Reports, and Settings
