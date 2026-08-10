@@ -44,7 +44,9 @@ export default function ShiftDetailsScreen() {
     try {
       const occurrences = shift.recurrenceGroupId ? await repositories.shifts.list({ recurrenceGroupId: shift.recurrenceGroupId }) : [shift];
       const selected = selectRecurrenceScopeOccurrences(occurrences, shift, scope);
-      const localDate = formatLocalDateKey(shift.recurrenceOriginalStart ?? shift.scheduledStart!, shift.timezone);
+      const localDate = shift.recurrenceGroupId
+        ? formatLocalDateKey(shift.recurrenceOriginalStart ?? shift.scheduledStart!, shift.timezone)
+        : undefined;
       const series = shift.recurrenceGroupId ? await repositories.recurrence.getSeries(shift.recurrenceGroupId) : null;
       if (action === 'delete') {
         if (shift.recurrenceGroupId) await repositories.recurrence.applyMutation({
