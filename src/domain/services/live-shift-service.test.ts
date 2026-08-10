@@ -53,6 +53,17 @@ describe('live shift calculations', () => {
     });
   });
 
+  it('keeps a newly persisted break render-safe while the Home calculation clock is stale', () => {
+    const staleRenderNow = new Date('2026-07-15T17:00:00.000+03:00');
+    const newlyPersisted = createBreak({ start: '2026-07-15T17:00:15.000+03:00', end: undefined });
+
+    expect(calculateLiveShiftMetrics(active, [newlyPersisted], staleRenderNow)).toMatchObject({
+      activeBreakMinutes: 0,
+      unpaidBreakMinutes: 0,
+      isOnBreak: true,
+    });
+  });
+
   it('accepts a just-ended break when the UI clock is one tick behind', () => {
     const staleRenderNow = new Date('2026-07-15T17:00:00.100+03:00');
     const justEnded = createBreak({

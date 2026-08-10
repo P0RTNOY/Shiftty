@@ -17,9 +17,12 @@ export function calculateLiveShiftMetrics(shift: Shift, breaks: readonly BreakSe
   const newestRequiredInstant = openBreakStart
     ? Math.max(newestBreakEvent, Date.parse(openBreakStart) + 1)
     : newestBreakEvent;
-  const isOneTickBehind = newestRequiredInstant >= now.getTime()
-    && newestRequiredInstant - now.getTime() <= 1_000;
-  const calculationNow = isOneTickBehind ? new Date(newestRequiredInstant) : now;
+  // Persistence events use the current system clock, while the Home calculation clock is
+  // intentionally refreshed less often. Treat the newest persisted event as authoritative so
+  // a just-started or just-ended break cannot be invalidated by a stale render timestamp.
+  const calculationNow = newestRequiredInstant >= now.getTime()
+    ? new Date(newestRequiredInstant)
+    : now;
   validateBreakSessions(shift, breaks, calculationNow);
   const elapsedMinutes = Math.max(0, differenceInMinutes(calculationNow, shift.actualStart));
   const summary = summarizeBreakSessions(breaks, calculationNow);
