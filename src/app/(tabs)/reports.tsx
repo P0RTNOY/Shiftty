@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { summarizeShifts } from '@/domain/services';
 import { useSalaryDashboard } from '@/features/pay-rules';
-import { ShiftCard } from '@/features/shifts/components/shift-card';
+import { ReportShiftRow } from '@/features/reports/report-shift-row';
 import { useShifts } from '@/features/shifts/hooks/use-shifts';
 import { useWorkplaces } from '@/features/workplaces/hooks/use-workplaces';
 import { AppScreen, EmptyState, MetricCard, SecondaryButton } from '@/shared/components';
@@ -37,6 +37,7 @@ export default function ReportsScreen() {
   )), [roleId, shifts, status, workplaceId]);
   const summary = summarizeShifts(filtered);
   const salary = useSalaryDashboard(filtered, new Date(`${monthStart}T12:00:00+03:00`).toISOString(), undefined, reportingRange);
+  const hasBaseOnlyCalculation = Boolean(salary.summary && Object.values(salary.summary.resultsByShiftId).some((result) => result.issues.some((issue) => issue.code === 'no_pay_rules_configured')));
   const align = isRtl ? 'right' : 'left';
 
   return (
@@ -67,28 +68,32 @@ export default function ReportsScreen() {
           {salary.summary.staleShiftCount} {t('salary.staleCount')}
         </Text>
       ) : null}
+      {hasBaseOnlyCalculation ? <Text accessibilityRole="alert" style={{ color: colors.warning, textAlign: align }}>{t('salary.noPayRules')}</Text> : null}
+      {salary.summary && (salary.summary.incompleteShiftCount > 0 || hasBaseOnlyCalculation) ? <SecondaryButton label={t('salary.openSettings')} onPress={() => router.push('/settings/salary')} /> : null}
 
       {!loading && !filtered.length ? (
         <EmptyState body={t('reports.emptyBody')} title={t('reports.empty')} />
       ) : (
         <>
           <View style={styles.headline}>
-            <Text style={[styles.headlineValue, { color: colors.text, textAlign: align }]}>{t('reports.shiftCount', { count: filtered.length })}</Text>
-            <Text style={[styles.headlineValue, { color: colors.text, textAlign: align }]}>{formatDurationCompact(summary.workedMinutes + summary.upcomingMinutes, locale)}</Text>
+            <Text style={[styles.headlineValue, { color: colors.text, textAlign: align }]}>{t('reports.completedShiftCount', { count: summary.completedCount })}</Text>
+            <Text style={[styles.headlineValue, { color: colors.text, textAlign: align }]}>{t('reports.workedDuration', { duration: formatDurationCompact(summary.workedMinutes, locale).replace(/ שעות$/, '') })}</Text>
             {salary.summary ? (
               <Text style={[styles.forecast, { color: colors.primary, textAlign: align }]}>
-                {t('reports.expectedAmount', { amount: formatCurrency(salary.summary.forecastMinor) })}
+                {t('reports.earnedAmount', { amount: formatCurrency(salary.summary.earnedMinor) })}
               </Text>
             ) : null}
+            {salary.summary && summary.scheduledCount > 0 ? <Text style={[styles.future, { color: colors.textMuted, textAlign: align }]}>{t('reports.futureSummary', { count: summary.scheduledCount, amount: formatCurrency(salary.summary.futureMinor) })}</Text> : null}
           </View>
 
           <View style={styles.shiftList}>
             <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text, textAlign: align }]}>{t('reports.shifts')}</Text>
             {filtered.map((shift) => (
-              <ShiftCard
+              <ReportShiftRow
                 key={shift.id}
                 onPress={() => router.push(`/shifts/${shift.id}`)}
-                roleName={roles.find((item) => item.id === shift.roleId)?.name}
+                salaryMinor={salary.summary?.resultsByShiftId[shift.id]?.totalGrossPayMinor}
+                baseOnly={salary.summary?.resultsByShiftId[shift.id]?.issues.some((issue) => issue.code === 'no_pay_rules_configured')}
                 shift={shift}
                 workplaceName={workplaces.find((item) => item.id === shift.workplaceId)?.name ?? '—'}
               />
@@ -154,6 +159,7 @@ const styles = StyleSheet.create({
   headline: { gap: spacing.xs },
   headlineValue: { fontSize: typography.heading, fontWeight: '800' },
   forecast: { fontSize: typography.heading, fontWeight: '800' },
+  future: { fontSize: typography.body, fontWeight: '700' },
   shiftList: { gap: spacing.sm },
   sectionTitle: { fontSize: typography.title, fontWeight: '800' },
   details: { gap: spacing.md },

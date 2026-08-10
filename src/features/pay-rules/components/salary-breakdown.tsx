@@ -21,10 +21,12 @@ export function SalaryBreakdown({ result, status, onRecalculate }: { result?: Pa
 
   const statusKey = status === 'finalized' ? 'salary.finalized' : status === 'stale' ? 'salary.stale' : 'salary.estimateOnly';
   const summaryStatus = status === 'finalized' ? t('salary.finalPay') : status === 'stale' ? t('salary.stale') : t('salary.estimatedPay');
+  const hasNoPayRules = result.issues.some((issue) => issue.code === 'no_pay_rules_configured');
   return <View style={[styles.card, { backgroundColor: colors.surface, borderColor: status === 'stale' ? colors.warning : colors.border }]}>
     <Text accessibilityRole="header" style={[styles.title, { color: colors.text, textAlign: align }]}>{t('salary.summaryTitle')}</Text>
     <Text style={[styles.status, { color: status === 'stale' ? colors.warning : colors.textMuted, textAlign: align }]}>{summaryStatus}</Text>
     <Text style={[styles.total, { color: colors.primary, textAlign: align }]}>{formatCurrency(result.totalGrossPayMinor)}</Text>
+    {hasNoPayRules ? <Text accessibilityRole="alert" style={[styles.warning, { color: colors.warning, textAlign: align }]}>{t('salary.noPayRules')}</Text> : null}
     <SecondaryButton label={showDetails ? t('salary.hideDetails') : t('salary.showDetails')} onPress={() => setShowDetails((value) => !value)} />
 
     {showDetails ? <View style={styles.details}>
@@ -55,6 +57,7 @@ const styles = StyleSheet.create({
   title: { fontSize: typography.title, fontWeight: '800' },
   status: { fontSize: typography.body, fontWeight: '700' },
   total: { fontSize: typography.heading, fontWeight: '800' },
+  warning: { fontSize: typography.body, fontWeight: '700' },
   details: { gap: spacing.sm },
   row: { justifyContent: 'space-between', gap: spacing.sm },
   segment: { borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.xxs, paddingTop: spacing.sm },

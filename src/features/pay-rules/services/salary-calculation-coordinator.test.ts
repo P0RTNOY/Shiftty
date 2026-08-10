@@ -93,6 +93,16 @@ describe('SalaryCalculationCoordinator', () => {
     expect(result).toMatchObject({ fixedBonusesMinor: 300, reimbursementsMinor: 500, totalGrossPayMinor: 51800 });
   });
 
+  it('marks a base-only calculation when the selected salary profile has no configured pay rules', async () => {
+    const profile = createSalaryProfile({ baseHourlyRateMinor: 6000 });
+    const deps = repositories({ salaryProfiles: { listByWorkplace: jest.fn().mockResolvedValue([profile]), getById: jest.fn() } as unknown as SalaryCoordinatorRepositories['salaryProfiles'] });
+
+    const result = await new SalaryCalculationCoordinator(deps).previewShift(createShift({ expectedBreakMinutes: 0, hourlyRateSnapshotMinor: 0 }), '2026-08-10T12:00:00+03:00');
+
+    expect(result.totalGrossPayMinor).toBeDefined();
+    expect(result.issues).toContainEqual(expect.objectContaining({ code: 'no_pay_rules_configured', severity: 'warning' }));
+  });
+
   it('injects offline holiday intervals into normal orchestration', async () => {
     const shift = createShift({ expectedBreakMinutes: 0, hourlyRateSnapshotMinor: 0 });
     const profile = createSalaryProfile({ baseHourlyRateMinor: 6000 });

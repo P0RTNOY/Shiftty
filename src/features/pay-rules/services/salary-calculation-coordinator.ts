@@ -152,12 +152,13 @@ export class SalaryCalculationCoordinator {
     const profile = explicitProfileValid ? explicitProfile : resolveProfile(shift, context.profilesByWorkplace[shift.workplaceId] ?? []) ?? (workplaceProfile?.workplaceId === shift.workplaceId && profileAppliesAt(workplaceProfile, sourceStart(shift)) ? workplaceProfile : undefined);
     const role = shift.roleId ? context.rolesById[shift.roleId] : undefined;
     const roleValid = !shift.roleId || (role?.workplaceId === shift.workplaceId && !role.isArchived);
+    const rules = profile ? context.rulesByProfile[profile.id] ?? [] : [];
     const breaks = shift.status === 'scheduled' ? [] : preparedBreaks ?? await this.repositories.activeShifts.listBreaks(shift.id);
     const source = salarySourceRange(shift, activeEnd);
     const calculationTimezone = profile?.timezone ?? shift.timezone;
     const prior = accumulatePriorMinutes(priorResults, calculationTimezone, 'net');
     const priorGross = accumulatePriorMinutes(priorResults, calculationTimezone, 'gross');
-    const result = calculateSalary({ shift, profile, rules: profile ? context.rulesByProfile[profile.id] ?? [] : [], breaks,
+    const result = calculateSalary({ shift, profile, rules, breaks,
       holidayIntervals: this.holidayProvider.getHolidayIntervals(source.start, source.end, profile?.timezone ?? shift.timezone), calculatedAt, activeEnd, roleHourlyRateMinor: roleValid ? role?.hourlyRateMinor : undefined,
       workplaceHourlyRateMinor: workplace?.defaultHourlyRateMinor,
       workplaceDefaultShiftBonusMinor: workplace?.defaultShiftBonusMinor,
@@ -168,6 +169,7 @@ export class SalaryCalculationCoordinator {
       ...(conflicts ? [conflicts] : []),
       ...(shift.salaryProfileId && !explicitProfileValid ? [{ code: 'invalid_salary_profile_reference', severity: 'error' as const, messageKey: 'salary.issues.invalidProfileReference', metadata: { salaryProfileId: shift.salaryProfileId } }] : []),
       ...(!roleValid ? [{ code: 'invalid_role_reference', severity: 'error' as const, messageKey: 'salary.issues.invalidRoleReference', metadata: { roleId: shift.roleId } }] : []),
+      ...(profile && rules.length === 0 ? [{ code: 'no_pay_rules_configured', severity: 'warning' as const, messageKey: 'salary.noPayRules' }] : []),
     ];
     return runtimeIssues.some((issue) => issue.severity === 'error')
       ? { ...result, totalGrossPayMinor: undefined, issues: [...result.issues, ...runtimeIssues] }

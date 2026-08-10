@@ -140,6 +140,49 @@ describe('salary calculation engine', () => {
     expect(calculate(shift, [weekend]).segments.map((item) => [item.minutes, item.multiplierBasisPoints])).toEqual([[60, 10000], [60, 15000]]);
   });
 
+  it('segments the Saturday 17:20 to Sunday 05:20 fixture using explicit special and overtime rules', () => {
+    const shift = createShift({
+      status: 'completed',
+      actualStart: '2026-08-08T17:20:00+03:00',
+      actualEnd: '2026-08-09T05:20:00+03:00',
+      payableStart: '2026-08-08T17:20:00+03:00',
+      payableEnd: '2026-08-09T05:20:00+03:00',
+      actualBreakMinutes: 0,
+      payableBreakMinutes: 0,
+      payableSource: 'actual',
+      completedAt: '2026-08-09T05:20:00+03:00',
+      expectedBreakMinutes: 0,
+      hourlyRateSnapshotMinor: 0,
+    });
+    const rules = [
+      createPayRule({ id: 'special', name: 'Configured weekend', priority: 100, conditions: [{ type: 'weekend', startWeekday: 6, startTime: '00:00', endWeekday: 0, endTime: '06:00' }], effect: { type: 'multiplier', basisPoints: 15000 } }),
+      createPayRule({ id: 'overtime-1', name: 'Configured overtime tier 1', priority: 50, canStack: true, conditions: [{ type: 'workedMinutes', afterMinutes: 480, beforeMinutes: 600, scope: 'shift', basis: 'net' }], effect: { type: 'multiplier', basisPoints: 12500 } }),
+      createPayRule({ id: 'overtime-2', name: 'Configured overtime tier 2', priority: 60, canStack: true, conditions: [{ type: 'workedMinutes', afterMinutes: 600, scope: 'shift', basis: 'net' }], effect: { type: 'multiplier', basisPoints: 15000 } }),
+    ];
+
+    const result = calculateSalary({ shift, profile: createSalaryProfile({ baseHourlyRateMinor: 6000 }), rules, breaks: [], holidayIntervals: [], calculatedAt: shift.completedAt! });
+
+    expect(result.segments.map((segment) => [segment.localDate, segment.minutes, segment.multiplierBasisPoints])).toEqual([
+      ['2026-08-08', 400, 15000],
+      ['2026-08-09', 80, 15000],
+      ['2026-08-09', 120, 17500],
+      ['2026-08-09', 120, 20000],
+    ]);
+    expect(result).toMatchObject({ regularMinutes: 0, specialRateMinutes: 720, basePayMinor: 72000, premiumPayMinor: 45000, totalGrossPayMinor: 117000 });
+  });
+
+  it('deducts an explicitly recorded unpaid break inside stacked special-rate overtime', () => {
+    const shift = createShift({ status: 'completed', actualStart: '2026-08-08T17:20:00+03:00', actualEnd: '2026-08-09T05:20:00+03:00', payableStart: '2026-08-08T17:20:00+03:00', payableEnd: '2026-08-09T05:20:00+03:00', actualBreakMinutes: 30, payableBreakMinutes: 30, payableSource: 'actual', completedAt: '2026-08-09T05:20:00+03:00', expectedBreakMinutes: 0, hourlyRateSnapshotMinor: 0 });
+    const special = createPayRule({ id: 'special-break', priority: 100, conditions: [{ type: 'weekend', startWeekday: 6, startTime: '00:00', endWeekday: 0, endTime: '06:00' }], effect: { type: 'multiplier', basisPoints: 15000 } });
+    const overtime = createPayRule({ id: 'overtime-break', priority: 50, canStack: true, conditions: [{ type: 'workedMinutes', afterMinutes: 480, scope: 'shift', basis: 'net' }], effect: { type: 'multiplier', basisPoints: 12500 } });
+    const breakSession = createBreak({ shiftId: shift.id, start: '2026-08-09T02:00:00+03:00', end: '2026-08-09T02:30:00+03:00' });
+
+    const result = calculateSalary({ shift, profile: createSalaryProfile({ baseHourlyRateMinor: 6000 }), rules: [special, overtime], breaks: [breakSession], holidayIntervals: [], calculatedAt: shift.completedAt! });
+
+    expect(result).toMatchObject({ grossMinutes: 720, unpaidBreakMinutes: 30, payableMinutes: 690 });
+    expect(result.segments.reduce((sum, segment) => sum + segment.minutes, 0)).toBe(690);
+  });
+
   it('conserves minutes when a rule boundary splits second-bearing timestamps', () => {
     const shift = createShift({ scheduledStart: '2026-07-15T20:00:30+03:00', scheduledEnd: '2026-07-15T22:00:30+03:00', expectedBreakMinutes: 0, hourlyRateSnapshotMinor: 0 });
     const night = createPayRule({ id: 'night-seconds', conditions: [{ type: 'timeWindow', startTime: '22:00', endTime: '06:00' }], effect: { type: 'multiplier', basisPoints: 12500 } });
