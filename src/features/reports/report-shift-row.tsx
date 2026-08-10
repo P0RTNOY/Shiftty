@@ -27,8 +27,8 @@ export function ReportShiftRow({ shift, workplaceName, salaryMinor, baseOnly = f
   try { durationMinutes = calculateShiftDuration(shift, durationKind)?.paidMinutes; } catch { durationMinutes = undefined; }
   const textAlign = isRtl ? 'right' : 'left';
 
-  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.card, { backgroundColor: pressed ? colors.surfaceMuted : colors.surface, borderColor: colors.border }]}> 
-    <View style={[styles.topRow, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}> 
+  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.card, { backgroundColor: pressed ? colors.surfaceMuted : colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.topRow, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}>
       <View style={styles.titleBlock}>
         <Text style={[styles.date, { color: colors.text, textAlign }]}>{formatDate(range.start, { weekday: 'long', day: 'numeric', month: 'numeric', timeZone: shift.timezone })}</Text>
         <Text style={[styles.workplace, { color: colors.textMuted, textAlign }]}>{workplaceName}</Text>
