@@ -21,6 +21,7 @@ type FormValues = {
 interface TemplateFormProps {
   initial?: Partial<FormValues>;
   loading?: boolean;
+  submitLabel?: string;
   onSubmit: (input: CreateShiftTemplateInput) => Promise<void>;
 }
 
@@ -28,7 +29,7 @@ const WEEKDAY_LABELS = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
 const LOCAL_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const COLOR_TOKENS = ['#A855F7', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#6366F1'];
 
-export function TemplateForm({ initial, loading, onSubmit }: TemplateFormProps) {
+export function TemplateForm({ initial, loading, submitLabel, onSubmit }: TemplateFormProps) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
 
@@ -199,7 +200,7 @@ export function TemplateForm({ initial, loading, onSubmit }: TemplateFormProps) 
       />
 
       <PrimaryButton
-        label={t('templates.create')}
+        label={submitLabel ?? t('templates.create')}
         onPress={() => void handleSubmit(submit)()}
         disabled={loading}
       />

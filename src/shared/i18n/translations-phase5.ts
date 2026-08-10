@@ -25,6 +25,7 @@ export const phase5He = {
   'templates.crossMidnight': 'עובר חצות',
   'templates.expectedDuration': 'משך צפוי',
   'templates.savedMessage': 'התבנית נשמרה.',
+  'templates.notFound': 'התבנית לא נמצאה או שכבר נמחקה.',
   'templates.archivedMessage': 'התבנית הועברה לארכיון.',
   'templates.restoredMessage': 'התבנית שוחזרה.',
 
@@ -165,6 +166,7 @@ export const phase5En: Record<keyof typeof phase5He, string> = {
   'templates.crossMidnight': 'Cross-midnight',
   'templates.expectedDuration': 'Expected duration',
   'templates.savedMessage': 'Template saved.',
+  'templates.notFound': 'The template was not found or has already been deleted.',
   'templates.archivedMessage': 'Template archived.',
   'templates.restoredMessage': 'Template restored.',
   'prediction.title': 'Smart suggestion',

@@ -76,6 +76,7 @@ describe('Expo Router route tree', () => {
       ['onboarding', 'workplace.tsx'],
       ['settings', 'data-management.tsx'],
       ['settings', 'exports', 'index.tsx'],
+      ['settings', 'templates', '[id].tsx'],
       ['shifts', '[id]', 'index.tsx'],
       ['shifts', '[id]', 'edit.tsx'],
       ['shifts', 'new.tsx'],
@@ -87,6 +88,18 @@ describe('Expo Router route tree', () => {
       expect(source).not.toMatch(/Alert\.alert\([\s\S]{0,200}(?:caught|error|e)\.message/);
       expect(source).not.toMatch(/Alert\.alert\([\s\S]{0,200}String\((?:caught|error|e)\)/);
     }
+  });
+
+  it('keeps template editing navigable and safe when the target is missing', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('fs');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const p = require('path');
+    const source = fs.readFileSync(p.join(p.resolve('.'), 'src', 'app', 'settings', 'templates', '[id].tsx'), 'utf8');
+
+    expect(source).toContain('<SettingsBackButton />');
+    expect(source).toContain('!isNew && !template');
+    expect(source).not.toContain('String(err)');
   });
 
   it('keeps explicit loading and safe error states on Calendar and Reports', () => {

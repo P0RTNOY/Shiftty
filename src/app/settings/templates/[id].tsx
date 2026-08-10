@@ -7,6 +7,8 @@ import type { ShiftTemplate } from '@/domain/entities';
 import { SqliteShiftTemplateRepository } from '@/data/repositories';
 import { TemplateForm } from '@/features/templates/components/template-form';
 import { AppScreen } from '@/shared/components/app-screen';
+import { EmptyState } from '@/shared/components';
+import { SettingsBackButton } from '@/features/settings/components/settings-back-button';
 import { useTranslation } from '@/shared/i18n';
 import { spacing, useAppTheme } from '@/shared/theme';
 import type { CreateShiftTemplateInput } from '@/domain/repositories';
@@ -44,8 +46,8 @@ export default function TemplateEditScreen() {
       }
       Alert.alert(t('templates.savedMessage'));
       router.back();
-    } catch (err) {
-      Alert.alert('שגיאה', String(err));
+    } catch {
+      Alert.alert(t('common.error'));
     } finally {
       setSaving(false);
     }
@@ -55,13 +57,22 @@ export default function TemplateEditScreen() {
 
   if (loading) {
     return (
-      <AppScreen title={title}>
-        <Stack.Screen options={{ title }} />
-        <View style={styles.center}>
+          <AppScreen title={title}>
+            <Stack.Screen options={{ title }} />
+            <SettingsBackButton />
+            <View style={styles.center}>
           <ActivityIndicator color={colors.primary} />
         </View>
       </AppScreen>
     );
+  }
+
+  if (!isNew && !template) {
+    return <AppScreen title={title}>
+      <Stack.Screen options={{ title }} />
+      <SettingsBackButton />
+      <EmptyState body={t('templates.notFound')} title={t('common.error')} />
+    </AppScreen>;
   }
 
   const initial = template ? {
@@ -75,9 +86,10 @@ export default function TemplateEditScreen() {
   } : undefined;
 
   return (
-    <AppScreen title={title}>
-      <Stack.Screen options={{ title }} />
-      <TemplateForm initial={initial} loading={saving} onSubmit={handleSubmit} />
+      <AppScreen title={title}>
+        <Stack.Screen options={{ title }} />
+      <SettingsBackButton />
+      <TemplateForm initial={initial} loading={saving} onSubmit={handleSubmit} submitLabel={title} />
     </AppScreen>
   );
 }
