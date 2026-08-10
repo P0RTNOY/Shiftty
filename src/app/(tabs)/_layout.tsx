@@ -10,7 +10,6 @@ type IconName = ComponentProps<typeof Ionicons>['name'];
 const ICONS: Record<string, { active: IconName; inactive: IconName }> = {
   index: { active: 'home', inactive: 'home-outline' },
   calendar: { active: 'calendar', inactive: 'calendar-outline' },
-  'add-shift': { active: 'add-circle', inactive: 'add-circle-outline' },
   reports: { active: 'document-text', inactive: 'document-text-outline' },
   settings: { active: 'settings', inactive: 'settings-outline' },
 };
@@ -41,7 +40,6 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" options={{ title: t('nav.home') }} />
       <Tabs.Screen name="calendar" options={{ title: t('nav.calendar') }} />
-      <Tabs.Screen name="add-shift" options={{ title: t('nav.addShift') }} />
       <Tabs.Screen name="reports" options={{ title: t('nav.reports') }} />
       <Tabs.Screen name="settings" options={{ title: t('nav.settings') }} />
     </Tabs>

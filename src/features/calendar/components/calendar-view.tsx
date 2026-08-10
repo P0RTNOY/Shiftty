@@ -93,11 +93,11 @@ export function CalendarView(props: Props) {
       <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}>{t('calendar.selectedDay')}</Text>
       <ShiftList roles={props.roles ?? []} shifts={selectedShifts} templates={props.templates ?? []} workplaces={props.workplaces} onOpenShift={props.onOpenShift} onStartShift={props.onStartShift} />
       {!props.shifts.length ? <EmptyState body={t('calendar.emptyBody')} title={t('calendar.empty')} /> : null}
-      <PrimaryButton label={t('home.addFuture')} onPress={() => props.onCreateShift(props.selectedDate)} />
     </> : <>
       <ShiftList roles={props.roles ?? []} shifts={agendaShifts} templates={props.templates ?? []} workplaces={props.workplaces} onOpenShift={props.onOpenShift} onStartShift={props.onStartShift} />
       {!agendaShifts.length ? <EmptyState body={t('calendar.emptyBody')} title={t('calendar.empty')} /> : null}
     </>}
+    <PrimaryButton label={t('home.addFuture')} onPress={() => props.onCreateShift(props.selectedDate)} />
   </View>;
 }
 

@@ -4,20 +4,20 @@ Last updated: 2026-08-10
 
 ## Current milestone
 
-Development is at the **RC1.5C core shift-experience completion** milestone on branch `codex/initial-shifty-foundation`. The Home clock-in, active-shift, break/resume, and quick clock-out redesign is implemented and has passed automated and native iOS simulator acceptance.
+Development is at the **RC1.5D navigation and secondary-surface completion** milestone on branch `codex/initial-shifty-foundation`. The four-tab navigation, Calendar creation access, simple monthly Reports, and functional Settings hierarchy are implemented and have passed automated and native iOS simulator acceptance.
 
 The product foundation through Phase 6 is present in source: onboarding; workplaces, roles, salary profiles, pay rules, and templates; planned, completed, and live shifts; break tracking; deterministic salary calculation; monthly forecasts and reports; notifications; exports; backup and restore; Hebrew localization and RTL UI. RC1 reliability fixes and RC1.5A/B shift-form simplification have also been implemented.
 
-This is not yet a final release-candidate claim. RC1.5D/E navigation and progressive-disclosure work, final release hardening, irreversible confirmation checks, and practical Android verification remain outstanding.
+This is not yet a final release-candidate claim. RC1.5E progressive-disclosure work, final release hardening, irreversible confirmation checks, and practical Android verification remain outstanding.
 
 ## Git baseline
 
 - Branch: `codex/initial-shifty-foundation`
-- Committed baseline before RC1.5C: `e217003188ae3e7976aa0cc1938db45186383961`
+- Committed baseline before RC1.5D: `21382c41f3befef6b5cc786220e430913564b61a`
 - Remote baseline: `origin/codex/initial-shifty-foundation` at the same commit
-- Relationship before the RC1.5C commit: 0 committed changes ahead and 0 behind
-- Working tree: focused RC1.5C implementation and evidence update, pending milestone commit
-- Latest committed milestone: `e217003` (`fix: unblock native exports and backup`)
+- Relationship before the RC1.5D commit: 0 committed changes ahead and 0 behind
+- Working tree: focused RC1.5D implementation, tests, plan, and evidence update
+- Latest committed milestone: `21382c4` (`feat(rc1.5): simplify core clock-in and active-shift experience`)
 
 ## Implemented and source-verified
 
@@ -30,16 +30,17 @@ This is not yet a final release-candidate claim. RC1.5D/E navigation and progres
 - RC1.5A/B UI work: simplified shift forms and native date/time picker integration.
 - RC1.5C UI work: one dominant Home clock-in action, safe nearby-scheduled selection, minimal workplace ambiguity picker, compact monthly summary, simplified active/break state, and inline quick clock-out review with advanced-edit fallback.
 - Interaction timestamps use the live system clock rather than the 30-second display clock. Completion is schema-validated before any write transaction, and live break calculations tolerate a one-tick UI/persistence boundary without accepting genuinely future events.
+- RC1.5D UI work: four actual primary tab screens with the `/add-shift` deep link preserved outside the tab group; contextual Calendar creation in month/week/agenda; localized simple Reports with warning-first progressive salary disclosure and tappable shift list; and a five-row Settings hierarchy with a functional Reports & Backup hub.
 
 ## Automated validation baseline
 
-These are the fresh RC1.5C validation results:
+These are the fresh RC1.5D validation results:
 
 | Check | Result |
 | --- | --- |
 | `npm run typecheck` | Passed |
 | `npm run lint` | Passed with zero warnings |
-| `npm test -- --runInBand` | Passed; 78 suites and 316 tests, process exit 0 |
+| `npm test -- --runInBand` | Passed; 79 suites and 321 tests, process exit 0 |
 | `npm run validate:migrations` | Passed |
 | Expo web export | Passed; 36 routes exported |
 | `npx expo config --type public` | Passed |
@@ -66,7 +67,7 @@ Fresh simulator build evidence:
 - Result: finished successfully on 2026-08-09 at 19:44:24Z
 - Installation: installed as `com.shifty.app` on iPhone 17 Pro, iOS 26.5
 - Metro: development-client bundler running over LAN on port 8081
-- Current JavaScript bundle: local Metro source at the native-remediation working tree; no new native dependency was introduced, so the existing simulator binary remains valid
+- Current JavaScript bundle: local Metro source at the RC1.5D working tree; no new native dependency was introduced, so the existing simulator binary remains valid
 
 Passed on iPhone 17 Pro / iOS 26.5:
 
@@ -95,6 +96,10 @@ Passed on iPhone 17 Pro / iOS 26.5:
 - Quick clock-out showed in/out/total/pay, advanced edit opened the full editor and returned safely, and quick save completed both unscheduled and scheduled native test shifts.
 - Native testing exposed the stale-display-clock completion defect for very short shifts; mutation timestamps now use the interaction clock, repository prevalidation prevents invalid writes, and the native retry passed.
 - Stale-shift recovery appeared after relaunching a fixture made more than 16 hours old; `להמשיך מעקב` restored the active panel, and quick save completed it and returned to inactive Home.
+- The tab bar visibly and accessibly exposes exactly four tabs—`בית`, `לוח שנה`, `דוחות`, `הגדרות`—announced by iOS as positions 1–4 of 4. Native inspection caught the initial hidden-tab implementation still announcing 5 positions; moving `/add-shift` outside the tab route group fixed it while preserving the URL.
+- Calendar month, week, and agenda modes rendered existing fixtures and exposed `הוספת משמרת עתידית`; the action opened the scheduled form with the selected date, and tapping a shift opened its detail route.
+- Reports opened on a localized `אוגוסט 2026` summary with 7 shifts, `33:53 שעות`, expected pay, and the incomplete-salary warning visible. Technical salary/filter breakdowns were absent until `פירוט שכר` was opened, then appeared and could be hidden again.
+- Settings showed the five primary rows and `הגדרות מתקדמות` without the dead language/timezone affordance. `דוחות וגיבוי` opened the new hub, and both export and data-management routes opened with working Back navigation.
 
 Still requiring native/manual verification:
 
@@ -106,19 +111,20 @@ Still requiring native/manual verification:
 
 ## Partial or not started
 
-- RC1.5C: complete in the current milestone working tree; commit/push is pending this status review.
-- RC1.5D: Calendar, Reports, Settings, and navigation simplification is not started.
+- RC1.5C: complete and published at `21382c4`.
+- RC1.5D: complete with automated and native iOS acceptance recorded above.
 - RC1.5E: progressive disclosure is only partial; some advanced concepts remain exposed in legacy screens.
 - Release hardening and the final evidence matrix are not started.
 
 ## Safest next development step
 
-Review, commit, and push the focused RC1.5C milestone. Then begin RC1.5D with a source-and-native audit of Calendar, Reports, Settings, and tab navigation, while keeping irreversible confirmations explicitly open until at-action approval is available.
+Begin RC1.5E from the clean RC1.5D milestone with a route-by-route audit of Shift Details and Edit Shift, moving scheduled/actual/reporting comparisons and technical calculation metadata behind `פרטים נוספים` while preserving edit, recovery, and deep-link behavior.
 
 ## Recent development history
 
 The latest committed milestones are:
 
+- `21382c4` simplified Home clock-in, active/break tracking, and quick clock-out
 - `e217003` unblocked native CSV/ICS export and JSON backup/restore and localized Settings navigation
 - `8d5ec2d` removed native Metro require cycles from the notification imports
 - `35c3842` recorded the simulator build checkpoint

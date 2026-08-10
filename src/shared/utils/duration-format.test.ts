@@ -9,5 +9,6 @@ describe('duration formatting', () => {
 
   it('formats English durations for the future locale', () => {
     expect(formatDurationLong(510, 'en')).toBe('8 hours and 30 minutes');
+    expect(formatDurationCompact(555, 'en')).toBe('9:15 hours');
   });
 });

@@ -15,10 +15,10 @@ export function formatDurationLong(minutes: number, locale: SupportedLocale): st
   return `${hours} hours and ${remainder} minutes`;
 }
 
-export function formatDurationCompact(minutes: number): string {
+export function formatDurationCompact(minutes: number, locale: SupportedLocale = 'he'): string {
   const safeMinutes = Math.max(0, Math.round(minutes));
   const hours = Math.floor(safeMinutes / 60);
-  return `${hours}:${String(safeMinutes % 60).padStart(2, '0')} שעות`;
+  return `${hours}:${String(safeMinutes % 60).padStart(2, '0')} ${locale === 'he' ? 'שעות' : 'hours'}`;
 }
 
 export function formatTimer(ms: number): string {
