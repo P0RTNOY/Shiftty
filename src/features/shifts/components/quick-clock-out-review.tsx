@@ -24,10 +24,12 @@ export function QuickClockOutReview({ shift, breaks, actualEnd, estimatedPay, bu
   const review = buildEndShiftReview(shift, breaks, actualEnd);
   const align = isRtl ? 'right' : 'left';
   const timeOptions = { hour: '2-digit', minute: '2-digit', timeZone: shift.timezone } as const;
+  const dateOptions = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: shift.timezone } as const;
 
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.primary }]}>
       <Text accessibilityRole="header" style={[styles.title, { color: colors.text, textAlign: align }]}>{t('end.quickTitle')}</Text>
+      <Text style={[styles.row, { color: colors.text, textAlign: align }]}>{t('end.actualEndDate')}: {formatDate(actualEnd, dateOptions)}</Text>
       <Text style={[styles.row, { color: colors.text, textAlign: align }]}>{t('active.actualStart')}: {formatDate(shift.actualStart!, timeOptions)}</Text>
       <Text style={[styles.row, { color: colors.text, textAlign: align }]}>{t('end.actualEndTime')}: {formatDate(actualEnd, timeOptions)}</Text>
       <Text style={[styles.total, { color: colors.text, textAlign: align }]}>{t('end.totalWorked')}: {formatDurationLong(review.netActualMinutes, locale)}</Text>

@@ -26,4 +26,18 @@ describe('QuickClockOutReview', () => {
     fireEvent.press(screen.getByRole('button', { name: 'עריכת פרטים' }));
     expect(onEdit).toHaveBeenCalledTimes(1);
   });
+
+  it('shows the localized weekday and date in the clock-out summary', () => {
+    renderApp(<QuickClockOutReview
+      actualEnd="2026-08-08T17:00:00+03:00"
+      breaks={[]}
+      busy={false}
+      onCancel={jest.fn()}
+      onEdit={jest.fn()}
+      onSave={jest.fn()}
+      shift={createShift({ status: 'active', scheduledStart: undefined, scheduledEnd: undefined, actualStart: '2026-08-08T13:00:00+03:00' })}
+    />);
+
+    expect(screen.getByText(/שבת/)).toBeTruthy();
+  });
 });

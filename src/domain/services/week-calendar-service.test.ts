@@ -1,5 +1,6 @@
 import { buildWeekCalendarData, getPreviousWeek, getNextWeek } from '@/domain/services/week-calendar-service';
 import type { Shift } from '@/domain/entities';
+import { createShift } from '@/test/fixtures';
 
 const TIMEZONE = 'Asia/Jerusalem';
 const LOCALE = 'he-IL';
@@ -48,6 +49,31 @@ describe('buildWeekCalendarData', () => {
     const block = data.days.find((d) => d.day.localDate === '2026-08-04')?.blocks[0]!;
     expect(block.startMinutes).toBe(8 * 60); // 480 minutes
     expect(block.durationMinutes).toBe(8 * 60); // 480 minutes
+  });
+
+  it('uses actual placement for completed shifts and accepts an open active shift', () => {
+    const completed = createShift({
+      id: 'completed',
+      status: 'completed',
+      scheduledStart: '2026-08-04T08:00:00+03:00',
+      scheduledEnd: '2026-08-04T16:00:00+03:00',
+      actualStart: '2026-08-08T17:20:00+03:00',
+      actualEnd: '2026-08-09T05:20:00+03:00',
+    });
+    const active = createShift({
+      id: 'active',
+      status: 'active',
+      scheduledStart: undefined,
+      scheduledEnd: undefined,
+      actualStart: '2026-08-08T19:00:00+03:00',
+    });
+
+    const data = buildWeekCalendarData(WEEK_DATE, [completed, active], TIMEZONE, LOCALE);
+    const saturday = data.days.find((day) => day.day.localDate === '2026-08-08');
+
+    expect(saturday?.blocks.map((block) => block.shift.id)).toEqual(['completed', 'active']);
+    expect(saturday?.blocks[0]).toMatchObject({ startMinutes: 17 * 60 + 20, durationMinutes: 12 * 60 });
+    expect(saturday?.blocks[1]).toMatchObject({ startMinutes: 19 * 60, durationMinutes: 1 });
   });
 
   it('assigns columns for overlapping shifts', () => {

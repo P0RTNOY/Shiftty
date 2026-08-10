@@ -70,7 +70,8 @@ describe('SqliteShiftRepository', () => {
 
     expect(shifts).toHaveLength(1);
     const [sql, ...parameters] = database.getAllAsync.mock.calls[0] ?? [];
-    expect(sql).toContain('julianday(COALESCE(scheduled_start, actual_start, payable_start)) < julianday(?)');
+    expect(sql).toContain("WHEN 'completed' THEN COALESCE(actual_start, payable_start, scheduled_start)");
+    expect(sql).toContain("WHEN 'active' THEN COALESCE(actual_start, scheduled_start)");
     expect(sql).toContain('status IN (?, ?)');
     expect(parameters).toEqual([
       '2026-08-01T00:00:00+03:00',
@@ -137,6 +138,8 @@ describe('SqliteShiftRepository', () => {
 
     const [sql, ...parameters] = database.getAllAsync.mock.calls.at(-1) ?? [];
     expect(sql).toContain("status != 'cancelled'");
+    expect(sql).toContain("WHEN 'completed' THEN COALESCE(actual_start, payable_start, scheduled_start)");
+    expect(sql).toContain("WHEN 'active' THEN COALESCE(actual_end, expected_end, scheduled_end, actual_start)");
     expect(sql).toContain('id != ?');
     expect(sql).toContain('julianday');
     expect(parameters).toContain('editing-id');

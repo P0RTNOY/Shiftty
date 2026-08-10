@@ -11,4 +11,16 @@ describe('selectRecurrenceScopeOccurrences', () => {
   it('selects one occurrence only', () => expect(selectRecurrenceScopeOccurrences(occurrences, occurrences[1]!, 'only').map((item) => item.id)).toEqual(['b']));
   it('selects the target and future occurrences', () => expect(selectRecurrenceScopeOccurrences(occurrences, occurrences[1]!, 'future').map((item) => item.id)).toEqual(['b', 'c']));
   it('selects the entire series', () => expect(selectRecurrenceScopeOccurrences(occurrences, occurrences[1]!, 'entire').map((item) => item.id)).toEqual(['a', 'b', 'c']));
+
+  it('uses the recurrence occurrence time even when completed actual work moved', () => {
+    const moved = createShift({
+      ...occurrences[1],
+      status: 'completed',
+      recurrenceOriginalStart: occurrences[1]!.scheduledStart,
+      actualStart: '2026-07-20T08:00:00+03:00',
+      actualEnd: '2026-07-20T16:00:00+03:00',
+    });
+
+    expect(selectRecurrenceScopeOccurrences([occurrences[0]!, moved, occurrences[2]!], moved, 'future').map((item) => item.id)).toEqual(['b', 'c']);
+  });
 });

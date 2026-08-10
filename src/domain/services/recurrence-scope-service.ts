@@ -7,8 +7,12 @@ export function selectRecurrenceScopeOccurrences(
   scope: RecurrenceScope,
 ): Shift[] {
   if (scope === 'only') return occurrences.filter((shift) => shift.id === target.id);
-  const sorted = [...occurrences].sort((left, right) => getEffectiveShiftRange(left).start.localeCompare(getEffectiveShiftRange(right).start));
+  const sorted = [...occurrences].sort((left, right) => occurrenceStart(left).localeCompare(occurrenceStart(right)));
   if (scope === 'entire') return sorted;
-  const targetStart = getEffectiveShiftRange(target).start;
-  return sorted.filter((shift) => getEffectiveShiftRange(shift).start >= targetStart);
+  const targetStart = occurrenceStart(target);
+  return sorted.filter((shift) => occurrenceStart(shift) >= targetStart);
+}
+
+function occurrenceStart(shift: Shift): string {
+  return shift.recurrenceOriginalStart ?? shift.scheduledStart ?? getEffectiveShiftRange(shift).start;
 }

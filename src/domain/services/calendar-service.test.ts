@@ -20,6 +20,32 @@ describe('calendar services', () => {
     expect(groupShiftsByLocalDate(shifts, 'Asia/Jerusalem').get('2026-07-15')).toHaveLength(2);
   });
 
+  it('groups completed shifts by their actual local date when the schedule differs', () => {
+    const completed = createShift({
+      status: 'completed',
+      scheduledStart: '2026-08-07T08:00:00+03:00',
+      scheduledEnd: '2026-08-07T16:00:00+03:00',
+      actualStart: '2026-08-08T17:20:00+03:00',
+      actualEnd: '2026-08-09T05:20:00+03:00',
+    });
+
+    const grouped = groupShiftsByLocalDate([completed], 'Asia/Jerusalem');
+
+    expect(grouped.get('2026-08-08')).toEqual([completed]);
+    expect(grouped.has('2026-08-07')).toBe(false);
+  });
+
+  it('keeps Calendar render-safe for an open unscheduled active shift', () => {
+    const active = createShift({
+      status: 'active',
+      scheduledStart: undefined,
+      scheduledEnd: undefined,
+      actualStart: '2026-08-08T17:20:00+03:00',
+    });
+
+    expect(groupShiftsByLocalDate([active], 'Asia/Jerusalem').get('2026-08-08')).toEqual([active]);
+  });
+
   it('summarizes completed and upcoming shifts without salary calculations', () => {
     const completed = createShift({
       id: 'done',

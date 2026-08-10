@@ -53,4 +53,10 @@ describe('CalendarView', () => {
     expect(screen.getByText('מתוכננת')).toBeTruthy();
     expect(screen.getByText('בוטלה')).toBeTruthy();
   });
+
+  it('labels selected-day details with the localized weekday and date', () => {
+    renderApp(<CalendarView mode="month" monthDate="2026-08-01" onCreateShift={jest.fn()} onModeChange={jest.fn()} onNextMonth={jest.fn()} onOpenShift={jest.fn()} onPreviousMonth={jest.fn()} onSelectDate={jest.fn()} selectedDate="2026-08-08" shifts={[]} workplaces={[]} />);
+
+    expect(screen.getByRole('header', { name: /שבת/ })).toBeTruthy();
+  });
 });

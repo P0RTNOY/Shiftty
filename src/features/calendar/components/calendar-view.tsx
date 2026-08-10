@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Shift } from '@/domain/entities';
-import { buildMonthGrid, groupShiftsByLocalDate } from '@/domain/services';
+import { buildMonthGrid, getEffectiveShiftRange, groupShiftsByLocalDate } from '@/domain/services';
 import { ShiftCard } from '@/features/shifts/components/shift-card';
 import { EmptyState, PrimaryButton } from '@/shared/components';
 import { DEFAULT_TIMEZONE } from '@/shared/constants/app';
@@ -44,6 +44,7 @@ export function CalendarView(props: Props) {
   const grid = buildMonthGrid(props.monthDate, locale === 'he' ? 0 : 0);
   const direction = isRtl ? 'row-reverse' : 'row';
   const monthLabel = formatDate(new Date(`${props.monthDate.slice(0, 7)}-01T12:00:00`), { month: 'long', year: 'numeric' });
+  const selectedDayLabel = formatDate(new Date(`${props.selectedDate}T12:00:00`), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const selectedShifts = grouped.get(props.selectedDate) ?? [];
   const agendaShifts = [...props.shifts].sort((left, right) => effectiveStart(left).localeCompare(effectiveStart(right)));
 
@@ -90,7 +91,7 @@ export function CalendarView(props: Props) {
           </Pressable>;
         })}
       </View>)}
-      <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}>{t('calendar.selectedDay')}</Text>
+      <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}>{t('calendar.selectedDay')} · {selectedDayLabel}</Text>
       <ShiftList roles={props.roles ?? []} shifts={selectedShifts} templates={props.templates ?? []} workplaces={props.workplaces} onOpenShift={props.onOpenShift} onStartShift={props.onStartShift} />
       {!props.shifts.length ? <EmptyState body={t('calendar.emptyBody')} title={t('calendar.empty')} /> : null}
     </> : <>
@@ -111,7 +112,7 @@ function ModeButton({ active, label, onPress }: { active: boolean; label: string
   return <Pressable accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={onPress} style={[styles.modeButton, { backgroundColor: active ? colors.surface : 'transparent' }]}><Text style={{ color: active ? colors.primary : colors.textMuted, fontWeight: '700' }}>{label}</Text></Pressable>;
 }
 
-function effectiveStart(shift: Shift): string { return shift.scheduledStart ?? shift.actualStart ?? shift.payableStart ?? ''; }
+function effectiveStart(shift: Shift): string { return getEffectiveShiftRange(shift).start; }
 function statusColor(shift: Shift, colors: ReturnType<typeof useAppTheme>['colors']): string {
   if (shift.status === 'missed') return colors.danger;
   if (shift.status === 'cancelled') return colors.textMuted;

@@ -53,6 +53,8 @@ export const SHIFT_COLUMNS = `
   travel_reimbursement_override_minor, salary_calculation_status, timezone, created_at, updated_at
 `;
 export const SHIFT_COLUMN_COUNT = 36;
+const DISPLAY_START_EXPRESSION = "CASE status WHEN 'completed' THEN COALESCE(actual_start, payable_start, scheduled_start) WHEN 'active' THEN COALESCE(actual_start, scheduled_start) ELSE COALESCE(scheduled_start, actual_start, payable_start) END";
+const DISPLAY_END_EXPRESSION = "CASE status WHEN 'completed' THEN COALESCE(actual_end, payable_end, scheduled_end) WHEN 'active' THEN COALESCE(actual_end, expected_end, scheduled_end, actual_start) ELSE COALESCE(scheduled_end, actual_end, payable_end) END";
 
 export class SqliteShiftRepository implements ShiftRepository {
   constructor(private readonly database: SQLiteDatabase) {}
@@ -77,10 +79,10 @@ export class SqliteShiftRepository implements ShiftRepository {
     const parameters: SQLiteBindValue[] = [];
     const startExpression = query.rangeSource === 'salary'
       ? "CASE status WHEN 'completed' THEN COALESCE(payable_start, actual_start, scheduled_start) WHEN 'active' THEN COALESCE(actual_start, scheduled_start) ELSE scheduled_start END"
-      : 'COALESCE(scheduled_start, actual_start, payable_start)';
+      : DISPLAY_START_EXPRESSION;
     const endExpression = query.rangeSource === 'salary'
       ? "CASE status WHEN 'completed' THEN COALESCE(payable_end, actual_end, scheduled_end) WHEN 'active' THEN COALESCE(actual_end, expected_end, scheduled_end, actual_start) ELSE scheduled_end END"
-      : 'COALESCE(scheduled_end, actual_end, payable_end)';
+      : DISPLAY_END_EXPRESSION;
 
     if (query.startsBefore) {
       clauses.push(`julianday(${startExpression}) < julianday(?)`);
@@ -139,10 +141,10 @@ export class SqliteShiftRepository implements ShiftRepository {
     const rows = await this.database.getAllAsync<ShiftRow>(
       `SELECT ${SHIFT_COLUMNS} FROM shifts
        WHERE status != 'cancelled'
-         AND julianday(COALESCE(scheduled_start, actual_start, payable_start)) < julianday(?)
-         AND julianday(COALESCE(scheduled_end, actual_end, payable_end)) > julianday(?)
+         AND julianday(${DISPLAY_START_EXPRESSION}) < julianday(?)
+         AND julianday(${DISPLAY_END_EXPRESSION}) > julianday(?)
          ${exclude}
-       ORDER BY COALESCE(scheduled_start, actual_start, payable_start) ASC;`,
+       ORDER BY julianday(${DISPLAY_START_EXPRESSION}) ASC;`,
       ...parameters,
     );
     return rows.map(mapShiftRow);

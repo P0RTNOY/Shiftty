@@ -1,4 +1,4 @@
-import { findShiftOverlaps, shiftsOverlap } from '@/domain/services/shift-overlap-service';
+import { findShiftOverlaps, getEffectiveShiftRange, shiftsOverlap } from '@/domain/services/shift-overlap-service';
 import { createShift } from '@/test/fixtures';
 
 describe('shift overlap detection', () => {
@@ -51,5 +51,34 @@ describe('shift overlap detection', () => {
     });
 
     expect(shiftsOverlap(historical, planned)).toBe(true);
+  });
+
+  it('uses actual work instead of a stale schedule for completed shifts', () => {
+    const completed = createShift({
+      status: 'completed',
+      scheduledStart: '2026-08-07T08:00:00+03:00',
+      scheduledEnd: '2026-08-07T16:00:00+03:00',
+      actualStart: '2026-08-08T17:20:00+03:00',
+      actualEnd: '2026-08-09T05:20:00+03:00',
+    });
+
+    expect(getEffectiveShiftRange(completed)).toEqual({
+      start: '2026-08-08T17:20:00+03:00',
+      end: '2026-08-09T05:20:00+03:00',
+    });
+  });
+
+  it('provides a render-safe range for an open unscheduled active shift', () => {
+    const active = createShift({
+      status: 'active',
+      scheduledStart: undefined,
+      scheduledEnd: undefined,
+      actualStart: '2026-08-08T17:20:00+03:00',
+    });
+
+    expect(getEffectiveShiftRange(active)).toEqual({
+      start: '2026-08-08T17:20:00+03:00',
+      end: '2026-08-08T17:20:00+03:00',
+    });
   });
 });

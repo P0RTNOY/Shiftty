@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Alert, Text } from 'react-native';
 
 import type { RecurrenceException, RecurrenceScope, RecurrenceSeries, Shift } from '@/domain/entities';
-import { generateRecurrenceOccurrences, planRecurrenceEdit, selectRecurrenceScopeOccurrences } from '@/domain/services';
+import { generateRecurrenceOccurrences, getEffectiveShiftRange, planRecurrenceEdit, selectRecurrenceScopeOccurrences } from '@/domain/services';
 import { RecurrenceScopeChooser } from '@/features/shifts/components/recurrence-scope-chooser';
 import { ShiftForm } from '@/features/shifts/components/shift-form';
 import { useRepositories } from '@/features/shifts/hooks/use-repositories';
@@ -38,7 +38,7 @@ export default function EditShiftScreen() {
   const saveDirect = async (next: Shift) => {
     setSaving(true);
     try {
-      const overlaps = await repositories.shifts.findOverlapping({ start: next.scheduledStart ?? next.actualStart!, end: next.scheduledEnd ?? next.actualEnd! }, next.id);
+      const overlaps = await repositories.shifts.findOverlapping(getEffectiveShiftRange(next), next.id);
       if (overlaps.length && !await confirmAlert(t('form.overlapTitle'), t('form.overlapBody'), t('common.cancel'), t('common.confirm'))) return;
       await repositories.shifts.update(next);
       router.replace(`/shifts/${next.id}`);

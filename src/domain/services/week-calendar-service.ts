@@ -8,6 +8,7 @@
 import { addDays, startOfWeek, format, parseISO, differenceInMinutes, getDay } from 'date-fns';
 
 import type { Shift } from '@/domain/entities';
+import { getEffectiveShiftRange } from '@/domain/services/shift-overlap-service';
 
 export interface WeekDay {
   localDate: string; // yyyy-MM-dd
@@ -83,21 +84,17 @@ export function buildWeekCalendarData(
 }
 
 function shiftBelongsToDay(shift: Shift, localDate: string, timezone: string): boolean {
-  const start = shift.scheduledStart ?? shift.actualStart ?? shift.payableStart;
-  if (!start) return false;
+  const { start } = getEffectiveShiftRange(shift);
   const startLocalDate = formatLocalDate(parseISO(start), timezone);
   return startLocalDate === localDate;
 }
 
 function buildDayBlocks(dayShifts: readonly Shift[], localDate: string, timezone: string): ShiftTimeBlock[] {
   const rawBlocks: Omit<ShiftTimeBlock, 'column' | 'totalColumns'>[] = dayShifts.map((shift) => {
-    const start = shift.scheduledStart ?? shift.actualStart ?? shift.payableStart;
-    const end = shift.scheduledEnd ?? shift.actualEnd ?? shift.payableEnd;
+    const { start, end } = getEffectiveShiftRange(shift);
 
-    const startMinutes = start ? getLocalMinutes(parseISO(start), timezone) : 0;
-    const durationMinutes = start && end
-      ? Math.min(MINUTES_PER_DAY, Math.max(1, differenceInMinutes(parseISO(end), parseISO(start))))
-      : 60;
+    const startMinutes = getLocalMinutes(parseISO(start), timezone);
+    const durationMinutes = Math.min(MINUTES_PER_DAY, Math.max(1, differenceInMinutes(parseISO(end), parseISO(start))));
 
     return {
       shift,

@@ -6,16 +6,32 @@ export interface ShiftRange {
 }
 
 export function getEffectiveShiftRange(shift: Shift): ShiftRange {
-  if (shift.scheduledStart && shift.scheduledEnd) {
-    return { start: shift.scheduledStart, end: shift.scheduledEnd };
+  if (shift.status === 'completed') {
+    return firstCompleteRange(
+      [shift.actualStart, shift.actualEnd],
+      [shift.payableStart, shift.payableEnd],
+      [shift.scheduledStart, shift.scheduledEnd],
+    );
   }
-  if (shift.actualStart && shift.actualEnd) {
-    return { start: shift.actualStart, end: shift.actualEnd };
+
+  if (shift.status === 'active' && shift.actualStart) {
+    return {
+      start: shift.actualStart,
+      end: shift.actualEnd ?? shift.expectedEnd ?? shift.scheduledEnd ?? shift.actualStart,
+    };
   }
-  if (shift.payableStart && shift.payableEnd) {
-    return { start: shift.payableStart, end: shift.payableEnd };
-  }
-  throw new Error('Shift does not have a complete time range.');
+
+  return firstCompleteRange(
+    [shift.scheduledStart, shift.scheduledEnd],
+    [shift.actualStart, shift.actualEnd],
+    [shift.payableStart, shift.payableEnd],
+  );
+}
+
+function firstCompleteRange(...candidates: readonly (readonly [string | undefined, string | undefined])[]): ShiftRange {
+  const range = candidates.find(([start, end]) => Boolean(start && end));
+  if (!range?.[0] || !range[1]) throw new Error('Shift does not have a complete time range.');
+  return { start: range[0], end: range[1] };
 }
 
 export function shiftsOverlap(left: Shift, right: Shift): boolean {
