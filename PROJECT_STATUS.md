@@ -132,6 +132,7 @@ The prior iOS Simulator RC completed permanent deletion, active cancel/discard, 
 - The corrected code still requires a new physical-iPhone Preview/Internal build because the app icon changed.
 - Physical-device follow-up remains necessary for real notification timing, Focus/power-management behavior, calendar/share-target interoperability, keyboard avoidance, and dynamic-text extremes.
 - Simulator notification delivery timing is not representative of a physical iPhone.
+- Naming remains intentionally unchanged in this sprint: product/UI copy uses **Shiftty / שיפטי**, while Expo's native `name` and `slug` remain **Shifty / shifty**. This P3 consistency item is documented rather than expanded into a global rename.
 
 ## Physical-iPhone build
 
