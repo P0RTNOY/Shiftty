@@ -85,5 +85,5 @@
 - [ ] At the action boundary, request approval for permanent shift deletion, destructive active cancellation, restore-replace, and clear-all; execute only approved actions.
 - [x] Detect Android tooling/emulators and either run the practical Android matrix or document the exact external runtime blocker and remaining device checklist.
 - [x] Run `npm run typecheck`, `npm run lint`, `npm test -- --runInBand`, `npm run validate:migrations`, `npx expo install --check`, `npx expo config --type public`, `npm run validate:expo`, and `git diff --check`.
-- [ ] Update `PROJECT_STATUS.md` and stale `README.md` claims with exact evidence, remaining physical-device limitations, and release readiness.
-- [ ] Review the complete diff, commit only the green hardening milestone, push `codex/initial-shifty-foundation`, and verify a clean 0-ahead/0-behind branch.
+- [x] Update `PROJECT_STATUS.md` and stale `README.md` claims with exact evidence, remaining physical-device limitations, and release readiness.
+- [x] Review the complete diff, commit only the green hardening milestone, push `codex/initial-shifty-foundation`, and verify a clean 0-ahead/0-behind branch.
