@@ -6,6 +6,8 @@ This guide is for the corrected dogfooding candidate on branch `codex/initial-sh
 
 Prerequisites: repository dependencies are already installed, Xcode includes the iOS 26.5 runtime, and EAS CLI is authenticated for `@oportnoy/shifty` when using a cloud build.
 
+The current physical-iPhone dogfood install is a standalone Release build whose exact dependency-aligned source is recorded at `4e8e0b3ed9a82b81f7fcbe67c0f0b0bacead0752`, version `0.1.0` (`1`). Launch it directly from the Shiftty Home Screen icon. It does not require Metro, a cable, or a Mac connection. Its free Apple Personal Team profile expires on 2026-08-17; after that date it must be rebuilt and reinstalled.
+
 If the iPhone 17 Pro simulator is shut down, run:
 
 ```sh
@@ -68,7 +70,7 @@ xcrun simctl launch booted com.shifty.app
 - [ ] **Cross-midnight shift:** Add or complete a shift whose end is on the following day and confirm its dates, duration, Calendar placement, and Reports total.
 - [ ] **Edit/delete:** Edit a disposable shift, verify the update everywhere, then delete it and confirm no stale copy remains on Home, Calendar, Reports, or Shift Details.
 - [ ] **Reports:** Open the relevant month and confirm completed-shift count, hours, and salary totals match the recorded shifts.
-- [ ] **App restart:** Terminate and relaunch `com.shifty.app`; confirm persisted shifts remain, no deleted item returns, and any active/break state is coherent.
+- [ ] **App restart:** Terminate and relaunch from the Shiftty icon; confirm persisted shifts remain, no deleted item returns, and any active/break state is coherent. The simulator uses `com.shifty.app`; the current Personal Team phone install uses `com.oportnoy.shiftty.dogfood`.
 
 ## What to record when something fails
 
@@ -87,13 +89,13 @@ Do not repair or rewrite affected data merely to make the report look clean. Pre
 ## Known limitations
 
 - Android has not been verified because no emulator, AVD, or physical Android device is currently available. This is an external verification gap, not an iOS RC failure.
-- The single corrected physical-iPhone EAS Preview attempt stopped before upload/build creation because internal distribution requires Apple Developer credentials that are not available to EAS. No corrected standalone install link or QR exists; the older app already installed on the iPhone is stale.
-- A free Personal Team Xcode install can support temporary development testing but is not equivalent to a standalone EAS Preview and requires the development runtime/Metro.
-- Physical-iPhone behavior still needs follow-up for notification delivery timing, calendar import interoperability, native share targets, keyboard avoidance, and dynamic-text extremes.
-- Simulator notification permission, scheduling, metadata persistence, and reconciliation passed, but simulator delivery timing is not representative of physical-device behavior, including background execution, Focus modes, and power management.
-- This is an internal Expo development-client build. It requires Metro to serve the current JavaScript bundle and is not evidence of App Store distribution behavior.
+- The current physical-iPhone build is a locally signed standalone Release, not an EAS Preview. The free Personal Team profile expires on 2026-08-17; there is no EAS build ID, install URL, or QR, and the app must be rebuilt/reinstalled after expiry.
+- Paid EAS Preview/internal distribution remains unavailable until an active paid Apple Developer Program team exists. Do not purchase membership as part of dogfooding automation.
+- Physical local notification permission, native scheduling, and background lock-screen delivery passed on both standalone build cycles. The delivered shift-reminder body exposed the literal `{offsetMinutes}` placeholder both times (DF-013); delivery and shift data were intact.
+- Remote push/APNs is not used by the current Shiftty notification flow and is not enabled in the Personal Team build. Focus-mode variations, prolonged power-management behavior, calendar import interoperability, native share targets, keyboard avoidance, and dynamic-text extremes remain unverified.
+- Simulator development-client checks still require Metro on LAN port `8081`; the installed physical Release build does not.
 
-When an Apple Developer Program team or valid internal-distribution `credentials.json` becomes available, the intended standalone build command remains:
+When a paid Apple Developer Program team or valid internal-distribution `credentials.json` becomes available, the intended EAS build command remains:
 
 ```sh
 cd /Users/portnoy/Documents/Shiftty

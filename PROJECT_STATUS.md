@@ -8,15 +8,16 @@ Shiftty is in the first dogfooding correction freeze on branch `codex/initial-sh
 
 The seven physical-iPhone findings DF-001–DF-007 were investigated at their source, regression-covered, and corrected. A product-wide audit added DF-008–DF-011. Fresh native verification then exposed DF-012, a stale-render-clock crash immediately after starting a break; that defect is fixed, tested, pushed, and natively retested.
 
-There are currently zero known iOS P0/P1 blockers in the corrected code. Android remains externally unverified because no emulator, AVD, or physical Android device is available. Distribution of the corrected physical-iPhone Preview is externally blocked by unavailable Apple Developer internal-distribution credentials, as recorded below.
+There are currently zero known iOS P0/P1 blockers in the corrected code. Android remains externally unverified because no emulator, AVD, or physical Android device is available. The corrected code is installed and dogfoodable on the physical iPhone as a locally signed standalone Release build. Paid Apple Developer Program membership is still unavailable, so this is a temporary Personal Team install rather than an EAS Preview/internal-distribution build.
 
 ## Git truth
 
 - Branch: `codex/initial-shifty-foundation`
-- Corrected implementation HEAD before this documentation commit: `5aa364308c18444d48d385094b019b4b5aa72ffa`
-- Remote at documentation preparation: `origin/codex/initial-shifty-foundation` matched `5aa3643`; ahead/behind `0/0`.
+- Corrected implementation base: `49c5020b77aec35cabe86e4c7f96e5abe7b333ee`
+- Expo SDK patch-alignment and physical-build source commit: `4e8e0b3ed9a82b81f7fcbe67c0f0b0bacead0752`
+- Remote before publication: `origin/codex/initial-shifty-foundation` matched `49c5020`; the local branch contains the dependency and documentation commits that this handoff publishes.
 - The exact final documentation/build HEAD is reported in the final dogfooding handoff because a commit cannot embed its own SHA.
-- Working-tree changes at documentation preparation are documentation-only.
+- Working-tree changes after `4e8e0b3` are documentation-only.
 
 Published sprint commits:
 
@@ -91,16 +92,20 @@ No additional high-confidence P0/P1 issue remains after DF-012. Lower-priority d
 
 ## Automated validation
 
-Latest full results after DF-012:
+Latest full pre-build results for the dependency-aligned source now recorded at `4e8e0b3`:
 
 | Check | Result |
 | --- | --- |
 | `npm run typecheck` | Passed |
 | `npm run lint` | Passed with zero errors/warnings |
 | `npm test -- --runInBand` | Passed; 91 suites, 418 tests, 0 failures |
+| `npm run validate:migrations` | Passed |
+| `npm run validate:expo` | Passed |
+| `npx expo install --check` | Passed; dependencies match the installed Expo SDK |
+| `npx expo config --type public` | Passed |
 | `git diff --check` | Passed |
 
-The final pre-build gate will repeat the checks above and also run migration validation, Expo validation, Expo dependency checking, public Expo config, and the Expo Router test-leak check.
+Expo's current SDK 57 patch recommendations were applied without changing the SDK major/minor or product behavior: `expo` 57.0.12, `@expo/metro-runtime` 57.0.9, `expo-dev-client` 57.0.11, `expo-notifications` 57.0.10, `expo-router` 57.0.12, `expo-sharing` 57.0.11, and `jest-expo` 57.0.4. `npx expo install --check --json` reports `upToDate: true`. A fresh signed Release was then rebuilt, reinstalled, and put through the physical smoke cycle again.
 
 ## Latest iOS Simulator verification
 
@@ -129,24 +134,34 @@ The prior iOS Simulator RC completed permanent deletion, active cancel/discard, 
 ## Remaining manual/platform limitations
 
 - Android execution is pending: no local emulator, AVD, or physical Android device exists.
-- The corrected code still requires a new physical-iPhone Preview/Internal build because the app icon changed.
-- Physical-device follow-up remains necessary for real notification timing, Focus/power-management behavior, calendar/share-target interoperability, keyboard avoidance, and dynamic-text extremes.
-- Simulator notification delivery timing is not representative of a physical iPhone.
+- Paid EAS Preview/internal distribution remains unavailable because the Apple account has a free Personal Team but no active paid Apple Developer Program team. No purchase was made.
+- The physical-iPhone Release profile expires on 2026-08-17 and must be rebuilt/reinstalled after expiry. This is an Apple Personal Team limitation, not a Shiftty data or runtime defect.
+- Local notification permission, native scheduling, background delivery, and lock-screen delivery passed on the physical iPhone. DF-013 remains: the shift-reminder body displays the literal `{offsetMinutes}` token because the translation uses single braces while the renderer expects double braces.
+- Remote push notifications are not used by the current Shiftty flow and were not enabled in the Personal Team build. Focus-mode variations, prolonged power-management behavior, calendar/share-target interoperability, keyboard avoidance, and dynamic-text extremes remain unverified.
 - Naming remains intentionally unchanged in this sprint: product/UI copy uses **Shiftty / שיפטי**, while Expo's native `name` and `slug` remain **Shifty / shifty**. This P3 consistency item is documented rather than expanded into a global rename.
 
 ## Physical-iPhone build
 
-One EAS attempt was made on 2026-08-10 at approximately 17:34 Asia/Jerusalem with `eas build --platform ios --profile preview` from clean, pushed Git SHA `829bd0b6e5498dc324020b14862801496660fef4`.
+The current corrected source was installed on 2026-08-10 through the no-cost Apple Personal Team fallback after EAS confirmed that no paid Apple Developer Program team was available.
 
-- App version: `0.1.0`
-- Profile: `preview` / internal distribution
-- EAS build ID: none; submission stopped before a build record/upload was created
-- Build number: not assigned/displayed before the blocker
-- Install URL/QR: none
-- Exact blocker: EAS reported that internal-distribution credentials must be generated by logging in to the Apple Developer account or supplied through `credentials.json`. The process reached the Apple ID/password/2FA handoff and was terminated without entering credentials.
-- Prior portal evidence: device registration previously reported that the Apple account was not registered as an Apple Developer. A free Personal Team Xcode install does not provide EAS internal-distribution credentials.
+- Source content built: dependency-aligned commit `4e8e0b3ed9a82b81f7fcbe67c0f0b0bacead0752` (the commit was recorded immediately after the successful build from the identical package manifests)
+- App version/build: `0.1.0` (`1`)
+- Build type: locally compiled iOS Release with an embedded Hermes JavaScript bundle
+- Physical bundle identifier: `com.oportnoy.shiftty.dogfood`; the repository's EAS/production identifier remains `com.shifty.app`
+- Signing: Xcode automatic signing with the user's free Personal Team
+- Provisioning expiry: 2026-08-17
+- EAS build ID/install URL/QR: none; this was not an EAS Preview/internal-distribution artifact
+- Installation: a fresh dependency-aligned Release passed installation over the previous dogfood bundle; the application container remained available and the pre-install counts were preserved exactly
+- Standalone behavior: passed after cable disconnect, force quit, and icon relaunch while port 8081 had no listener; Metro and a Mac connection are not required
+- Physical UI: icon, Hebrew RTL, persisted Home/Calendar/Reports data, Settings, unified Add Shift, native date/time pickers, weekday, future classification, and zero implicit break passed on the rebuilt binary
+- Live tracking: timer, break-state continuity, current-break timer, resume, 30-second background catch-up, clock-out, and cable-free restart persistence passed on the rebuilt binary
+- Persistence: the latest completed shift stored a closed 12-second break, correctly summarized as zero whole break minutes, left zero active shifts, and produced a finalized salary snapshot; `PRAGMA integrity_check` returned `ok` and `PRAGMA foreign_key_check` returned zero violations before and after reinstall and after the live flow
+- Reports: completed date/weekday, time range, duration, and salary rendering passed
+- Notifications: permission, native scheduling, and background lock-screen delivery passed again on the rebuilt binary; DF-013's unresolved literal `{offsetMinutes}` body placeholder reproduced a second time
 
-The EAS prompt recorded `ITSAppUsesNonExemptEncryption=false` in Expo iOS configuration; duplicated locale entries introduced by the prompt were removed. This declaration is config-only and does not change application behavior. No second EAS build was attempted.
+The unsupported APNs entitlement was removed only from the disposable native build copy because Shiftty currently schedules local notifications and does not request remote push tokens. No production source/configuration was modified for this fallback build.
+
+The earlier EAS `preview` attempt at `829bd0b` remains historical evidence: it stopped before upload or build-record creation because Ad Hoc/internal distribution requires a paid Apple Developer Program team and credentials. The EAS project and account login are valid, but EAS device registration, distribution certificates, provisioning profiles, and internal installation remain unavailable under the free Personal Team.
 
 ## Android checklist
 

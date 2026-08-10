@@ -136,6 +136,20 @@ This file records verified dogfooding findings. Simulator evidence uses disposab
 - **Verification:** Resolved. New regression passes; native relaunch restored **בהפסקה**, timers advanced, resume and clock-out succeeded, and SQLite remained valid.
 - **Data integrity affected?:** No; process stability and core flow were affected.
 
+## DF-013 — Physical shift reminder exposes its interpolation token
+
+- **Date:** 2026-08-10
+- **Severity:** P2
+- **Screen:** Physical-iPhone lock-screen notification
+- **Steps:** Grant notification permission, enable only the shift-start reminder, schedule a disposable future shift, and background/lock the iPhone.
+- **Expected:** One local reminder is delivered with the configured offset rendered as a number.
+- **Actual:** Delivery succeeded, but the body displayed the literal `{offsetMinutes}` token.
+- **Root cause:** `notification.shiftReminderBody` uses `{offsetMinutes}`, while the shared translation renderer replaces only `{{offsetMinutes}}` placeholders.
+- **Screenshot:** Not captured; observed directly during the physical-device smoke test.
+- **Reproducible?:** Confirmed on both the original and Expo-patch-aligned standalone Release builds; source mismatch is deterministic.
+- **Data integrity affected?:** No. The notification record had a native identifier, SQLite integrity was `ok`, and foreign-key verification returned zero violations.
+- **Notes:** Logged during dogfooding freeze; no product-code fix was attempted in this build/install task.
+
 ## New issue template
 
 - **ID:**
