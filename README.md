@@ -4,9 +4,9 @@ Shiftty is a Hebrew-first, local-first shift and salary assistant for hourly wor
 
 ## Current state
 
-The application includes onboarding, workplaces and roles, shift planning and live tracking, salary rules and snapshots, recurrence, templates and suggestions, forecasts, reports, exports, notifications, backup/restore, and Hebrew RTL presentation. RC1 reliability, RC1.5A-E frontend simplification, and Phase 7 release hardening are implemented; the full automated gate set and the complete iOS Simulator matrix are green.
+The application includes onboarding, workplaces and roles, shift planning and live tracking, salary rules and snapshots, recurrence, templates and suggestions, forecasts, reports, exports, notifications, backup/restore, and Hebrew RTL presentation. RC1 reliability, RC1.5A-E frontend simplification, Phase 7 release hardening, and the first physical dogfooding correction sprint are implemented.
 
-The iOS Simulator release candidate, including destructive backup/restore verification, is approved for controlled dogfooding. Android and physical-iPhone verification remain pending and are tracked separately in the project status.
+The corrected candidate has a real Shiftty icon, zero-break defaults, an uninterrupted active-break experience, Hebrew weekdays, one Add Shift flow, explicit salary-rule state, and a simplified salary-first monthly report. The iOS Simulator release candidate—including destructive backup/restore verification and the corrected dogfooding regression pass—is approved for controlled dogfooding. Android verification and distribution of the new physical-iPhone Preview build are tracked separately in the project status.
 
 See [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the current evidence-based milestone and known gaps, and [`DOGFOODING.md`](DOGFOODING.md) for the frozen-candidate launch and daily-use checklist. The frontend audit and approved simplification sequence are in [`docs/frontend-audit.md`](docs/frontend-audit.md) and [`docs/frontend-simplification-plan.md`](docs/frontend-simplification-plan.md).
 

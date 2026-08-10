@@ -4,168 +4,144 @@ Last updated: 2026-08-10
 
 ## Current milestone
 
-Development is in a **dogfooding freeze** on branch `codex/initial-shifty-foundation`. RC1.5A-E and Phase 7 are implemented, tested, committed, and pushed. The four approved destructive iOS Simulator checks have been completed against disposable data, including a regression repair discovered by the native deletion pass. No new product phase or feature work is active.
+Shiftty is in the first dogfooding correction freeze on branch `codex/initial-shifty-foundation`. The product remains focused on the daily flow `כניסה → הפסקה → יציאה`; no new product phase or unrelated feature was started.
 
-The planned MVP is source-complete, all automated gates are green, and the iOS Simulator RC is approved for controlled dogfooding. Practical Android execution remains externally blocked because no emulator, AVD, or physical device is available locally; this is an environment limitation, not a repository failure.
+The seven physical-iPhone findings DF-001–DF-007 were investigated at their source, regression-covered, and corrected. A product-wide audit added DF-008–DF-011. Fresh native verification then exposed DF-012, a stale-render-clock crash immediately after starting a break; that defect is fixed, tested, pushed, and natively retested.
 
-The product direction remains: **powerful engine, extremely simple interface**, with the everyday flow centered on `כניסה → הפסקה → יציאה` while scheduled/actual/payable ranges, salary snapshots and rules, recurrence, templates, predictions, notifications, exports, backup/restore, and recovery stay available underneath.
+There are currently zero known iOS P0/P1 blockers in the corrected code. Android remains externally unverified because no emulator, AVD, or physical Android device is available. A final physical-iPhone EAS Preview build is the remaining release action and is recorded below once attempted.
 
-## Git baseline
+## Git truth
 
 - Branch: `codex/initial-shifty-foundation`
-- Freeze-entry HEAD: `29ea3743f015df1c2020fa4757423bceb6433d6c` (`docs: record destructive iOS RC verification`)
-- Remote state at freeze entry: `origin/codex/initial-shifty-foundation` pointed to the same commit; ahead/behind was `0/0` after fetch.
-- Published dogfooding HEAD: the documentation-only commit containing this status (`docs: prepare Shiftty for dogfooding`), directly on top of the freeze-entry HEAD; its exact SHA is reported in the dogfooding handoff.
-- Published remote state: the local branch and `origin/codex/initial-shifty-foundation` are aligned at ahead/behind `0/0` after the dogfooding documentation push.
-- Completed-shift deletion repair: `9bf6c0c` (`fix(shifts): delete completed shifts without scheduled times`)
-- Release-hardening implementation: `5ab90a7` (`fix(rc): harden data integrity and native recovery`)
-- Progressive frontend simplification: `b407191` (`feat(rc1.5): complete progressive frontend simplification`)
-- These commits are published to `origin/codex/initial-shifty-foundation`.
-- No dependency or native-module change was introduced during Phase 7.
+- Corrected implementation HEAD before this documentation commit: `5aa364308c18444d48d385094b019b4b5aa72ffa`
+- Remote at documentation preparation: `origin/codex/initial-shifty-foundation` matched `5aa3643`; ahead/behind `0/0`.
+- The exact final documentation/build HEAD is reported in the final dogfooding handoff because a commit cannot embed its own SHA.
+- Working-tree changes at documentation preparation are documentation-only.
 
-## Implemented and source-verified
+Published sprint commits:
 
-- Expo Router application shell, Hebrew-first RTL UI, automatic light/dark theme, SQLite migrations and repositories, Zod domain schemas, and deterministic service boundaries.
-- Onboarding; workplaces, roles, salary profiles, pay rules, and shift templates.
-- Planned, completed, recurring, and live shifts; deletion relationships; break tracking; expected-end and stale-shift recovery; process-restart restoration.
-- Salary rate resolution, overtime/rules, payable-time calculation, immutable calculation snapshots, recalculation/invalidation, monthly summaries, forecasts, and reports.
-- Four-tab navigation (`בית`, `לוח שנה`, `דוחות`, `הגדרות`) with contextual shift creation and progressive disclosure of technical details.
-- One-tap clock-in when selection is unambiguous, a minimal workplace picker when it is not, live active/break state, and inline quick clock-out review.
-- Native date/time pickers and simplified completed/future shift forms, including explicit cross-midnight and equal-time behavior.
-- Templates, deterministic suggestions/prediction feedback, recurrence materialization and scoped occurrence edits.
-- Local notification planning, persisted metadata, permissions, global preferences, workplace overrides, native reconciliation, and startup/navigation/foreground lifecycle reconciliation.
-- PDF, CSV, ICS, JSON backup export, restore merge/replace, clear-all orchestration, and migration validation.
+- `8afd418` — `feat(branding): add original Shiftty app icon`
+- `eaa1fc0` — `fix(shifts): stop implicit breaks and preserve active context`
+- `df66f22` — `fix(ui): show weekdays in shift date fields`
+- `ae72f65` — `fix(reports): show authoritative salary and rule state`
+- `c89c67b` — `style(reports): clean report row formatting`
+- `2a9a08a` — `feat(shifts): unify manual shift creation`
+- `b4fcc98` — `fix(calendar): use status-aware shift ranges`
+- `539313d` — `fix(persistence): synchronize restored state and recurrences`
+- `1442752` — `fix(settings): harden template editing flow`
+- `5aa3643` — `fix(shifts): keep new breaks render-safe`
 
-## Phase 7 hardening evidence
+## Dogfooding corrections
 
-- Backup v1 remains backward-compatible while now including workplace notification overrides and exact entity counts.
-- Backup validation checks duplicate keys, relational references—including embedded recurrence-template references—active/open-break invariants, foreign keys, integrity, and replace counts.
-- Replace and merge run atomically. Merge covers app settings, prediction feedback, notification metadata, workplace overrides, recurrence children, collision remapping, and active-shift conflict preflight. Native notification IDs are deliberately stripped on export/restore.
-- Zero-valued money and duration fields survive semantic round trips. The real-SQLite test adapter now proves rollback instead of simulating transaction success.
-- CSV protects user text beginning with spreadsheet formula control characters while preserving the Hebrew BOM and generated negative numbers.
-- ICS uses stable shift UIDs, UTC timestamps, escaped text, and UTF-8-aware RFC 5545 line folding. Long RTL PDF output is covered for multiple pages and repeated headers.
-- Unexpected diagnostics are logged with operation context while production routes show safe localized messages. Calendar, Reports, notification settings, and workplace overrides expose loading/error/disabled states.
-- Notification reconciliation retries metadata without native IDs, applies preferences per workplace, keeps missed-clock-in reminders independent, and runs on startup, navigation, and foreground. Native schedule/cancel failures are logged without corrupting shift data.
-- Accessibility coverage includes roles, labels, switch/disabled state, 44-point targets, picker state, week-calendar navigation, and RTL ordering. Sixteen light/dark foreground pairs meet WCAG AA text contrast in automated tests.
-- Migration validation covers empty, v1, v2, v3, v4, v5, and already-current v6 databases with foreign-key and integrity checks.
-- Native testing exposed and regression-covered a recurrence SQL placeholder/schema drift defect, a just-started active-salary timestamp boundary, and stale Home month data after quick clock-out.
+### DF-001 — App icon
+
+An original opaque 1024×1024 Shiftty clock/check icon is wired through Expo for iOS, Android adaptive assets, and favicon use. Static config validation covers the references. A fresh native simulator build displayed the icon correctly at Home Screen size.
+
+### DF-002 — No automatic actual break
+
+New workplace/form defaults are zero. Expected future/template breaks no longer become actual or payable deductions. Completed shifts deduct only explicitly persisted payable breaks or tracked/manual break sessions. Historical rows are preserved.
+
+Native evidence: a manual 08:00–16:00 shift saved as eight hours with zero break. A live tracked break persisted four actual/payable minutes and reduced the five-minute gross shift to one payable minute.
+
+### DF-003 and DF-012 — Active break continuity
+
+The active experience now remains visible during a break with total-shift and current-break timers, workplace, resume, and clock-out actions. Active and open-break state restore from SQLite after process termination.
+
+The first native pass exposed a residual crash: Home's 30-second presentation clock could be older than a newly persisted break start. Live validation threw `Break end must be after break start`, and iOS terminated the process with SIGSEGV. `5aa3643` treats the newest persisted event as authoritative for live metrics. The regression failed on the old behavior, passes now, and the same persisted break subsequently restored and completed natively.
+
+### DF-004 — Weekdays
+
+Shared Hebrew/timezone-aware formatting now supplies weekdays to Add/Edit Shift, Details, cards, Calendar selection, Reports, and clock-out review. Native evidence included `יום שבת, 8 באוגוסט 2026`, `יום שני, 10 באוגוסט 2026`, and a Sunday next-day marker for the cross-midnight salary fixture.
+
+### DF-005 — Salary rules
+
+The reported ₪720 was not an arithmetic-engine failure. The physical dogfooding profile had a base hourly rate but no overtime or special-rate rules, and the old presentation failed to make that limitation clear. Salary surfaces now state when only base rate is configured.
+
+Deterministic configured fixture:
+
+- Shift: Saturday 2026-08-08 17:20 → Sunday 2026-08-09 05:20
+- Base rate: ₪60/hour
+- Weekend: Saturday 00:00 → Sunday 06:00 at 150%, non-stacking
+- Overtime tier 1: after 480 and before 600 net minutes at 125%, stacking
+- Overtime tier 2: after 600 net minutes at 150%, stacking
+- Segments: 400 minutes at 150%, 80 at 150%, 120 at 175%, 120 at 200%
+- Regular minutes: 0; special-rate minutes: 720
+- Base pay: ₪720; premium pay: ₪450; total: ₪1,170
+
+The exact fixture passed automated tests and the native Reports/Details UI. Its finalized SQLite snapshot contains 720 payable minutes, 0 regular minutes, 720 special minutes, `base_pay_minor=72000`, `premium_pay_minor=45000`, and `total_gross_pay_minor=117000`.
+
+### DF-006 — One Add Shift flow
+
+Home and Calendar now expose one **הוספת משמרת** flow. Past ranges become completed actual/payable work, future ranges become scheduled work, overlap-now requires an explicit live-tracking choice, and recurrence appears only for future planning. Legacy routes redirect safely.
+
+### DF-007 — Reports
+
+The default month view now answers completed shift count, worked hours, and salary first. Each row shows weekday/date, range, duration, and salary; unknown, incomplete, stale, base-only, and legitimate-zero states remain distinct. Rule/segment metadata is behind **פירוט שכר**.
+
+Native fixture output showed 6 completed shifts, 28:03 worked hours, ₪1,972.50 total, and the Saturday fixture row as 12:00 / ₪1,170.
+
+## Additional audit fixes
+
+- **DF-008 / Calendar P1:** status-aware ranges prevent open-active crashes and stale planned placement for completed work; SQL list/overlap logic follows the same policy.
+- **DF-009 / data state P1:** successful clear/restore operations synchronize the Zustand active-shift state with authoritative SQLite.
+- **DF-010 / recurrence P1:** startup materialization loads exceptions, uses local date keys, relies on the stored series template, and persists atomically/idempotently.
+- **DF-011 / templates P2:** explicit back navigation, safe missing-template state, localized failures, and edit-specific labels replace the prototype dead path.
+
+No additional high-confidence P0/P1 issue remains after DF-012. Lower-priority device-specific polish should be recorded during dogfooding rather than expanding this sprint.
 
 ## Automated validation
 
-Fresh results after the destructive native pass and completed-shift deletion repair:
+Latest full results after DF-012:
 
 | Check | Result |
 | --- | --- |
 | `npm run typecheck` | Passed |
-| `npm run lint` | Passed with zero warnings |
-| `npm test -- --runInBand` | Passed; 84 suites, 379 tests, 0 skipped, process exit 0 |
-| `npm run validate:migrations` | Passed for empty and v1-v6 databases |
-| `npm run validate:expo` | Passed; 36 static routes exported |
-| `npx expo config --type public` | Passed; iOS and Android identifiers resolve to `com.shifty.app` |
-| `npx expo install --check` | Passed; dependencies are SDK-compatible |
-| Expo Router test leak check | Passed; no test/spec files under `src/app` |
+| `npm run lint` | Passed with zero errors/warnings |
+| `npm test -- --runInBand` | Passed; 91 suites, 418 tests, 0 failures |
 | `git diff --check` | Passed |
 
-Current SDK-aligned packages include Expo `~57.0.11`, Expo Router `~57.0.11`, Expo FileSystem `~57.0.2`, Expo Notifications `~57.0.9`, and Expo Sharing `~57.0.10`.
+The final pre-build gate will repeat the checks above and also run migration validation, Expo validation, Expo dependency checking, public Expo config, and the Expo Router test-leak check.
 
-## Native iOS build and verification
+## Latest iOS Simulator verification
 
-Development-client evidence:
-
-- EAS build ID: `f838aae8-3a43-422b-8ae4-1144e22bcc38`
-- Build source commit: `bf7597a029874fc0d8b6a4c2032e98eef13cc49f`
-- Profile: `development-simulator`
-- Installed bundle: `com.shifty.app`
 - Runtime: iPhone 17 Pro simulator, iOS 26.5
-- Metro: development-client bundle over LAN
-- The build predates later JavaScript commits but contains every current native dependency; no rebuild is required for Phase 7 JavaScript changes.
+- Bundle: `com.shifty.app`
+- Native build: fresh Debug development client compiled from the corrected repository in an isolated `/tmp` copy; build succeeded with zero errors and two non-blocking Xcode script/link warnings.
+- Metro: current repository bundle on port 8081 over LAN.
+- App icon: passed.
+- Unified Add Shift: passed for the native form and past completed creation; automated inference covers past/future/today/cross-midnight/overlap/equal-time/DST. Scheduled future rendering remains verified.
+- No implicit break: passed.
+- Explicit tracked break: passed.
+- Clock in, active timer, break, break timer, active-break restoration, resume, quick clock-out, and persistence: passed after DF-012 repair.
+- Weekdays and cross-midnight labels: passed.
+- Saturday configured salary, overtime, special rate, per-shift salary, monthly total, detailed segments, and finalized snapshot: passed.
+- Missing-rule/base-only communication: passed before disposable rules were added.
+- Edit: passed; the edited break appeared immediately and salary staleness remained explicit.
+- Delete: the native permanent-delete confirmation and warning were reached; the destructive RC pass had already verified actual completed/break/cross-midnight cascades and SQLite integrity. This correction pass did not reconfirm the irreversible final button.
+- Home, Calendar, Reports, Details, and cold restart: passed.
 
-Passed natively on iOS:
+Simulator database checks after the corrected live flow and after the salary fixture both returned `PRAGMA integrity_check = ok` and zero rows from `PRAGMA foreign_key_check`. The pre-fixture simulator database was preserved at `/tmp/shiftty-sim-pre-salary-20260810172441.db` for this verification session.
 
-- Fresh onboarding, workplace/salary creation, process relaunch, and persisted state.
-- Completed `08:00–16:00`, future `16:00–00:00`, cross-midnight `22:00–06:00`, explicit equal-time rejection, Calendar placement, Reports totals, and restart persistence.
-- Hebrew date picker, 24-hour time picker, cancel/confirm, RTL rendering, and no ISO text leakage.
-- One-tap scheduled/single-workplace clock-in, ambiguous workplace selection, live timer, break/resume, background/foreground catch-up, active-shift and active-break relaunch restoration, stale-shift recovery, and quick clock-out.
-- Four-tab navigation; Home, Calendar month/week/agenda, Reports disclosure, Settings hierarchy, Shift Details, Edit, New Shift, and Active Shift in major light/dark states.
-- Recurrence creation produced two weekly occurrences; editing one occurrence persisted a modified exception without changing the other occurrence. Database foreign-key and integrity checks remained clean.
-- Notification permission, persisted native IDs, restart reconciliation, global settings, and workplace override disable/restore behavior.
-- PDF, CSV, ICS, and backup all opened native share sheets. Backup output contained shifts, recurrence state, notification metadata with native IDs stripped, and valid counts. Restore merge passed.
+## Existing destructive RC evidence
 
-Latest successful simulator verification: 2026-08-10 on iPhone 17 Pro with iOS 26.5. The complete non-destructive matrix, all four destructive checks, final backup restore, database integrity/foreign-key checks, Home/Calendar/Reports rendering, and cold-restart persistence passed.
+The prior iOS Simulator RC completed permanent deletion, active cancel/discard, restore-replace, clear-all, final restore, restart, and Home/Calendar/Reports checks against disposable data. Restore/replace and clear-all passed atomicity, count/reference, integrity, and foreign-key verification. The preserved external backup was not deleted. These checks remain relevant because this sprint did not change backup, clear-all, or deletion persistence code.
 
-### Destructive iOS Simulator release-candidate checks
+## Remaining manual/platform limitations
 
-Scope was limited to disposable Shiftty data on the iPhone 17 Pro simulator running iOS 26.5. The preserved external backup remained at `shiftty_backup_2026-08-09.json`; its SHA-256 stayed `706c356953843a4dbdb20fc156028f3e314b7db9c23dee012cc0ca348ed4c941` throughout.
+- Android execution is pending: no local emulator, AVD, or physical Android device exists.
+- The corrected code still requires a new physical-iPhone Preview/Internal build because the app icon changed.
+- Physical-device follow-up remains necessary for real notification timing, Focus/power-management behavior, calendar/share-target interoperability, keyboard avoidance, and dynamic-text extremes.
+- Simulator notification delivery timing is not representative of a physical iPhone.
 
-Permanent deletion:
+## Physical-iPhone build
 
-- A standalone scheduled shift deleted successfully; its row and scheduled-notification metadata were absent afterward.
-- The first completed, break-bearing, and completed cross-midnight deletion attempts reproduced `RangeError: Invalid time value`. SQLite rolled each attempt back cleanly with `PRAGMA integrity_check = ok` and no foreign-key violations.
-- Root cause: Shift Details formatted a recurrence local date unconditionally, although actual-only completed shifts have no scheduled timestamp. Commit `9bf6c0c` limits that calculation to recurring shifts and adds a screen-level regression test.
-- Native retest passed for an actual-only completed shift, a completed shift with a persisted break, and a cross-midnight scheduled shift. Shift rows and dependent salary snapshots, break sessions, and notification records were removed. Home, Calendar, and Reports refreshed without stale entities.
+The final build must use EAS profile `preview`, must not require Metro, and must be created only after final validation, documentation, commit, and push. Record the build ID, Git SHA, version/build number, timestamp, and install URL/QR here or in the final handoff. If Apple Developer authentication or membership blocks submission, record the exact external blocker without treating it as a repository failure.
 
-Active cancel/discard:
+## Android checklist
 
-- Pre-state had no active shift. A disposable unscheduled active shift was created for the secondary workplace and then removed through **Delete the new shift** plus destructive confirmation.
-- The active row and all dependent break, snapshot, and notification rows were absent afterward; the active count returned to zero. Home, Calendar, and Reports remained render-safe.
-- The development client briefly surfaced a caught salary-dashboard diagnostic during the deletion transition, but no stale entity or persisted corruption remained; the final cold restart was clean.
-
-Restore-replace:
-
-- Pre-state contained 2 workplaces, 1 salary profile, 12 shifts, 3 breaks, 1 recurrence series, 1 recurrence exception, 10 salary snapshots, and 6 notification records.
-- Replace restored the preserved backup to exactly 1 workplace, 1 salary profile, 4 shifts (3 completed, 1 scheduled), 1 break, 3 salary snapshots, 3 notification records, 1 app-setting record, and no recurrence or active-shift records. Backup/live entity ID sets and notification logical keys matched exactly.
-- The disposable secondary workplace, recurrence series, previously deleted scheduled shift, and discarded active shift were absent, proving replacement rather than merge.
-- Restore is enclosed in one SQLite transaction, validates integrity and declared counts before commit, and has integration coverage for rollback after an injected mid-replacement write failure. Native execution produced a complete backup state with no hybrid rows.
-- Workplace/salary-profile, shift/workplace, break/shift, snapshot/shift, and notification/shift reference checks all returned zero invalid references. `PRAGMA integrity_check` returned `ok`; `PRAGMA foreign_key_check` returned no rows.
-
-Clear-all and final restore:
-
-- Clear-all reduced every intended application table to zero rows while preserving all six schema migrations. SQLite integrity remained `ok` and foreign-key violations remained zero.
-- The app returned to the welcome/onboarding flow with no active-shift or old-data UI. The preserved backup remained externally accessible with the same hash.
-- A temporary onboarding workplace/profile was created only to regain the in-app restore screen; restore-replace then removed both temporary IDs and restored the preserved backup exactly.
-- The final simulator database again contains 1 workplace, 1 salary profile, 4 shifts, 1 break, 3 salary snapshots, and 3 notification records, with no active shift. A terminate/launch cycle reopened the populated Home screen; Calendar and Reports rendered the restored data.
-
-## Remaining native/manual verification
-
-All planned iOS Simulator destructive and non-destructive RC checks are complete. Lower-risk physical-device follow-up remains useful for notification delivery timing, calendar import interoperability, share targets, keyboard avoidance, and dynamic-text extremes, but none is a P0/P1 blocker for controlled simulator-based iOS dogfooding.
-
-## Android blocker
-
-Android execution is externally blocked in the current environment:
-
-- `adb` is installed, but `adb devices -l` reports no connected device.
-- No Android `emulator` or `avdmanager` executable is available.
-- No local Android Virtual Device is configured.
-
-Remaining Android checklist:
-
-- Install/build the development client and confirm cold-start persistence.
-- Complete onboarding and workplace/salary-profile creation.
-- Verify native date/time pickers, completed/future/equal-time/cross-midnight shifts, and permanent deletion cascades.
-- Verify clock-in, active timer, break/resume, clock-out, active discard, stale recovery, and process-restart restoration.
-- Exercise Home, Calendar month/week/agenda, Reports, Settings, and major light/dark RTL states.
-- Verify notification permission, scheduling, preferences, workplace overrides, and foreground/startup reconciliation.
-- Verify PDF/CSV/ICS share flows, backup export, restore merge/replace, clear-all, final restore, SQLite integrity, and foreign keys.
-
-## Release readiness and freeze rule
-
-There are zero known iOS P0/P1 blockers. The iOS Simulator RC is approved for controlled dogfooding; the simulator is left populated from the preserved backup and passes restart, integrity, foreign-key, Home, Calendar, and Reports checks.
-
-During the dogfooding freeze, use the existing candidate and record findings in `DOGFOODING_ISSUES.md`; do not start another product phase. When an Android runtime becomes available, execute the checklist above and record platform-specific findings; Android remains a separately documented external-runtime gate rather than an iOS RC failure.
-
-## Recent development history
-
-- `29ea374` recorded the completed destructive iOS Simulator verification and RC approval
-- `9bf6c0c` fixed actual-only completed-shift deletion and added screen-level regression coverage
-- `5ab90a7` hardened backup/restore, exports, notifications, safe errors, accessibility, migrations, recurrence persistence, and active salary recovery
-- `b407191` completed RC1.5E progressive frontend simplification
-- `94c6d8b` simplified navigation, Calendar, Reports, and Settings
-- `21382c4` simplified Home clock-in, active/break tracking, and quick clock-out
-- `e217003` unblocked native CSV/ICS and backup/restore flows
-- `8d5ec2d` removed native Metro notification-import cycles
-- `35c3842` recorded the successful iOS simulator build
-- `7f0dd0e` eliminated the lint-warning backlog
-- `7e96589` fixed the Jest Expo lifecycle failure
-- `9619017` aligned Expo SDK patch dependencies
-- `ac03fa7`, `c3beaff`, `eac332b`, and `8f8bc39` completed RC1.5A/B reliability and form simplification
-- `a93b59c`, `2e537c9`, `cba05ea`, `449212b`, `5539ec7`, and `82fab00` contain the principal RC1 report/onboarding/runtime fixes
+- Install and cold-start the Android development build.
+- Verify onboarding/workplace/salary setup and restart persistence.
+- Verify native date/time pickers, unified past/future/cross-midnight creation, edit, and deletion.
+- Verify clock-in, active timer, break/resume, clock-out, active/break restoration, and discard.
+- Verify Home, Calendar, Reports, Settings, RTL, light/dark, and empty/error states.
+- Verify notifications, PDF/CSV/ICS sharing, backup/restore/clear-all, SQLite integrity, and foreign keys.
