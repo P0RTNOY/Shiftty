@@ -4,20 +4,20 @@ Last updated: 2026-08-10
 
 ## Current milestone
 
-Development is at the **RC1.5D navigation and secondary-surface completion** milestone on branch `codex/initial-shifty-foundation`. The four-tab navigation, Calendar creation access, simple monthly Reports, and functional Settings hierarchy are implemented and have passed automated and native iOS simulator acceptance.
+Development is at the **RC1.5E progressive frontend simplification** milestone on branch `codex/initial-shifty-foundation`. The four-tab navigation and secondary surfaces from RC1.5D remain intact, and Shift Details, salary details, and shift forms now use worker-focused summaries with advanced information available through explicit disclosure. The milestone has passed automated and native iOS simulator acceptance.
 
 The product foundation through Phase 6 is present in source: onboarding; workplaces, roles, salary profiles, pay rules, and templates; planned, completed, and live shifts; break tracking; deterministic salary calculation; monthly forecasts and reports; notifications; exports; backup and restore; Hebrew localization and RTL UI. RC1 reliability fixes and RC1.5A/B shift-form simplification have also been implemented.
 
-This is not yet a final release-candidate claim. RC1.5E progressive-disclosure work, final release hardening, irreversible confirmation checks, and practical Android verification remain outstanding.
+This is not yet a final release-candidate claim. Final release hardening, irreversible confirmation checks, and practical Android verification remain outstanding.
 
 ## Git baseline
 
 - Branch: `codex/initial-shifty-foundation`
-- Committed baseline before RC1.5D: `21382c41f3befef6b5cc786220e430913564b61a`
+- Committed baseline before RC1.5E: `94c6d8b3189a009fb126b8bdb5142c258ec2416e`
 - Remote baseline: `origin/codex/initial-shifty-foundation` at the same commit
-- Relationship before the RC1.5D commit: 0 committed changes ahead and 0 behind
-- Working tree: focused RC1.5D implementation, tests, plan, and evidence update
-- Latest committed milestone: `21382c4` (`feat(rc1.5): simplify core clock-in and active-shift experience`)
+- Relationship before the RC1.5E commit: 0 committed changes ahead and 0 behind
+- Working tree: focused RC1.5E implementation, tests, plan, and evidence update
+- Latest committed milestone: `94c6d8b` (`feat(rc1.5): simplify navigation reports calendar and settings`)
 
 ## Implemented and source-verified
 
@@ -31,16 +31,17 @@ This is not yet a final release-candidate claim. RC1.5E progressive-disclosure w
 - RC1.5C UI work: one dominant Home clock-in action, safe nearby-scheduled selection, minimal workplace ambiguity picker, compact monthly summary, simplified active/break state, and inline quick clock-out review with advanced-edit fallback.
 - Interaction timestamps use the live system clock rather than the 30-second display clock. Completion is schema-validated before any write transaction, and live break calculations tolerate a one-tick UI/persistence boundary without accepting genuinely future events.
 - RC1.5D UI work: four actual primary tab screens with the `/add-shift` deep link preserved outside the tab group; contextual Calendar creation in month/week/agenda; localized simple Reports with warning-first progressive salary disclosure and tappable shift list; and a five-row Settings hierarchy with a functional Reports & Backup hub.
+- RC1.5E UI work: completed and scheduled Shift Details default to ordinary clock-in/start, clock-out/end, total, break, workplace, and salary summaries; differing reporting hours remain visible when relevant; scheduled/actual/reporting comparisons, recurrence metadata, notes, audit timestamps, salary components, engine metadata, and recalculation remain available through explicit disclosures; and recurrence plus reporting/salary overrides remain available under the shift form's advanced options.
 
 ## Automated validation baseline
 
-These are the fresh RC1.5D validation results:
+These are the fresh RC1.5E validation results:
 
 | Check | Result |
 | --- | --- |
 | `npm run typecheck` | Passed |
 | `npm run lint` | Passed with zero warnings |
-| `npm test -- --runInBand` | Passed; 79 suites and 321 tests, process exit 0 |
+| `npm test -- --runInBand` | Passed; 79 suites and 325 tests, process exit 0 |
 | `npm run validate:migrations` | Passed |
 | Expo web export | Passed; 36 routes exported |
 | `npx expo config --type public` | Passed |
@@ -67,7 +68,7 @@ Fresh simulator build evidence:
 - Result: finished successfully on 2026-08-09 at 19:44:24Z
 - Installation: installed as `com.shifty.app` on iPhone 17 Pro, iOS 26.5
 - Metro: development-client bundler running over LAN on port 8081
-- Current JavaScript bundle: local Metro source at the RC1.5D working tree; no new native dependency was introduced, so the existing simulator binary remains valid
+- Current JavaScript bundle: local Metro source at the RC1.5E working tree; no new native dependency was introduced, so the existing simulator binary remains valid
 
 Passed on iPhone 17 Pro / iOS 26.5:
 
@@ -100,6 +101,10 @@ Passed on iPhone 17 Pro / iOS 26.5:
 - Calendar month, week, and agenda modes rendered existing fixtures and exposed `הוספת משמרת עתידית`; the action opened the scheduled form with the selected date, and tapping a shift opened its detail route.
 - Reports opened on a localized `אוגוסט 2026` summary with 7 shifts, `33:53 שעות`, expected pay, and the incomplete-salary warning visible. Technical salary/filter breakdowns were absent until `פירוט שכר` was opened, then appeared and could be hidden again.
 - Settings showed the five primary rows and `הגדרות מתקדמות` without the dead language/timezone affordance. `דוחות וגיבוי` opened the new hub, and both export and data-management routes opened with working Back navigation.
+- A newly created scheduled shift opened with a compact date, workplace, start, end, total, and break summary; `פרטים נוספים` restored the scheduled/actual/reporting comparison and created/updated timestamps without breaking Edit, Duplicate, Start, Cancel, or Delete actions.
+- A completed shift opened with clock-in, clock-out, total, break, workplace, and final salary only. `פרטים נוספים` restored all time-range and audit data, while the independent `פירוט שכר` disclosure restored component rows, regular/special hours, engine version, calculation timestamp, and recalculation.
+- Completed-shift editing showed only the worker-facing date, clock-in, clock-out, workplace, and break controls by default; `אפשרויות נוספות` restored scheduled/reporting ranges, title, notes, and salary overrides. New Shift likewise kept recurrence out of the default form and restored it under advanced options.
+- Home still exposed exactly four tabs and one dominant clock-in action. A fresh live shift displayed workplace, elapsed time, start time, break, and clock-out actions, then completed through the quick review/save path without route or persistence errors.
 
 Still requiring native/manual verification:
 
@@ -112,18 +117,19 @@ Still requiring native/manual verification:
 ## Partial or not started
 
 - RC1.5C: complete and published at `21382c4`.
-- RC1.5D: complete with automated and native iOS acceptance recorded above.
-- RC1.5E: progressive disclosure is only partial; some advanced concepts remain exposed in legacy screens.
+- RC1.5D: complete and published at `94c6d8b` with automated and native iOS acceptance recorded above.
+- RC1.5E: complete with automated and native iOS acceptance recorded above; publication is the current checkpoint operation.
 - Release hardening and the final evidence matrix are not started.
 
 ## Safest next development step
 
-Begin RC1.5E from the clean RC1.5D milestone with a route-by-route audit of Shift Details and Edit Shift, moving scheduled/actual/reporting comparisons and technical calculation metadata behind `פרטים נוספים` while preserving edit, recovery, and deep-link behavior.
+Publish the green RC1.5E checkpoint, then begin release hardening from that clean milestone: audit data integrity and safe error states first, extend regression coverage only where evidence exposes a gap, and finish with accessibility, Hebrew/RTL, theme, export/backup, notification, migration, and native release evidence.
 
 ## Recent development history
 
 The latest committed milestones are:
 
+- `94c6d8b` simplified navigation, Calendar, Reports, and Settings
 - `21382c4` simplified Home clock-in, active/break tracking, and quick clock-out
 - `e217003` unblocked native CSV/ICS export and JSON backup/restore and localized Settings navigation
 - `8d5ec2d` removed native Metro require cycles from the notification imports

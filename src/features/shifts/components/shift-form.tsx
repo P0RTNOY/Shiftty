@@ -141,12 +141,6 @@ export function ShiftForm({ mode, workplaces, roles = [], templates = [], initia
         <ControlledField control={control} name="actualBreak" label={t('form.actualBreak')} keyboardType="number-pad" error={errors.actualBreak?.message} rules={minuteRules(t)} />
       )}
 
-      {mode === 'scheduled' && !initialShift ? <>
-        <Controller control={control} name="recurring" render={({ field }) => <View style={[styles.switchRow, { flexDirection: direction }]}><Text style={[styles.label, { color: colors.text }]}>{t('recurrence.toggle')}</Text><Switch accessibilityLabel={t('recurrence.toggle')} onValueChange={field.onChange} value={field.value} /></View>} />
-        {recurring ? <RecurrenceFields control={control} startDate={shiftDate} weekdays={weekdays} setValue={setValue} /> : null}
-        {errors.weekdays?.message ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.danger }]}>{errors.weekdays.message}</Text> : null}
-      </> : null}
-
       {errors.root?.message ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.danger }]}>{errors.root.message}</Text> : null}
 
       <PrimaryButton disabled={saving || !workplaces.length} label={t('common.save')} onPress={() => void submit()} />
@@ -154,6 +148,12 @@ export function ShiftForm({ mode, workplaces, roles = [], templates = [], initia
 
       {showAdvanced && (
         <View style={styles.advanced}>
+          {mode === 'scheduled' && !initialShift ? <>
+            <Controller control={control} name="recurring" render={({ field }) => <View style={[styles.switchRow, { flexDirection: direction }]}><Text style={[styles.label, { color: colors.text }]}>{t('recurrence.toggle')}</Text><Switch accessibilityLabel={t('recurrence.toggle')} onValueChange={field.onChange} value={field.value} /></View>} />
+            {recurring ? <RecurrenceFields control={control} startDate={shiftDate} weekdays={weekdays} setValue={setValue} /> : null}
+            {errors.weekdays?.message ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.danger }]}>{errors.weekdays.message}</Text> : null}
+          </> : null}
+
           {roles.some((role) => role.workplaceId === workplaceId) ? <>
             <Text style={[styles.label, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}>{t('form.role')}</Text>
             <Controller control={control} name="roleId" render={({ field }) => <View style={[styles.choices, { flexDirection: direction }]}>

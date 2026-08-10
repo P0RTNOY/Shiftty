@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import type { Shift } from '@/domain/entities';
@@ -26,12 +27,27 @@ interface Props {
   onCancelTracking?: () => void;
 }
 
+type RangeKind = 'scheduled' | 'actual' | 'payable';
+
 export function ShiftDetailView({ shift, workplaceName, roleName, templateName, now = new Date(), ...actions }: Props) {
   const { colors } = useAppTheme();
-  const { formatDate, isRtl, t } = useTranslation();
+  const { formatDate, isRtl, locale, t } = useTranslation();
+  const [showMore, setShowMore] = useState(false);
   const align = isRtl ? 'right' : 'left';
-  const baseDate = shift.scheduledStart ?? shift.actualStart ?? shift.payableStart!;
+  const baseDate = shift.actualStart ?? shift.scheduledStart ?? shift.payableStart!;
   const eligibleForMissed = canMarkShiftMissed(shift, now);
+  const primaryKind: RangeKind = shift.actualStart ? 'actual' : shift.scheduledStart ? 'scheduled' : 'payable';
+  const primaryStart = shift[`${primaryKind}Start`];
+  const primaryEnd = shift[`${primaryKind}End`];
+  const primaryDuration = primaryStart && primaryEnd ? calculateShiftDuration(shift, primaryKind) : null;
+  const primaryBreakMinutes = primaryKind === 'actual'
+    ? shift.actualBreakMinutes ?? 0
+    : primaryKind === 'scheduled'
+      ? shift.expectedBreakMinutes
+      : shift.payableBreakMinutes ?? 0;
+  const reportingDiffers = hasReportingDifference(shift);
+  const displayTitle = shift.title || templateName || workplaceName;
+  const showWorkplaceMeta = displayTitle !== workplaceName || Boolean(roleName);
   const confirmDelete = () => Alert.alert(t('shift.deleteTitle'), t('shift.deleteBody'), [
     { text: t('common.cancel'), style: 'cancel' },
     { text: t('common.delete'), style: 'destructive', onPress: actions.onDelete },
@@ -41,18 +57,27 @@ export function ShiftDetailView({ shift, workplaceName, roleName, templateName, 
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.heading}>
         <StatusBadge status={shift.status} />
-        <Text style={[styles.title, { color: colors.text, textAlign: align }]}>{shift.title || templateName || workplaceName}</Text>
-        <Text style={[styles.meta, { color: colors.textMuted, textAlign: align }]}>{workplaceName}{roleName ? ` · ${roleName}` : ''}</Text>
+        <Text style={[styles.title, { color: colors.text, textAlign: align }]}>{displayTitle}</Text>
+        {showWorkplaceMeta ? <Text style={[styles.meta, { color: colors.textMuted, textAlign: align }]}>{workplaceName}{roleName ? ` · ${roleName}` : ''}</Text> : null}
         <Text style={[styles.date, { color: colors.text, textAlign: align }]}>{formatDate(baseDate, { dateStyle: 'full', timeZone: shift.timezone })}</Text>
       </View>
-      <RangeRow label={t('shift.scheduledRange')} shift={shift} kind="scheduled" />
-      <RangeRow label={t('shift.actualRange')} shift={shift} kind="actual" />
-      <RangeRow label={t('shift.payableRange')} shift={shift} kind="payable" />
-      <Text style={[styles.meta, { color: colors.textMuted, textAlign: align }]}>{t('shift.breaks')}: {shift.payableBreakMinutes ?? shift.actualBreakMinutes ?? shift.expectedBreakMinutes} {t('active.minutes')}</Text>
-      {shift.recurrenceGroupId ? <Text style={[styles.meta, { color: colors.primary, textAlign: align }]}>{t('recurrence.series')}</Text> : null}
-      {shift.notes ? <Text style={[styles.notes, { color: colors.text, textAlign: align }]}>{shift.notes}</Text> : null}
-      <Text style={[styles.timestamp, { color: colors.textMuted, textAlign: align }]}>{t('shift.createdAt')}: {formatDate(shift.createdAt, { dateStyle: 'short', timeStyle: 'short' })}</Text>
-      <Text style={[styles.timestamp, { color: colors.textMuted, textAlign: align }]}>{t('shift.updatedAt')}: {formatDate(shift.updatedAt, { dateStyle: 'short', timeStyle: 'short' })}</Text>
+
+      <SummaryRow label={primaryKind === 'actual' ? t('form.actualStart') : t('form.scheduledStart')} value={formatTime(primaryStart, shift, formatDate)} />
+      <SummaryRow label={primaryKind === 'actual' ? t('form.actualEnd') : t('form.scheduledEnd')} value={formatTime(primaryEnd, shift, formatDate)} />
+      <SummaryRow label={t('shift.total')} value={primaryDuration ? formatDurationLong(primaryDuration.paidMinutes, locale) : '—'} />
+      <SummaryRow label={t('shift.break')} value={`${primaryBreakMinutes} ${t('active.minutes')}`} />
+      {reportingDiffers ? <RangeRow label={t('shift.reportingHours')} shift={shift} kind="payable" /> : null}
+
+      <SecondaryButton label={showMore ? t('shift.hideDetails') : t('shift.moreDetails')} onPress={() => setShowMore((value) => !value)} />
+      {showMore ? <View style={styles.details}>
+        <RangeRow label={t('shift.scheduledRange')} shift={shift} kind="scheduled" />
+        <RangeRow label={t('shift.actualRange')} shift={shift} kind="actual" />
+        <RangeRow label={t('shift.payableRange')} shift={shift} kind="payable" />
+        {shift.recurrenceGroupId ? <Text style={[styles.meta, { color: colors.primary, textAlign: align }]}>{t('recurrence.series')}</Text> : null}
+        {shift.notes ? <Text style={[styles.notes, { color: colors.text, textAlign: align }]}>{shift.notes}</Text> : null}
+        <Text style={[styles.timestamp, { color: colors.textMuted, textAlign: align }]}>{t('shift.createdAt')}: {formatDate(shift.createdAt, { dateStyle: 'short', timeStyle: 'short' })}</Text>
+        <Text style={[styles.timestamp, { color: colors.textMuted, textAlign: align }]}>{t('shift.updatedAt')}: {formatDate(shift.updatedAt, { dateStyle: 'short', timeStyle: 'short' })}</Text>
+      </View> : null}
     </View>
     {shift.status !== 'active' ? <>
       <PrimaryButton label={t('common.edit')} onPress={actions.onEdit} />
@@ -60,7 +85,7 @@ export function ShiftDetailView({ shift, workplaceName, roleName, templateName, 
     </> : null}
     {shift.status === 'scheduled' ? <PrimaryButton label={t('active.startScheduled')} onPress={() => actions.onStart?.()} /> : null}
     {shift.status === 'active' ? <PrimaryButton label={t('active.endShift')} onPress={() => actions.onStart?.()} /> : null}
-    {shift.status === 'active' || shift.status === 'completed' ? <SecondaryButton label={t('active.manageBreaks')} onPress={() => actions.onManageBreaks?.()} /> : null}
+    {showMore && (shift.status === 'active' || shift.status === 'completed') ? <SecondaryButton label={t('active.manageBreaks')} onPress={() => actions.onManageBreaks?.()} /> : null}
     {shift.status === 'active' ? <SecondaryButton destructive label={t('active.cancelTracking')} onPress={() => actions.onCancelTracking?.()} /> : null}
     {shift.status === 'scheduled' && !eligibleForMissed ? <SecondaryButton destructive label={t('shift.cancelAction')} onPress={actions.onCancel} /> : null}
     {eligibleForMissed ? <SecondaryButton destructive label={t('shift.markMissed')} onPress={actions.onMarkMissed} /> : null}
@@ -69,13 +94,21 @@ export function ShiftDetailView({ shift, workplaceName, roleName, templateName, 
   </View>;
 }
 
-function RangeRow({ label, shift, kind }: { label: string; shift: Shift; kind: 'scheduled' | 'actual' | 'payable' }) {
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  const { colors } = useAppTheme();
+  const { isRtl } = useTranslation();
+  return <View style={[styles.summaryRow, { borderTopColor: colors.border, flexDirection: isRtl ? 'row-reverse' : 'row' }]}>
+    <Text style={[styles.label, { color: colors.textMuted, textAlign: isRtl ? 'right' : 'left' }]}>{label}</Text>
+    <Text style={[styles.value, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}>{value}</Text>
+  </View>;
+}
+
+function RangeRow({ label, shift, kind }: { label: string; shift: Shift; kind: RangeKind }) {
   const { colors } = useAppTheme();
   const { formatDate, isRtl, locale } = useTranslation();
   const start = shift[`${kind}Start`];
   const end = shift[`${kind}End`];
-  let duration: ReturnType<typeof calculateShiftDuration> = null;
-  if (start && end) duration = calculateShiftDuration(shift, kind);
+  const duration = start && end ? calculateShiftDuration(shift, kind) : null;
   const crossesDate = Boolean(start && end && formatLocalDateKey(start, shift.timezone) !== formatLocalDateKey(end, shift.timezone));
   const value = start && end ? `${formatDate(start, { hour: '2-digit', minute: '2-digit', timeZone: shift.timezone })}–${crossesDate ? `${formatDate(end, { weekday: 'short', timeZone: shift.timezone })} ` : ''}${formatDate(end, { hour: '2-digit', minute: '2-digit', timeZone: shift.timezone })}` : '—';
   return <View style={[styles.range, { borderTopColor: colors.border, flexDirection: isRtl ? 'row-reverse' : 'row' }]}>
@@ -84,10 +117,31 @@ function RangeRow({ label, shift, kind }: { label: string; shift: Shift; kind: '
   </View>;
 }
 
+function formatTime(value: string | undefined, shift: Shift, formatDate: ReturnType<typeof useTranslation>['formatDate']): string {
+  return value ? formatDate(value, { hour: '2-digit', minute: '2-digit', timeZone: shift.timezone }) : '—';
+}
+
+function hasReportingDifference(shift: Shift): boolean {
+  if (!shift.actualStart || !shift.actualEnd || !shift.payableStart || !shift.payableEnd) return false;
+  return Date.parse(shift.actualStart) !== Date.parse(shift.payableStart)
+    || Date.parse(shift.actualEnd) !== Date.parse(shift.payableEnd)
+    || (shift.actualBreakMinutes ?? 0) !== (shift.payableBreakMinutes ?? 0);
+}
+
 const styles = StyleSheet.create({
-  container: { gap: spacing.sm }, card: { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, gap: spacing.md, padding: spacing.md },
-  heading: { gap: spacing.xs }, title: { fontSize: typography.heading, fontWeight: '800' }, meta: { fontSize: typography.body }, date: { fontSize: typography.title, fontWeight: '700' },
+  container: { gap: spacing.sm },
+  card: { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, gap: spacing.md, padding: spacing.md },
+  heading: { gap: spacing.xs },
+  title: { fontSize: typography.heading, fontWeight: '800' },
+  meta: { fontSize: typography.body },
+  date: { fontSize: typography.title, fontWeight: '700' },
+  summaryRow: { alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.sm, justifyContent: 'space-between', paddingTop: spacing.md },
   range: { alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.sm, justifyContent: 'space-between', paddingTop: spacing.md },
-  rangeText: { flex: 1, gap: spacing.xxs }, label: { fontSize: typography.caption, fontWeight: '700' }, value: { fontSize: typography.title, fontVariant: ['tabular-nums'], fontWeight: '700' }, duration: { fontSize: typography.caption },
-  notes: { fontSize: typography.body, lineHeight: 24 }, timestamp: { fontSize: typography.caption },
+  rangeText: { flex: 1, gap: spacing.xxs },
+  label: { fontSize: typography.caption, fontWeight: '700' },
+  value: { fontSize: typography.title, fontVariant: ['tabular-nums'], fontWeight: '700' },
+  duration: { fontSize: typography.caption },
+  details: { gap: spacing.md },
+  notes: { fontSize: typography.body, lineHeight: 24 },
+  timestamp: { fontSize: typography.caption },
 });

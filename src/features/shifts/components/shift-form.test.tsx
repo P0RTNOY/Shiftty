@@ -47,11 +47,24 @@ describe('ShiftForm', () => {
     expect(onSave.mock.calls[0][0].scheduledEnd).toContain('2026-08-11');
   });
 
+  it('keeps recurrence controls behind advanced options', () => {
+    renderApp(<ShiftForm initialDate="2026-08-10" mode="scheduled" workplaces={[workplace]} onSave={jest.fn()} />);
+
+    expect(screen.queryByText('משמרת חוזרת')).toBeNull();
+    fireEvent.press(screen.getByRole('button', { name: 'אפשרויות נוספות' }));
+    expect(screen.getByText('משמרת חוזרת')).toBeTruthy();
+  });
+
   it('mirrors actual times into payable values until the user edits payable time', async () => {
     const onSave = jest.fn();
     renderApp(<ShiftForm initialDate="2026-07-10" mode="completed" workplaces={[workplace]} onSave={onSave} />);
 
+    expect(screen.queryByLabelText('התחלה')).toBeNull();
+    expect(screen.queryByLabelText('שעת התחלה לדיווח')).toBeNull();
+    expect(screen.queryByText('התאמות שכר למשמרת (אופציונלי)')).toBeNull();
     fireEvent.press(screen.getByRole('button', { name: 'אפשרויות נוספות' }));
+    expect(screen.getByLabelText('התחלה')).toBeTruthy();
+    expect(screen.getByText('התאמות שכר למשמרת (אופציונלי)')).toBeTruthy();
     fireEvent.press(screen.getByRole('radio', { name: 'בית קפה' }));
     fireEvent.changeText(screen.getByLabelText('כניסה'), '09:15');
     await waitFor(() => expect(screen.getByLabelText('שעת התחלה לדיווח')).toHaveProp('value', '09:15'));
