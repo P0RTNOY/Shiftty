@@ -12,10 +12,13 @@ import { useRepositories } from '@/features/shifts/hooks/use-repositories';
 import { createScheduledShift } from '@/domain/services/shift-factory';
 import { createId } from '@/shared/utils/id';
 import { reportUnexpectedError } from '@/shared/utils/report-unexpected-error';
+import { DEFAULT_TIMEZONE } from '@/shared/constants/app';
+import { formatTimeRange } from '@/shared/utils/date-time-format';
+import { formatLocalDateKey, formatLocalTime } from '@/shared/utils/zoned-time';
 
 export default function ApplySuggestionScreen() {
   const { colors } = useAppTheme();
-  const { t, isRtl } = useTranslation();
+  const { t, isRtl, locale } = useTranslation();
   const { result: prediction } = useShiftPrediction();
   const { workplaces } = useWorkplaces();
   const { templates } = useShiftTemplates();
@@ -65,19 +68,21 @@ export default function ApplySuggestionScreen() {
 
       // Create shift
       const nowString = new Date().toISOString();
+      const selectedWorkplaceId = acceptWorkplace ? (candidate.suggestedWorkplaceId ?? workplaces[0]?.id ?? '') : workplaces[0]?.id ?? '';
+      const selectedWorkplace = workplaces.find((item) => item.id === selectedWorkplaceId);
       const shift = createScheduledShift({
-        workplaceId: acceptWorkplace ? (candidate.suggestedWorkplaceId ?? workplaces[0]?.id ?? '') : workplaces[0]?.id ?? '',
+        workplaceId: selectedWorkplaceId,
         roleId: acceptWorkplace ? candidate.suggestedRoleId : undefined,
         shiftTemplateId: acceptWorkplace ? candidate.suggestedTemplateId : undefined,
-        hourlyRateSnapshotMinor: 0, // Should be resolved properly in a full flow or left 0 until calculated
-        date: candidate.suggestedScheduledStart ? candidate.suggestedScheduledStart.split('T')[0]! : new Date().toISOString().split('T')[0]!,
-        startTime: acceptTime && candidate.suggestedScheduledStart ? new Date(candidate.suggestedScheduledStart).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : template?.defaultStartTime ?? '08:00',
-        endTime: acceptTime && candidate.suggestedScheduledEnd ? new Date(candidate.suggestedScheduledEnd).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : template?.defaultEndTime ?? '16:00',
+        hourlyRateSnapshotMinor: selectedWorkplace?.defaultHourlyRateMinor ?? 0,
+        date: candidate.suggestedScheduledStart ? formatLocalDateKey(candidate.suggestedScheduledStart, DEFAULT_TIMEZONE) : formatLocalDateKey(new Date(), DEFAULT_TIMEZONE),
+        startTime: acceptTime && candidate.suggestedScheduledStart ? formatLocalTime(candidate.suggestedScheduledStart, DEFAULT_TIMEZONE) : template?.defaultStartTime ?? '08:00',
+        endTime: acceptTime && candidate.suggestedScheduledEnd ? formatLocalTime(candidate.suggestedScheduledEnd, DEFAULT_TIMEZONE) : template?.defaultEndTime ?? '16:00',
         expectedBreakMinutes: template?.expectedBreakMinutes ?? 0,
       }, {
         id: createId('shift'),
         now: nowString,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        timezone: DEFAULT_TIMEZONE,
       });
 
       await repositories.shifts.create(shift);
@@ -134,7 +139,7 @@ export default function ApplySuggestionScreen() {
           <View style={[styles.row, { backgroundColor: colors.surface, flexDirection: direction }]}>
             <View style={styles.rowText}>
               <Text style={[styles.label, { color: colors.text }]}>{t('suggestion.time')}</Text>
-              <Text style={[styles.description, { color: colors.primary }]}>{candidate.suggestedScheduledStart ? new Date(candidate.suggestedScheduledStart).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : ''} - {candidate.suggestedScheduledEnd ? new Date(candidate.suggestedScheduledEnd).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : ''}</Text>
+              <Text style={[styles.description, { color: colors.primary }]}>{candidate.suggestedScheduledStart && candidate.suggestedScheduledEnd ? formatTimeRange(candidate.suggestedScheduledStart, candidate.suggestedScheduledEnd, locale, DEFAULT_TIMEZONE) : ''}</Text>
             </View>
             <Switch accessibilityLabel={t('suggestion.time')} accessibilityRole="switch" accessibilityState={{ checked: acceptTime }} value={acceptTime} onValueChange={setAcceptTime} trackColor={{ true: colors.primary, false: colors.border }} />
           </View>

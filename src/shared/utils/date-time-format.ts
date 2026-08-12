@@ -70,9 +70,28 @@ export function formatMonth(monthKey: string, locale: DateTimeLocale): string {
   }).format(date);
 }
 
+export function formatShortDateValue(value: string, locale: DateTimeLocale): string {
+  return new Intl.DateTimeFormat(intlLocale(locale), {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  }).format(parseLocalDateValue(value));
+}
+
+export function formatWeekdayDateValue(value: string, locale: DateTimeLocale): string {
+  return new Intl.DateTimeFormat(intlLocale(locale), {
+    day: 'numeric',
+    weekday: 'short',
+    timeZone: 'UTC',
+  }).format(parseLocalDateValue(value));
+}
+
 export function formatLocalDateValue(value: string, locale: DateTimeLocale): string {
+  return formatFullDate(parseLocalDateValue(value), locale, 'UTC');
+}
+
+function parseLocalDateValue(value: string): Date {
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) throw new Error('Date must use YYYY-MM-DD format.');
-  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12));
-  return formatFullDate(date, locale, 'UTC');
+  return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12));
 }

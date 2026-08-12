@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import type { BreakSession } from '@/domain/entities';
-import { summarizeBreakSessions, validateBreakSessions } from '@/domain/services';
+import { resolveManualBreakRange, summarizeBreakSessions, validateBreakSessions } from '@/domain/services';
 import { useRepositories } from '@/features/shifts/hooks/use-repositories';
 import { useShift } from '@/features/shifts/hooks/use-shifts';
 import { AppScreen, EmptyState, FormField, PrimaryButton, SecondaryButton, TimeField } from '@/shared/components';
@@ -12,7 +12,6 @@ import { useTranslation } from '@/shared/i18n';
 import { radius, spacing, typography, useAppTheme } from '@/shared/theme';
 import { formatDurationLong } from '@/shared/utils/duration-format';
 import { createId } from '@/shared/utils/id';
-import { formatLocalDateKey, resolveLocalShiftRange } from '@/shared/utils/zoned-time';
 
 interface BreakForm { start: string; end: string; notes: string }
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -27,7 +26,7 @@ export default function BreakManagementScreen() {
   const mutate = async (operation: () => Promise<unknown>) => { if (busy) return; setBusy(true); try { await operation(); await refresh(); } catch { Alert.alert(t('common.error'), t('breaks.invalid')); } finally { setBusy(false); } };
   const add = handleSubmit(async (values) => {
     if (!shift?.actualStart) return;
-    const range = resolveLocalShiftRange(formatLocalDateKey(shift.actualStart, shift.timezone), values.start, values.end, shift.timezone); const now = new Date().toISOString();
+    const currentTime = new Date(); const range = resolveManualBreakRange(shift, values.start, values.end, currentTime); const now = currentTime.toISOString();
     const session: BreakSession = { id: createId('break'), shiftId: shift.id, start: range.start, end: range.end, isPaid: paid, source: 'manual', notes: values.notes.trim() || undefined, createdAt: now, updatedAt: now };
     validateBreakSessions(shift, [...breaks, session], new Date());
     await mutate(() => repositories.activeShifts.saveBreak(session)); reset();

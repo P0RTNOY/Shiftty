@@ -4,7 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 
 import type { ShiftPredictionCandidate } from '@/domain/entities/prediction';
 import { useTranslation } from '@/shared/i18n';
+import { DEFAULT_TIMEZONE } from '@/shared/constants/app';
 import { spacing, radius, typography, useAppTheme } from '@/shared/theme';
+import { formatTime } from '@/shared/utils/date-time-format';
 
 interface SmartSuggestionCardProps {
   candidate: ShiftPredictionCandidate;
@@ -20,7 +22,7 @@ const CONFIDENCE_CONFIG = {
 } as const;
 
 export function SmartSuggestionCard({ candidate, onApplyAll, onApplySelected, onReject }: SmartSuggestionCardProps) {
-  const { isRtl, t } = useTranslation();
+  const { isRtl, locale, t } = useTranslation();
   const { colors } = useAppTheme();
   const [showReasons, setShowReasons] = useState(false);
 
@@ -71,7 +73,7 @@ export function SmartSuggestionCard({ candidate, onApplyAll, onApplySelected, on
                 {t('prediction.field.scheduledStart')}
               </Text>
               <Text style={[styles.timeValue, { color: colors.text }]}>
-                {formatTime(candidate.suggestedScheduledStart)}
+                {formatTime(candidate.suggestedScheduledStart, locale, DEFAULT_TIMEZONE)}
               </Text>
             </View>
           )}
@@ -81,7 +83,7 @@ export function SmartSuggestionCard({ candidate, onApplyAll, onApplySelected, on
                 {t('prediction.field.scheduledEnd')}
               </Text>
               <Text style={[styles.timeValue, { color: colors.text }]}>
-                {formatTime(candidate.suggestedScheduledEnd)}
+                {formatTime(candidate.suggestedScheduledEnd, locale, DEFAULT_TIMEZONE)}
               </Text>
             </View>
           )}
@@ -152,15 +154,6 @@ export function SmartSuggestionCard({ candidate, onApplyAll, onApplySelected, on
       </TouchableOpacity>
     </View>
   );
-}
-
-function formatTime(isoTs: string): string {
-  try {
-    const d = new Date(isoTs);
-    return d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false });
-  } catch {
-    return isoTs.slice(11, 16);
-  }
 }
 
 const styles = StyleSheet.create({

@@ -9,6 +9,7 @@ import { addDays, startOfWeek, format, parseISO, differenceInMinutes, getDay } f
 
 import type { Shift } from '@/domain/entities';
 import { getEffectiveShiftRange } from '@/domain/services/shift-overlap-service';
+import { formatWeekdayDateValue } from '@/shared/utils/date-time-format';
 
 export interface WeekDay {
   localDate: string; // yyyy-MM-dd
@@ -74,7 +75,7 @@ export function buildWeekCalendarData(
         localDate,
         isToday: localDate === todayDate,
         dayOfWeek: getDay(dayDate),
-        label: formatDayLabel(dayDate, locale),
+        label: formatWeekdayDateValue(localDate, locale.startsWith('he') ? 'he' : 'en'),
       },
       blocks,
     });
@@ -157,10 +158,6 @@ function formatLocalDate(date: Date, timezone: string): string {
   } catch {
     return format(date, 'yyyy-MM-dd');
   }
-}
-
-function formatDayLabel(date: Date, locale: string): string {
-  return date.toLocaleDateString(locale, { weekday: 'short', day: 'numeric' });
 }
 
 export function getPreviousWeek(weekOf: Date): Date {

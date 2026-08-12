@@ -2,8 +2,10 @@ import {
   formatCompactDate,
   formatFullDate,
   formatMonth,
+  formatShortDateValue,
   formatTime,
   formatTimeRange,
+  formatWeekdayDateValue,
 } from '@/shared/utils/date-time-format';
 
 describe('canonical date and time formatting', () => {
@@ -28,5 +30,11 @@ describe('canonical date and time formatting', () => {
     expect(formatCompactDate(nearMidnightUtc, 'he', 'Asia/Jerusalem')).toBe('ראשון · 9.8');
     expect(formatCompactDate(nearMidnightUtc, 'he', 'America/New_York')).toBe('שבת · 8.8');
     expect(formatMonth('2026-08', 'he')).toBe('אוגוסט 2026');
+  });
+
+  it('formats a local date key without routing through the device timezone', () => {
+    expect(formatShortDateValue('2026-08-01', 'he')).toBe('1 באוג׳');
+    expect(formatShortDateValue('2026-08-01', 'en')).toBe('Aug 1');
+    expect(formatWeekdayDateValue('2026-08-01', 'he')).toContain('שבת');
   });
 });

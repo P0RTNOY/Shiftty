@@ -1,6 +1,7 @@
 import { differenceInMinutes } from 'date-fns';
 
 import type { BreakSession, Shift } from '@/domain/entities';
+import { formatLocalDateKey, resolveLocalShiftRange, type ResolvedShiftRange } from '@/shared/utils/zoned-time';
 
 export interface BreakSummary {
   paidMinutes: number;
@@ -41,4 +42,20 @@ export function validateBreakSessions(shift: Shift, breaks: readonly BreakSessio
     if (start < priorEnd) throw new Error('Break sessions cannot overlap.');
     priorEnd = end;
   }
+}
+
+export function resolveManualBreakRange(shift: Shift, startTime: string, endTime: string, now: Date): ResolvedShiftRange {
+  if (!shift.actualStart) throw new Error('Breaks require an actual shift start.');
+  const shiftStart = Date.parse(shift.actualStart);
+  const shiftEnd = Date.parse(shift.actualEnd ?? now.toISOString());
+  const dates = [...new Set([
+    formatLocalDateKey(shift.actualStart, shift.timezone),
+    formatLocalDateKey(shift.actualEnd ?? now, shift.timezone),
+  ])];
+
+  for (const date of dates) {
+    const range = resolveLocalShiftRange(date, startTime, endTime, shift.timezone);
+    if (Date.parse(range.start) >= shiftStart && Date.parse(range.end) <= shiftEnd) return range;
+  }
+  throw new Error('A break must be inside the actual shift range.');
 }

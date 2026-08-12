@@ -7,6 +7,8 @@ import { EmptyState, PrimaryButton } from '@/shared/components';
 import { DEFAULT_TIMEZONE } from '@/shared/constants/app';
 import { useTranslation } from '@/shared/i18n';
 import { radius, spacing, typography, useAppTheme } from '@/shared/theme';
+import { formatLocalDateValue, formatMonth } from '@/shared/utils/date-time-format';
+import { formatLocalDateKey } from '@/shared/utils/zoned-time';
 
 import { WeekCalendarView } from '@/features/calendar/components/week-calendar-view';
 import { getPreviousWeek, getNextWeek } from '@/domain/services/week-calendar-service';
@@ -38,13 +40,13 @@ const weekdayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 
 export function CalendarView(props: Props) {
   const { colors } = useAppTheme();
-  const { formatDate, isRtl, locale, t } = useTranslation();
+  const { isRtl, locale, t } = useTranslation();
   const timezone = props.shifts[0]?.timezone ?? DEFAULT_TIMEZONE;
   const grouped = groupShiftsByLocalDate(props.shifts, timezone);
   const grid = buildMonthGrid(props.monthDate, locale === 'he' ? 0 : 0);
   const direction = isRtl ? 'row-reverse' : 'row';
-  const monthLabel = formatDate(new Date(`${props.monthDate.slice(0, 7)}-01T12:00:00`), { month: 'long', year: 'numeric' });
-  const selectedDayLabel = formatDate(new Date(`${props.selectedDate}T12:00:00`), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const monthLabel = formatMonth(props.monthDate.slice(0, 7), locale);
+  const selectedDayLabel = formatLocalDateValue(props.selectedDate, locale);
   const selectedShifts = grouped.get(props.selectedDate) ?? [];
   const agendaShifts = [...props.shifts].sort((left, right) => effectiveStart(left).localeCompare(effectiveStart(right)));
 
@@ -62,14 +64,14 @@ export function CalendarView(props: Props) {
 
     {props.mode === 'week' ? (
       <WeekCalendarView
-        weekOf={new Date(`${props.selectedDate}T12:00:00`)}
+        weekOf={dateKeyAtNoon(props.selectedDate)}
         shifts={props.shifts}
         timezone={timezone}
         locale={locale}
         isRtl={isRtl}
-        onNavigatePrev={() => props.onSelectDate(getPreviousWeek(new Date(`${props.selectedDate}T12:00:00`)).toISOString().slice(0, 10))}
-        onNavigateNext={() => props.onSelectDate(getNextWeek(new Date(`${props.selectedDate}T12:00:00`)).toISOString().slice(0, 10))}
-        onNavigateToday={() => props.onSelectDate(new Date().toISOString().slice(0, 10))}
+        onNavigatePrev={() => props.onSelectDate(formatLocalDateKey(getPreviousWeek(dateKeyAtNoon(props.selectedDate)), timezone))}
+        onNavigateNext={() => props.onSelectDate(formatLocalDateKey(getNextWeek(dateKeyAtNoon(props.selectedDate)), timezone))}
+        onNavigateToday={() => props.onSelectDate(formatLocalDateKey(new Date(), timezone))}
         onPressShift={props.onOpenShift}
       />
     ) : props.mode === 'month' ? <>
@@ -79,7 +81,7 @@ export function CalendarView(props: Props) {
           const shifts = grouped.get(day.localDate) ?? [];
           const selected = day.localDate === props.selectedDate;
           return <Pressable
-            accessibilityLabel={formatDate(new Date(`${day.localDate}T12:00:00`), { weekday: 'long', day: 'numeric', month: 'long' })}
+            accessibilityLabel={formatLocalDateValue(day.localDate, locale)}
             accessibilityRole="button"
             accessibilityState={{ selected }}
             key={day.localDate}
@@ -113,6 +115,7 @@ function ModeButton({ active, label, onPress }: { active: boolean; label: string
 }
 
 function effectiveStart(shift: Shift): string { return getEffectiveShiftRange(shift).start; }
+function dateKeyAtNoon(value: string): Date { return new Date(`${value}T12:00:00Z`); }
 function statusColor(shift: Shift, colors: ReturnType<typeof useAppTheme>['colors']): string {
   if (shift.status === 'missed') return colors.danger;
   if (shift.status === 'cancelled') return colors.textMuted;

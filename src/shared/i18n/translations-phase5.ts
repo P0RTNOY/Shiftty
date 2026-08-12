@@ -104,7 +104,7 @@ export const phase5He = {
   'notification.enableNotifications': 'אפשר התראות',
   'notification.webUnsupported': 'התראות מקומיות תלויות במכשיר.',
   'notification.shiftReminderTitle': 'תזכורת: משמרת מתקרבת',
-  'notification.shiftReminderBody': 'המשמרת שלך מתחילה בעוד {offsetMinutes} דקות.',
+  'notification.shiftReminderBody': 'המשמרת שלך מתחילה בעוד {{offsetMinutes}} דקות.',
   'notification.missedClockInTitle': 'שכחת להירשם?',
   'notification.missedClockInBody': 'המשמרת הייתה אמורה להתחיל. לחץ כדי לבדוק.',
 
@@ -237,7 +237,7 @@ export const phase5En: Record<keyof typeof phase5He, string> = {
   'notification.enableNotifications': 'Enable notifications',
   'notification.webUnsupported': 'Native notifications depend on your device.',
   'notification.shiftReminderTitle': 'Reminder: upcoming shift',
-  'notification.shiftReminderBody': 'Your shift starts in {offsetMinutes} minutes.',
+  'notification.shiftReminderBody': 'Your shift starts in {{offsetMinutes}} minutes.',
   'notification.missedClockInTitle': 'Forgot to clock in?',
   'notification.missedClockInBody': 'Your shift was scheduled to start. Tap to check.',
   'notification.workplace.title': 'Workplace notification settings',

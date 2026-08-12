@@ -9,6 +9,7 @@ import {
 } from '@/domain/services/week-calendar-service';
 import { useTranslation } from '@/shared/i18n';
 import { spacing, radius, typography, useAppTheme } from '@/shared/theme';
+import { formatShortDateValue, type DateTimeLocale } from '@/shared/utils/date-time-format';
 
 const HOUR_HEIGHT = 48; // px per hour
 const DAY_HEADER_HEIGHT = 52;
@@ -19,7 +20,7 @@ interface WeekCalendarViewProps {
   weekOf: Date;
   shifts: readonly Shift[];
   timezone: string;
-  locale: string;
+  locale: DateTimeLocale;
   isRtl?: boolean;
   onNavigatePrev: () => void;
   onNavigateNext: () => void;
@@ -72,9 +73,9 @@ export function WeekCalendarView({
           <Text style={[styles.navTodayText, { color: colors.primary }]}>{t('calendar.today')}</Text>
         </TouchableOpacity>
         <Text style={[styles.navTitle, { color: colors.text }]}>
-          {new Date(data.weekStart).toLocaleDateString(locale, { month: 'short', day: 'numeric' })}
-          {' – '}
-          {new Date(data.weekEnd).toLocaleDateString(locale, { month: 'short', day: 'numeric' })}
+          {formatShortDateValue(data.weekStart, locale)}
+          {' - '}
+          {formatShortDateValue(data.weekEnd, locale)}
         </Text>
         <TouchableOpacity accessibilityLabel={t('calendar.nextWeek')} accessibilityRole="button" onPress={onNavigateNext} style={styles.navBtn}>
           <Ionicons name={isRtl ? 'chevron-back' : 'chevron-forward'} size={22} color={colors.primary} />
