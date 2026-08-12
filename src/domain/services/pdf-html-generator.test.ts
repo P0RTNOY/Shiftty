@@ -51,10 +51,10 @@ describe('pdf-html-generator', () => {
       expect(result).toContain('₪ 500');
     });
 
-    it('includes signature section', () => {
+    it('does not add irrelevant signature fields to a data export', () => {
       const result = generatePdfHtml(baseOptions);
-      expect(result).toContain('חתימת עובד');
-      expect(result).toContain('חתימת מנהל');
+      expect(result).not.toContain('חתימת עובד');
+      expect(result).not.toContain('חתימת מנהל');
     });
 
     it('keeps every escaped row in a long RTL report with multipage-safe table styles', () => {

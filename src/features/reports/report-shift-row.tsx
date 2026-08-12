@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Shift } from '@/domain/entities';
+import type { ReportSalaryStatus } from '@/features/reports/monthly-report-service';
 import { calculateShiftDuration, getEffectiveShiftRange } from '@/domain/services';
 import { useTranslation } from '@/shared/i18n';
 import { radius, spacing, typography, useAppTheme } from '@/shared/theme';
@@ -11,11 +12,12 @@ interface Props {
   shift: Shift;
   workplaceName: string;
   salaryMinor?: number;
-  baseOnly?: boolean;
+  salaryStatus?: ReportSalaryStatus;
+  paidMinutes?: number;
   onPress: () => void;
 }
 
-export function ReportShiftRow({ shift, workplaceName, salaryMinor, baseOnly = false, onPress }: Props) {
+export function ReportShiftRow({ shift, workplaceName, salaryMinor, salaryStatus, paidMinutes, onPress }: Props) {
   const { colors } = useAppTheme();
   const { formatCurrency, formatDate, isRtl, locale, t } = useTranslation();
   const range = shift.status === 'completed' && shift.actualStart && shift.actualEnd
@@ -23,8 +25,12 @@ export function ReportShiftRow({ shift, workplaceName, salaryMinor, baseOnly = f
     : getEffectiveShiftRange(shift);
   const crossesDate = formatLocalDateKey(range.start, shift.timezone) !== formatLocalDateKey(range.end, shift.timezone);
   const durationKind = shift.status === 'completed' ? (shift.payableStart ? 'payable' : 'actual') : 'scheduled';
-  let durationMinutes: number | undefined;
-  try { durationMinutes = calculateShiftDuration(shift, durationKind)?.paidMinutes; } catch { durationMinutes = undefined; }
+  let durationMinutes = paidMinutes;
+  try { durationMinutes ??= calculateShiftDuration(shift, durationKind)?.paidMinutes; } catch { durationMinutes = undefined; }
+  const resolvedSalaryStatus = salaryStatus ?? (shift.salaryCalculationStatus === 'stale' ? 'stale' : salaryMinor === undefined ? 'missing' : 'available');
+  const salaryText = salaryMinor !== undefined && resolvedSalaryStatus === 'available'
+    ? formatCurrency(salaryMinor)
+    : t(resolvedSalaryStatus === 'stale' ? 'reports.salaryStale' : resolvedSalaryStatus === 'incomplete' ? 'reports.salaryIncomplete' : 'salary.missingConfig');
   const textAlign = isRtl ? 'right' : 'left';
 
   return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.card, { backgroundColor: pressed ? colors.surfaceMuted : colors.surface, borderColor: colors.border }]}>
@@ -33,12 +39,10 @@ export function ReportShiftRow({ shift, workplaceName, salaryMinor, baseOnly = f
         <Text style={[styles.date, { color: colors.text, textAlign }]}>{formatDate(range.start, { weekday: 'long', day: 'numeric', month: 'numeric', timeZone: shift.timezone })}</Text>
         <Text style={[styles.workplace, { color: colors.textMuted, textAlign }]}>{workplaceName}</Text>
       </View>
-      <Text style={[styles.salary, { color: salaryMinor === undefined ? colors.warning : colors.primary, textAlign }]}>{salaryMinor === undefined ? t('salary.missingConfig') : formatCurrency(salaryMinor)}</Text>
+      <Text style={[styles.salary, { color: resolvedSalaryStatus === 'available' ? colors.primary : colors.warning, textAlign }]}>{salaryText}</Text>
     </View>
     <Text style={[styles.time, { color: colors.text, textAlign }]}>{formatDate(range.start, { hour: '2-digit', minute: '2-digit', timeZone: shift.timezone })}–{crossesDate ? `${formatDate(range.end, { weekday: 'short', timeZone: shift.timezone })} ` : ''}{formatDate(range.end, { hour: '2-digit', minute: '2-digit', timeZone: shift.timezone })}</Text>
     <Text style={[styles.duration, { color: colors.textMuted, textAlign }]}>{durationMinutes === undefined ? '—' : formatDurationCompact(durationMinutes, locale)}</Text>
-    {shift.salaryCalculationStatus === 'stale' ? <Text accessibilityRole="alert" style={[styles.warning, { color: colors.warning, textAlign }]}>{t('salary.stale')}</Text> : null}
-    {baseOnly ? <Text accessibilityRole="alert" style={[styles.warning, { color: colors.warning, textAlign }]}>{t('salary.noPayRules')}</Text> : null}
   </Pressable>;
 }
 
@@ -51,5 +55,4 @@ const styles = StyleSheet.create({
   salary: { fontSize: typography.title, fontWeight: '800' },
   time: { fontSize: typography.body, fontVariant: ['tabular-nums'], fontWeight: '700' },
   duration: { fontSize: typography.body, fontWeight: '600' },
-  warning: { fontSize: typography.caption, fontWeight: '700' },
 });

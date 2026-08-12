@@ -4,37 +4,38 @@ export interface PdfHtmlOptions {
   totals?: { label: string; value: string }[];
   headers: string[];
   rows: string[][];
-  includeNotes?: boolean;
+  direction?: 'rtl' | 'ltr';
+  language?: string;
 }
 
 export function generatePdfHtml(options: PdfHtmlOptions): string {
-  const { title, subtitle, totals, headers, rows } = options;
+  const { title, subtitle, totals, headers, rows, direction = 'rtl', language = 'he' } = options;
 
   const html = `
 <!DOCTYPE html>
-<html dir="rtl" lang="he">
+<html dir="${direction}" lang="${escapeHtml(language)}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(title)}</title>
   <style>
-    @page { margin: 20mm; }
+    @page { size: A4 portrait; margin: 12mm; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      direction: rtl;
-      text-align: right;
+      direction: ${direction};
+      text-align: ${direction === 'rtl' ? 'right' : 'left'};
       color: #333;
       margin: 0;
       padding: 0;
-      font-size: 12px;
+      font-size: 10px;
     }
     .header {
-      margin-bottom: 20px;
-      border-bottom: 2px solid #e2e8f0;
-      padding-bottom: 10px;
+      margin-bottom: 14px;
+      border-bottom: 3px solid #4f46e5;
+      padding-bottom: 8px;
     }
     h1 {
-      font-size: 24px;
+      font-size: 22px;
       margin: 0 0 5px 0;
       color: #0f172a;
     }
@@ -46,7 +47,7 @@ export function generatePdfHtml(options: PdfHtmlOptions): string {
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 20px;
+      margin-bottom: 14px;
       page-break-inside: auto;
     }
     tr {
@@ -58,8 +59,9 @@ export function generatePdfHtml(options: PdfHtmlOptions): string {
     }
     th, td {
       border: 1px solid #cbd5e1;
-      padding: 8px;
-      text-align: right;
+      padding: 6px;
+      text-align: ${direction === 'rtl' ? 'right' : 'left'};
+      vertical-align: top;
     }
     th {
       background-color: #f8fafc;
@@ -67,9 +69,8 @@ export function generatePdfHtml(options: PdfHtmlOptions): string {
       color: #334155;
     }
     .totals {
-      margin-top: 20px;
-      width: 50%;
-      margin-right: auto;
+      margin: 0 0 14px 0;
+      width: 100%;
       border: 1px solid #cbd5e1;
       border-collapse: collapse;
     }
@@ -79,19 +80,7 @@ export function generatePdfHtml(options: PdfHtmlOptions): string {
     }
     .totals th {
       background-color: #f1f5f9;
-      width: 60%;
-    }
-    .signature {
-      margin-top: 50px;
-      display: flex;
-      justify-content: space-between;
-      page-break-inside: avoid;
-    }
-    .signature-box {
-      width: 40%;
-      border-top: 1px solid #333;
-      padding-top: 5px;
-      text-align: center;
+      width: 45%;
     }
   </style>
 </head>
@@ -100,6 +89,19 @@ export function generatePdfHtml(options: PdfHtmlOptions): string {
     <h1>${escapeHtml(title)}</h1>
     ${subtitle ? `<p class="subtitle">${escapeHtml(subtitle)}</p>` : ''}
   </div>
+
+  ${totals && totals.length > 0 ? `
+  <table class="totals">
+    <tbody>
+      ${totals.map(t => `
+      <tr>
+        <th>${escapeHtml(t.label)}</th>
+        <td>${escapeHtml(t.value)}</td>
+      </tr>
+      `).join('')}
+    </tbody>
+  </table>
+  ` : ''}
 
   <table>
     <thead>
@@ -116,23 +118,6 @@ export function generatePdfHtml(options: PdfHtmlOptions): string {
     </tbody>
   </table>
 
-  ${totals && totals.length > 0 ? `
-  <table class="totals">
-    <tbody>
-      ${totals.map(t => `
-      <tr>
-        <th>${escapeHtml(t.label)}</th>
-        <td>${escapeHtml(t.value)}</td>
-      </tr>
-      `).join('')}
-    </tbody>
-  </table>
-  ` : ''}
-
-  <div class="signature">
-    <div class="signature-box">חתימת עובד</div>
-    <div class="signature-box">חתימת מנהל</div>
-  </div>
 </body>
 </html>
   `.trim();
