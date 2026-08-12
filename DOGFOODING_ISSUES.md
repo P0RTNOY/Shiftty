@@ -145,10 +145,89 @@ This file records verified dogfooding findings. Simulator evidence uses disposab
 - **Expected:** One local reminder is delivered with the configured offset rendered as a number.
 - **Actual:** Delivery succeeded, but the body displayed the literal `{offsetMinutes}` token.
 - **Root cause:** `notification.shiftReminderBody` uses `{offsetMinutes}`, while the shared translation renderer replaces only `{{offsetMinutes}}` placeholders.
+- **Fix:** Both locale templates now use `{{offsetMinutes}}`, matching the shared interpolation contract.
+- **Fix commit:** `f4f916a` (`fix: resolve dogfooding consistency defects`)
+- **Automated verification:** The translation regression asserts that a concrete offset is rendered and no brace token remains.
+- **Native verification:** Pending a physical-iPhone build containing `f4f916a` or later. The 2026-08-12 Release compiled through the embedded bundle but could not be signed because the macOS login keychain was locked; no replacement was installed. The previous two installed builds predate the fix.
 - **Screenshot:** Not captured; observed directly during the physical-device smoke test.
 - **Reproducible?:** Confirmed on both the original and Expo-patch-aligned standalone Release builds; source mismatch is deterministic.
 - **Data integrity affected?:** No. The notification record had a native identifier, SQLite integrity was `ok`, and foreign-key verification returned zero violations.
-- **Notes:** Logged during dogfooding freeze; no product-code fix was attempted in this build/install task.
+- **Status:** Fixed in source; awaiting physical notification-delivery retest after the documented keychain/signing blocker is cleared.
+
+## DF-014 — Reports and exports disagree about monthly financial truth
+
+- **Date:** 2026-08-12
+- **Severity:** P1
+- **Screen:** Reports / Settings → Exports
+- **Steps:** Select a month containing completed shifts with finalized, missing, incomplete, stale, and legitimate-zero salary snapshots; compare Reports with CSV/PDF output.
+- **Expected:** The same completed shifts, local dates/times, hours, salary values, and salary states appear in every financial surface.
+- **Actual:** The export path independently queried raw shifts, was not constrained by the same authoritative month model, serialized raw timestamp fields, and could present missing salary as numeric zero.
+- **Root cause:** Reports and Exports had separate data-selection and formatting pipelines.
+- **Fix:** A shared monthly report service now defines month boundaries in the app timezone, includes completed shifts only, and treats finalized salary snapshots as authoritative. Reports, CSV, and PDF consume that model; ICS remains calendar-only.
+- **Fix commit:** `4876ccc` (`feat(reports): unify monthly report exports`)
+- **Verification:** Unit/integration/export tests pass. A representative 120-row Hebrew RTL PDF rendered across four A4 pages and was visually inspected on pages 1, 2, and 4.
+- **Data integrity affected?:** No persistence corruption; exported interpretation and communication could be wrong.
+- **Status:** Resolved.
+
+## DF-015 — Editable date/time values expose storage-format text fields
+
+- **Date:** 2026-08-12
+- **Severity:** P2
+- **Screen:** Shift forms, active-shift flows, breaks, templates, salary profiles, and pay rules
+- **Steps:** Edit a date or time on any affected screen, especially on Android where a picker can be dismissed.
+- **Expected:** A platform-native picker with consistent formatting, a real optional empty state, and dismissal that preserves the prior value.
+- **Actual:** Several flows exposed raw `YYYY-MM-DD`/`HH:mm` text fields or implemented picker behavior independently.
+- **Root cause:** Editable temporal fields lacked a shared UI boundary even though persistence already used canonical string formats.
+- **Fix:** All audited editable date/time values now use one shared native control while preserving the existing repository contract.
+- **Fix commit:** `2e4728f` (`fix(ui): standardize date and time inputs`)
+- **Verification:** Focused interaction tests cover iOS selection, Android dismissal, clearing, errors, and accessibility. A static audit rejects raw editable temporal fields in the affected feature modules.
+- **Data integrity affected?:** No confirmed corruption; invalid or invented values were possible before validation.
+- **Status:** Resolved in source; Android execution remains unavailable.
+
+## DF-016 — Manual breaks after midnight use the wrong local day
+
+- **Date:** 2026-08-12
+- **Severity:** P1
+- **Screen:** Shift details → Breaks
+- **Steps:** For a cross-midnight shift, add a manual break such as 01:00–01:15 after the shift's start date.
+- **Expected:** The break belongs to the second day of the shift and reduces that shift by 15 minutes.
+- **Actual:** The time-only input was anchored to the shift's first calendar date, placing the break before the shift or producing an invalid range.
+- **Root cause:** Manual break timestamps were composed independently against one date rather than resolved on the shift timeline.
+- **Fix:** The service anchors the range to the shift timeline and rolls it across midnight when required.
+- **Fix commit:** `f4f916a` (`fix: resolve dogfooding consistency defects`)
+- **Verification:** Regression coverage includes an after-midnight manual break on a cross-midnight shift.
+- **Data integrity affected?:** Potentially; a saved manual break could have represented the wrong instant. Existing records were not rewritten.
+- **Status:** Resolved.
+
+## DF-017 — Applying a suggestion can save the device timezone and zero rate
+
+- **Date:** 2026-08-12
+- **Severity:** P1
+- **Screen:** Apply suggestion
+- **Steps:** Apply a suggestion for a workplace whose timezone/rate differs from the device/default assumptions.
+- **Expected:** The scheduled shift uses the app timezone and selected workplace's current hourly rate snapshot.
+- **Actual:** The route formatted through the device timezone and supplied a zero hourly-rate snapshot.
+- **Root cause:** The route bypassed shared timezone constants and the selected workplace's financial context.
+- **Fix:** Suggestion application now uses the app timezone and snapshots the selected workplace's current hourly rate.
+- **Fix commit:** `f4f916a` (`fix: resolve dogfooding consistency defects`)
+- **Verification:** Route tests cover canonical app-timezone formatting and the selected workplace rate.
+- **Data integrity affected?:** Potentially; new suggested shifts could carry incorrect schedule/rate context. Existing records were not rewritten.
+- **Status:** Resolved.
+
+## DF-018 — Pay rules require numeric weekday codes
+
+- **Date:** 2026-08-12
+- **Severity:** P2
+- **Screen:** Settings → Salary → Pay rules
+- **Steps:** Configure a weekly special-rate window.
+- **Expected:** Choose localized weekday names with accessible controls.
+- **Actual:** Enter numeric weekday codes into text fields.
+- **Root cause:** The form exposed the internal weekday representation directly.
+- **Fix:** Localized named weekday controls now map to the unchanged domain values.
+- **Fix commit:** `f4f916a` (`fix: resolve dogfooding consistency defects`)
+- **Verification:** Interaction tests cover start/end weekday selection and accessible labels.
+- **Data integrity affected?:** No confirmed corruption; setup errors were more likely.
+- **Status:** Resolved.
 
 ## New issue template
 

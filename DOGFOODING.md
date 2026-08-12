@@ -1,12 +1,14 @@
 # Shiftty Dogfooding
 
-This guide is for the corrected dogfooding candidate on branch `codex/initial-shifty-foundation`. Use the existing behavior and record findings; do not add features or begin another product phase during the freeze.
+This guide is for the UX-consistency dogfooding candidate on branch `codex/initial-shifty-foundation`. Use the existing behavior and record findings; do not add features or begin another product phase during the freeze.
 
 ## How to start Shiftty locally
 
 Prerequisites: repository dependencies are already installed, Xcode includes the iOS 26.5 runtime, and EAS CLI is authenticated for `@oportnoy/shifty` when using a cloud build.
 
-The current physical-iPhone dogfood install is a standalone Release build whose exact dependency-aligned source is recorded at `4e8e0b3ed9a82b81f7fcbe67c0f0b0bacead0752`, version `0.1.0` (`1`). Launch it directly from the Shiftty Home Screen icon. It does not require Metro, a cable, or a Mac connection. Its free Apple Personal Team profile expires on 2026-08-17; after that date it must be rebuilt and reinstalled.
+The current source candidate is `f4f916a` plus documentation-only follow-up. The physical-iPhone dogfood install is still the earlier standalone Release built from `4e8e0b3ed9a82b81f7fcbe67c0f0b0bacead0752`, version `0.1.0` (`1`). Launch that installed build directly from the Shiftty Home Screen icon; it does not require Metro, a cable, or a Mac connection. It predates this sprint's picker, report/export, and DF-013 fixes.
+
+A replacement Release was attempted on 2026-08-12 after all automated and Simulator gates passed. Compilation reached the embedded Hermes bundle, but signing stopped because the macOS login keychain was locked and codesign could not access the cached Apple Development private key (`errSecInternalComponent`). No replacement artifact was installed and the existing phone data remained unchanged. The cached Personal Team provisioning profile remains valid through 2026-08-17.
 
 If the iPhone 17 Pro simulator is shut down, run:
 
@@ -68,8 +70,12 @@ xcrun simctl launch booted com.shifty.app
 - [ ] **Manual completed shift:** Add a past shift and confirm it appears on Home/Calendar and contributes to Reports.
 - [ ] **Future shift:** Add a scheduled future shift and confirm it appears on the correct Calendar date without affecting completed totals.
 - [ ] **Cross-midnight shift:** Add or complete a shift whose end is on the following day and confirm its dates, duration, Calendar placement, and Reports total.
+- [ ] **Native date/time controls:** Open New/Edit Shift, Expected End, Clock Out, Breaks, Templates, and Salary/Rule setup as applicable. Confirm wheel/calendar pickers, a true optional empty state, clear behavior, and that dismissing a picker preserves the old value.
+- [ ] **Overnight manual break:** On a disposable cross-midnight shift, add a second-day break such as 01:00–01:15 and confirm it appears after midnight and reduces the shift by exactly 15 minutes.
 - [ ] **Edit/delete:** Edit a disposable shift, verify the update everywhere, then delete it and confirm no stale copy remains on Home, Calendar, Reports, or Shift Details.
-- [ ] **Reports:** Open the relevant month and confirm completed-shift count, hours, and salary totals match the recorded shifts.
+- [ ] **Reports:** Open the relevant month and confirm completed-shift count, hours, finalized salary totals, and missing/stale salary messages match the recorded shifts.
+- [ ] **Exports:** From Reports, export PDF and CSV for the same month. Confirm the share sheet names the selected month, local dates/times match Reports, and missing/stale salary is not serialized as zero. Confirm ICS describes itself as calendar-only.
+- [ ] **DF-013 notification retest:** On a build containing `f4f916a` or later, schedule one disposable reminder and confirm the delivered body contains the numeric offset and no brace token.
 - [ ] **App restart:** Terminate and relaunch from the Shiftty icon; confirm persisted shifts remain, no deleted item returns, and any active/break state is coherent. The simulator uses `com.shifty.app`; the current Personal Team phone install uses `com.oportnoy.shiftty.dogfood`.
 
 ## What to record when something fails
@@ -86,12 +92,46 @@ Create an entry in `DOGFOODING_ISSUES.md` and include:
 
 Do not repair or rewrite affected data merely to make the report look clean. Preserve the evidence and record whether the issue is reproducible.
 
+## Physical Personal Team build workflow
+
+Use this only after the full repository gate and Simulator walkthrough pass. The free Personal Team profile is Xcode-managed, so automatic signing must use the profile's actual `TeamIdentifier` (`9R9UQ6GTQW`). The suffix displayed in the Apple Development identity label is not the signing team identifier.
+
+1. Create the same clean temporary native copy described above and run Expo prebuild/CocoaPods by building the Simulator once.
+2. In the disposable copy only, remove `aps-environment` from `ios/Shifty/Shifty.entitlements`. Shiftty schedules local notifications and does not request remote push tokens.
+3. Confirm the login keychain is unlocked in Keychain Access. Do not enter or automate the password in shell history. A locked keychain produces `errSecInternalComponent` while signing nested frameworks.
+4. Discover the connected phone UDID with `xcrun xctrace list devices`, then run:
+
+```sh
+SHIFTTY_NATIVE_DIR="/tmp/shiftty-native.<verified-suffix>"
+SHIFTTY_DERIVED_DIR="$(mktemp -d /tmp/shiftty-physical-build.XXXXXX)"
+SHIFTTY_PHONE_UDID="<connected-phone-udid>"
+
+test -n "$SHIFTTY_NATIVE_DIR" && test -d "$SHIFTTY_NATIVE_DIR"
+test -n "$SHIFTTY_DERIVED_DIR" && test -d "$SHIFTTY_DERIVED_DIR"
+test -n "$SHIFTTY_PHONE_UDID"
+
+xcodebuild -workspace "$SHIFTTY_NATIVE_DIR/ios/Shifty.xcworkspace" \
+  -scheme Shifty \
+  -configuration Release \
+  -destination "id=$SHIFTTY_PHONE_UDID" \
+  -derivedDataPath "$SHIFTTY_DERIVED_DIR" \
+  DEVELOPMENT_TEAM=9R9UQ6GTQW \
+  CODE_SIGN_STYLE=Automatic \
+  CODE_SIGN_IDENTITY='Apple Development' \
+  PRODUCT_BUNDLE_IDENTIFIER=com.oportnoy.shiftty.dogfood \
+  MARKETING_VERSION=0.1.0 \
+  CURRENT_PROJECT_VERSION=1 \
+  build
+```
+
+5. Inspect the app's signature, embedded profile expiry, version, and bundle identifier before installing. Use `xcrun devicectl device install app` only when those checks pass. Installing the same bundle identifier should preserve the container, but copy the complete `Documents/SQLite` directory before and after installation so WAL/SHM are included in integrity and count comparisons.
+
 ## Known limitations
 
 - Android has not been verified because no emulator, AVD, or physical Android device is currently available. This is an external verification gap, not an iOS RC failure.
-- The current physical-iPhone build is a locally signed standalone Release, not an EAS Preview. The free Personal Team profile expires on 2026-08-17; there is no EAS build ID, install URL, or QR, and the app must be rebuilt/reinstalled after expiry.
+- The current physical-iPhone build is the pre-sprint locally signed standalone Release, not an EAS Preview. The free Personal Team profile expires on 2026-08-17; there is no EAS build ID, install URL, or QR. The 2026-08-12 replacement build is blocked until the login keychain is manually unlocked.
 - Paid EAS Preview/internal distribution remains unavailable until an active paid Apple Developer Program team exists. Do not purchase membership as part of dogfooding automation.
-- Physical local notification permission, native scheduling, and background lock-screen delivery passed on both standalone build cycles. The delivered shift-reminder body exposed the literal `{offsetMinutes}` placeholder both times (DF-013); delivery and shift data were intact.
+- Physical local notification permission, native scheduling, and background lock-screen delivery passed on both earlier standalone build cycles. DF-013 is fixed and regression-tested in source, but physical delivery still needs a build containing `f4f916a` or later.
 - Remote push/APNs is not used by the current Shiftty notification flow and is not enabled in the Personal Team build. Focus-mode variations, prolonged power-management behavior, calendar import interoperability, native share targets, keyboard avoidance, and dynamic-text extremes remain unverified.
 - Simulator development-client checks still require Metro on LAN port `8081`; the installed physical Release build does not.
 
