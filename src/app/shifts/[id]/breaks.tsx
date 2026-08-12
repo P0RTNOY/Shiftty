@@ -7,7 +7,7 @@ import type { BreakSession } from '@/domain/entities';
 import { summarizeBreakSessions, validateBreakSessions } from '@/domain/services';
 import { useRepositories } from '@/features/shifts/hooks/use-repositories';
 import { useShift } from '@/features/shifts/hooks/use-shifts';
-import { AppScreen, EmptyState, FormField, PrimaryButton, SecondaryButton } from '@/shared/components';
+import { AppScreen, EmptyState, FormField, PrimaryButton, SecondaryButton, TimeField } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { radius, spacing, typography, useAppTheme } from '@/shared/theme';
 import { formatDurationLong } from '@/shared/utils/duration-format';
@@ -44,8 +44,8 @@ export default function BreakManagementScreen() {
       {session.end ? <SecondaryButton destructive disabled={busy} label={t('breaks.delete')} onPress={() => void mutate(() => repositories.activeShifts.deleteBreak(session.id))} /> : null}
     </View>)}
     <Text accessibilityRole="header" style={[styles.title, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}>{t('breaks.addManual')}</Text>
-    <Controller control={control} name="start" rules={{ required: t('form.required'), pattern: { value: timePattern, message: t('form.invalidTime') } }} render={({ field }) => <FormField error={errors.start?.message} label={t('breaks.startTime')} onChangeText={field.onChange} value={field.value} />} />
-    <Controller control={control} name="end" rules={{ required: t('form.required'), pattern: { value: timePattern, message: t('form.invalidTime') } }} render={({ field }) => <FormField error={errors.end?.message} label={t('breaks.endTime')} onChangeText={field.onChange} value={field.value} />} />
+    <Controller control={control} name="start" rules={{ required: t('form.required'), pattern: { value: timePattern, message: t('form.invalidTime') } }} render={({ field }) => <TimeField error={errors.start?.message} label={t('breaks.startTime')} onChange={(value) => field.onChange(value ?? '')} value={field.value || undefined} />} />
+    <Controller control={control} name="end" rules={{ required: t('form.required'), pattern: { value: timePattern, message: t('form.invalidTime') } }} render={({ field }) => <TimeField error={errors.end?.message} label={t('breaks.endTime')} onChange={(value) => field.onChange(value ?? '')} value={field.value || undefined} />} />
     <Controller control={control} name="notes" render={({ field }) => <FormField label={t('breaks.notes')} onChangeText={field.onChange} value={field.value} />} />
     <SecondaryButton label={paid ? t('breaks.paid') : t('breaks.unpaid')} onPress={() => setPaid((value) => !value)} />
     <PrimaryButton disabled={busy || !shift} label={t('breaks.addManual')} onPress={() => void add()} />

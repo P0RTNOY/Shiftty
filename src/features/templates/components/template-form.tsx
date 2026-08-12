@@ -1,10 +1,9 @@
 import React from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { CreateShiftTemplateInput } from '@/domain/repositories';
-import { FormField } from '@/shared/components/form-field';
-import { PrimaryButton } from '@/shared/components';
+import { FormField, PrimaryButton, TimeField } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { spacing, radius, typography, useAppTheme } from '@/shared/theme';
 
@@ -26,7 +25,6 @@ interface TemplateFormProps {
 }
 
 const WEEKDAY_LABELS = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
-const LOCAL_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const COLOR_TOKENS = ['#A855F7', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#6366F1'];
 
 export function TemplateForm({ initial, loading, submitLabel, onSubmit }: TemplateFormProps) {
@@ -69,16 +67,7 @@ export function TemplateForm({ initial, loading, submitLabel, onSubmit }: Templa
         name="name"
         rules={{ required: true, minLength: 1, maxLength: 120 }}
         render={({ field }) => (
-          <FormField label={t('templates.name')} error={errors.name?.message}>
-            <TextInput
-              value={field.value}
-              onChangeText={field.onChange}
-              style={[styles.input, { borderColor: colors.border, color: colors.text }]}
-              placeholder={t('templates.name')}
-              placeholderTextColor={colors.textMuted}
-              maxLength={120}
-            />
-          </FormField>
+          <FormField label={t('templates.name')} error={errors.name?.message} value={field.value} onChangeText={field.onChange} maxLength={120} />
         )}
       />
 
@@ -86,37 +75,17 @@ export function TemplateForm({ initial, loading, submitLabel, onSubmit }: Templa
         <Controller
           control={control}
           name="defaultStartTime"
-          rules={{ pattern: { value: LOCAL_TIME_RE, message: 'HH:mm' } }}
+          rules={{ required: true }}
           render={({ field }) => (
-            <FormField label={t('templates.startTime')} error={errors.defaultStartTime?.message} style={styles.half}>
-              <TextInput
-                value={field.value}
-                onChangeText={field.onChange}
-                style={[styles.input, { borderColor: colors.border, color: colors.text }]}
-                placeholder="08:00"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="numbers-and-punctuation"
-                maxLength={5}
-              />
-            </FormField>
+            <View style={styles.half}><TimeField error={errors.defaultStartTime?.message} label={t('templates.startTime')} value={field.value} onChange={(value) => field.onChange(value ?? '')} /></View>
           )}
         />
         <Controller
           control={control}
           name="defaultEndTime"
-          rules={{ pattern: { value: LOCAL_TIME_RE, message: 'HH:mm' } }}
+          rules={{ required: true }}
           render={({ field }) => (
-            <FormField label={t('templates.endTime')} error={errors.defaultEndTime?.message} style={styles.half}>
-              <TextInput
-                value={field.value}
-                onChangeText={field.onChange}
-                style={[styles.input, { borderColor: colors.border, color: colors.text }]}
-                placeholder="16:00"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="numbers-and-punctuation"
-                maxLength={5}
-              />
-            </FormField>
+            <View style={styles.half}><TimeField error={errors.defaultEndTime?.message} label={t('templates.endTime')} value={field.value} onChange={(value) => field.onChange(value ?? '')} /></View>
           )}
         />
       </View>
@@ -125,15 +94,7 @@ export function TemplateForm({ initial, loading, submitLabel, onSubmit }: Templa
         control={control}
         name="expectedBreakMinutes"
         render={({ field }) => (
-          <FormField label={t('templates.breakMinutes')}>
-            <TextInput
-              value={field.value}
-              onChangeText={field.onChange}
-              style={[styles.input, { borderColor: colors.border, color: colors.text }]}
-              keyboardType="numeric"
-              maxLength={4}
-            />
-          </FormField>
+          <FormField label={t('templates.breakMinutes')} value={field.value} onChangeText={field.onChange} keyboardType="numeric" maxLength={4} />
         )}
       />
 
@@ -147,12 +108,11 @@ export function TemplateForm({ initial, loading, submitLabel, onSubmit }: Templa
             {WEEKDAY_LABELS.map((label, idx) => {
               const active = field.value[idx];
               return (
-                <View
+                <Pressable
                   key={idx}
-                  accessible
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: Boolean(active) }}
-                  onTouchEnd={() => {
+                  onPress={() => {
                     const next = [...field.value];
                     next[idx] = !next[idx];
                     field.onChange(next);
@@ -167,7 +127,7 @@ export function TemplateForm({ initial, loading, submitLabel, onSubmit }: Templa
                   <Text style={[styles.weekdayLabel, { color: active ? colors.onPrimary : colors.textMuted }]}>
                     {label}
                   </Text>
-                </View>
+                </Pressable>
               );
             })}
           </View>
@@ -182,12 +142,11 @@ export function TemplateForm({ initial, loading, submitLabel, onSubmit }: Templa
         render={({ field }) => (
           <View style={styles.colorRow}>
             {COLOR_TOKENS.map((token) => (
-              <View
+              <Pressable
                 key={token}
-                accessible
                 accessibilityRole="radio"
-                accessibilityState={{ selected: field.value === token }}
-                onTouchEnd={() => field.onChange(field.value === token ? '' : token)}
+                accessibilityState={{ checked: field.value === token }}
+                onPress={() => field.onChange(field.value === token ? '' : token)}
                 style={[
                   styles.colorSwatch,
                   { backgroundColor: token },
@@ -212,7 +171,6 @@ const styles = StyleSheet.create({
   container: { gap: spacing.sm, padding: spacing.md },
   row: { flexDirection: 'row', gap: spacing.sm },
   half: { flex: 1 },
-  input: { borderRadius: radius.sm, borderWidth: 1, fontSize: typography.body, padding: spacing.sm },
   sectionLabel: { fontSize: typography.caption, marginTop: spacing.md },
   weekdays: { flexDirection: 'row', gap: spacing.xs },
   weekdayBubble: { alignItems: 'center', borderRadius: radius.pill, height: 36, justifyContent: 'center', width: 36 },

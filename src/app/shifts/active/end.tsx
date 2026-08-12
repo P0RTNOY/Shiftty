@@ -6,7 +6,7 @@ import type { PayableSource } from '@/domain/entities';
 import { buildEndShiftReview, selectPayableTime, type RoundingMode } from '@/domain/services';
 import { PayableOptionPicker } from '@/features/shifts/components/payable-option-picker';
 import { useActiveShift } from '@/features/shifts/hooks/use-active-shift';
-import { AppScreen, FormField, PrimaryButton, SecondaryButton } from '@/shared/components';
+import { AppScreen, DateField, FormField, PrimaryButton, SecondaryButton, TimeField } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { radius, spacing, typography, useAppTheme } from '@/shared/theme';
 import { formatDurationLong } from '@/shared/utils/duration-format';
@@ -33,8 +33,8 @@ export default function EndShiftReviewScreen() {
   return <AppScreen title={t('end.title')}>
     <SecondaryButton label={t('common.back')} onPress={() => router.back()} />
     {openBreak ? <View style={[styles.warning, { backgroundColor: colors.surface, borderColor: colors.warning }]}><Text accessibilityRole="header" style={[styles.heading, { color: colors.warning }]}>{t('end.openBreakTitle')}</Text><Text style={{ color: colors.text }}>{t('end.openBreakBody')}</Text><PrimaryButton disabled={active.busy} label={t('end.endBreakNow')} onPress={() => void active.endBreak(new Date().toISOString()).catch(() => setError(t('end.invalid')))} /><SecondaryButton label={t('end.breakEndsWithShift')} onPress={() => setCloseOpenAtEnd(true)} /></View> : null}
-    <FormField label={t('end.actualEndDate')} onChangeText={setActualEndDate} value={actualEndDate} />
-    <FormField label={t('end.actualEndTime')} onChangeText={setActualEndTime} value={actualEndTime} />
+    <DateField label={t('end.actualEndDate')} onChange={(value) => value && setActualEndDate(value)} value={actualEndDate} />
+    <TimeField label={t('end.actualEndTime')} onChange={(value) => value && setActualEndTime(value)} value={actualEndTime} />
     {review ? <View style={[styles.review, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <Summary label={t('end.scheduled')} value={review.scheduledMinutes === undefined ? '—' : formatDurationLong(review.scheduledMinutes, locale)} />
       <Summary label={t('end.actual')} value={formatDurationLong(review.actualMinutes, locale)} />
@@ -45,7 +45,7 @@ export default function EndShiftReviewScreen() {
     <Text accessibilityRole="header" style={[styles.heading, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}>{t('end.payableChoice')}</Text>
     <PayableOptionPicker hasScheduledRange={Boolean(shift.scheduledStart && shift.scheduledEnd)} onChange={setSource} value={source} />
     {source === 'rounded' ? <><ChoiceRow values={[5,10,15,30] as const} selected={roundingMinutes} onSelect={setRoundingMinutes} label={(value) => `${value} ${t('active.minutes')}`} /><ChoiceRow values={['nearest','floor','ceiling'] as const} selected={roundingMode} onSelect={setRoundingMode} label={(value) => t(value === 'nearest' ? 'end.roundNearest' : value === 'floor' ? 'end.roundFloor' : 'end.roundCeiling')} /></> : null}
-    {source === 'manual' ? <><FormField label={t('end.manualStart')} onChangeText={setManualStart} value={manualStart} /><FormField label={t('end.manualEnd')} onChangeText={setManualEnd} value={manualEnd} /><FormField keyboardType="number-pad" label={t('end.payableBreak')} onChangeText={setManualBreak} value={manualBreak} /></> : null}
+    {source === 'manual' ? <><TimeField label={t('end.manualStart')} onChange={(value) => value && setManualStart(value)} value={manualStart} /><TimeField label={t('end.manualEnd')} onChange={(value) => value && setManualEnd(value)} value={manualEnd} /><FormField keyboardType="number-pad" label={t('end.payableBreak')} onChangeText={setManualBreak} value={manualBreak} /></> : null}
     {error ? <Text accessibilityRole="alert" style={{ color: colors.danger }}>{error}</Text> : null}
     <PrimaryButton disabled={active.busy || !review || Boolean(openBreak && !closeOpenAtEnd)} label={t('end.complete')} onPress={() => void complete()} />
     <Text style={{ color: colors.textMuted, textAlign: isRtl ? 'right' : 'left' }}>{t('active.actualStart')}: {formatDate(shift.actualStart!, { dateStyle: 'short', timeStyle: 'short', timeZone: shift.timezone })}</Text>

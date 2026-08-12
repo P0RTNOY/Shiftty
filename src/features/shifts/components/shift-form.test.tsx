@@ -13,12 +13,8 @@ jest.mock('@/shared/components/date-field', () => {
   const React = jest.requireActual<typeof import('react')>('react');
   const { TextInput } = jest.requireActual<typeof import('react-native')>('react-native');
   return {
-    DateField: ({ onChange, label, value }: any) => React.createElement(TextInput, { accessibilityLabel: label, value: value?.toISOString().split('T')[0], onChangeText: (text: string) => onChange(text) }),
-    TimeField: ({ onChange, label, value }: any) => React.createElement(TextInput, { accessibilityLabel: label, value: value ? `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2, '0')}` : '', onChangeText: (text: string) => {
-      const [h, m] = text.split(':').map(Number);
-      const d = new Date(); d.setHours(h || 0, m || 0, 0, 0);
-      onChange(d);
-    } }),
+    DateField: ({ onChange, label, value }: any) => React.createElement(TextInput, { accessibilityLabel: label, value: value ?? '', onChangeText: onChange }),
+    TimeField: ({ onChange, label, value }: any) => React.createElement(TextInput, { accessibilityLabel: label, value: value ?? '', onChangeText: onChange }),
   };
 });
 

@@ -7,7 +7,7 @@ import { shiftSchema } from '@/domain/entities';
 import { useActiveShift } from '@/features/shifts/hooks/use-active-shift';
 import { useShiftTemplates } from '@/features/shifts/hooks/use-shift-templates';
 import { useWorkplaces } from '@/features/workplaces/hooks/use-workplaces';
-import { AppScreen, FormField, PrimaryButton, SecondaryButton } from '@/shared/components';
+import { AppScreen, FormField, PrimaryButton, SecondaryButton, TimeField } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { radius, spacing, useAppTheme } from '@/shared/theme';
 import { createId } from '@/shared/utils/id';
@@ -40,7 +40,7 @@ export default function StartUnscheduledShiftScreen() {
     {errors.workplaceId ? <Text accessibilityRole="alert" style={{ color: colors.danger }}>{t('form.required')}</Text> : null}
     {roles.some((item) => item.workplaceId === workplaceId) ? <Controller control={control} name="roleId" render={({ field }) => <View style={[styles.choices, { flexDirection: direction }]}>{roles.filter((item) => item.workplaceId === workplaceId).map((item) => <Choice checked={field.value === item.id} key={item.id} label={item.name} onPress={() => field.onChange(item.id)} />)}</View>} /> : null}
     {templates.length ? <><Text style={[styles.label, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}>{t('form.template')}</Text><Controller control={control} name="templateId" render={({ field }) => <View style={[styles.choices, { flexDirection: direction }]}><Choice checked={!field.value} label={t('form.noTemplate')} onPress={() => field.onChange('')} />{templates.map((item) => <Choice checked={field.value === item.id} key={item.id} label={item.name} onPress={() => { field.onChange(item.id); if (item.workplaceId) setValue('workplaceId', item.workplaceId); }} />)}</View>} /></> : null}
-    <Controller control={control} name="expectedEnd" rules={{ pattern: { value: timePattern, message: t('form.invalidTime') } }} render={({ field }) => <FormField error={errors.expectedEnd?.message} label={t('active.expectedEndOptional')} onChangeText={field.onChange} value={field.value} />} />
+    <Controller control={control} name="expectedEnd" rules={{ pattern: { value: timePattern, message: t('form.invalidTime') } }} render={({ field }) => <TimeField error={errors.expectedEnd?.message} label={t('active.expectedEndOptional')} onChange={(value) => field.onChange(value ?? '')} optional value={field.value || undefined} />} />
     <Controller control={control} name="title" render={({ field }) => <FormField label={t('form.title')} onChangeText={field.onChange} value={field.value} />} />
     <Controller control={control} name="notes" render={({ field }) => <FormField label={t('form.notes')} multiline onChangeText={field.onChange} value={field.value} />} />
     <PrimaryButton disabled={active.busy || !workplaces.length} label={active.busy ? t('active.starting') : t('active.startNow')} onPress={() => void submit()} />

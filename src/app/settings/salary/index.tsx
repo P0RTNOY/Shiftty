@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { salaryProfileSchema, type MoneyRoundingMode, type SalaryProfile } from '@/domain/entities';
 import { useRepositories } from '@/features/shifts/hooks/use-repositories';
 import { useWorkplaces } from '@/features/workplaces/hooks/use-workplaces';
-import { AppScreen, EmptyState, FormField, PrimaryButton, SecondaryButton } from '@/shared/components';
+import { AppScreen, DateField, EmptyState, FormField, PrimaryButton, SecondaryButton } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { radius, spacing, typography, useAppTheme } from '@/shared/theme';
 import { createId } from '@/shared/utils/id';
@@ -36,8 +36,8 @@ export default function SalaryProfilesScreen() {
       <FormField accessibilityLabel={t('salary.hourlyRate')} keyboardType="decimal-pad" label={t('salary.hourlyRate')} onChangeText={setRate} value={rate} />
       <FormField keyboardType="decimal-pad" label={t('salary.travel')} onChangeText={setTravel} value={travel} />
       <FormField keyboardType="decimal-pad" label={t('salary.shiftBonus')} onChangeText={setBonus} value={bonus} />
-      <FormField label={t('salary.effectiveFrom')} onChangeText={setEffectiveFrom} placeholder="YYYY-MM-DD" value={effectiveFrom} />
-      <FormField label={t('salary.effectiveTo')} onChangeText={setEffectiveTo} placeholder="YYYY-MM-DD" value={effectiveTo} />
+      <DateField label={t('salary.effectiveFrom')} onChange={(value) => setEffectiveFrom(value ?? '')} optional value={effectiveFrom || undefined} />
+      <DateField label={t('salary.effectiveTo')} onChange={(value) => setEffectiveTo(value ?? '')} optional value={effectiveTo || undefined} />
       <Text style={{ color: colors.text, textAlign: isRtl ? 'right' : 'left' }}>{t('salary.breakPolicy')}</Text><View style={[styles.choices, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}>{(['paid', 'unpaid', 'perBreak'] as const).map((value) => <Pressable accessibilityRole="radio" accessibilityState={{ checked: breakPolicy === value }} key={value} onPress={() => setBreakPolicy(value)} style={[styles.choice, { borderColor: breakPolicy === value ? colors.primary : colors.border, backgroundColor: colors.surface }]}><Text style={{ color: colors.text }}>{t(value === 'paid' ? 'salary.breakPaid' : value === 'unpaid' ? 'salary.breakUnpaid' : 'salary.breakPerSession')}</Text></Pressable>)}</View>
       <Text style={{ color: colors.text, textAlign: isRtl ? 'right' : 'left' }}>{t('salary.roundingMode')}</Text><View style={[styles.choices, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}>{(['half_up', 'floor', 'ceiling'] as const).map((value) => <Pressable accessibilityRole="radio" accessibilityState={{ checked: roundingMode === value }} key={value} onPress={() => setRoundingMode(value)} style={[styles.choice, { borderColor: roundingMode === value ? colors.primary : colors.border, backgroundColor: colors.surface }]}><Text style={{ color: colors.text }}>{t(value === 'half_up' ? 'salary.roundHalfUp' : value === 'floor' ? 'salary.roundFloor' : 'salary.roundCeiling')}</Text></Pressable>)}</View>
       {error ? <Text accessibilityRole="alert" style={{ color: colors.danger }}>{error}</Text> : null}
