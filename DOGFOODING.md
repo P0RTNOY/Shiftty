@@ -6,9 +6,9 @@ This guide is for the UX-consistency dogfooding candidate on branch `codex/initi
 
 Prerequisites: repository dependencies are already installed, Xcode includes the iOS 26.5 runtime, and EAS CLI is authenticated for `@oportnoy/shifty` when using a cloud build.
 
-The current source candidate is `f4f916a` plus documentation-only follow-up. The physical-iPhone dogfood install is still the earlier standalone Release built from `4e8e0b3ed9a82b81f7fcbe67c0f0b0bacead0752`, version `0.1.0` (`1`). Launch that installed build directly from the Shiftty Home Screen icon; it does not require Metro, a cable, or a Mac connection. It predates this sprint's picker, report/export, and DF-013 fixes.
+The current application candidate is `f4f916a`, followed by documentation milestone `5dfa4ff` and this closeout. The iPhone 15 Pro Max now contains a standalone Release built from that application candidate, version `0.1.0` (`1`) with bundle identifier `com.oportnoy.shiftty.dogfood`. Launch it directly from the Shiftty Home Screen icon; it does not require Metro, a cable, or a Mac connection.
 
-A replacement Release was attempted on 2026-08-12 after all automated and Simulator gates passed. Compilation reached the embedded Hermes bundle, but signing stopped because the macOS login keychain was locked and codesign could not access the cached Apple Development private key (`errSecInternalComponent`). No replacement artifact was installed and the existing phone data remained unchanged. The cached Personal Team provisioning profile remains valid through 2026-08-17.
+The replacement Release was signed and installed on 2026-08-13 after the login keychain was unlocked. Its Personal Team profile (`9R9UQ6GTQW`) expires on 2026-08-17, the signed-app CDHash is `eeb93d4d592a14c4f34325ecc1f43b4a1ff28af1`, and deep/strict signature verification passed before installation. Complete pre/post installation and DF-013 snapshots included the SQLite database, WAL, and SHM files; integrity and foreign-key checks passed, and the original data was restored byte-for-byte after the disposable notification test.
 
 If the iPhone 17 Pro simulator is shut down, run:
 
@@ -75,7 +75,7 @@ xcrun simctl launch booted com.shifty.app
 - [ ] **Edit/delete:** Edit a disposable shift, verify the update everywhere, then delete it and confirm no stale copy remains on Home, Calendar, Reports, or Shift Details.
 - [ ] **Reports:** Open the relevant month and confirm completed-shift count, hours, finalized salary totals, and missing/stale salary messages match the recorded shifts.
 - [ ] **Exports:** From Reports, export PDF and CSV for the same month. Confirm the share sheet names the selected month, local dates/times match Reports, and missing/stale salary is not serialized as zero. Confirm ICS describes itself as calendar-only.
-- [ ] **DF-013 notification retest:** On a build containing `f4f916a` or later, schedule one disposable reminder and confirm the delivered body contains the numeric offset and no brace token.
+- [x] **DF-013 notification retest:** On the physical `f4f916a` Release, iOS delivered `המשמרת שלך מתחילה בעוד 0 דקות.`; the numeric offset is present and no brace token remains.
 - [ ] **App restart:** Terminate and relaunch from the Shiftty icon; confirm persisted shifts remain, no deleted item returns, and any active/break state is coherent. The simulator uses `com.shifty.app`; the current Personal Team phone install uses `com.oportnoy.shiftty.dogfood`.
 
 ## What to record when something fails
@@ -129,9 +129,9 @@ xcodebuild -workspace "$SHIFTTY_NATIVE_DIR/ios/Shifty.xcworkspace" \
 ## Known limitations
 
 - Android has not been verified because no emulator, AVD, or physical Android device is currently available. This is an external verification gap, not an iOS RC failure.
-- The current physical-iPhone build is the pre-sprint locally signed standalone Release, not an EAS Preview. The free Personal Team profile expires on 2026-08-17; there is no EAS build ID, install URL, or QR. The 2026-08-12 replacement build is blocked until the login keychain is manually unlocked.
+- The current physical-iPhone build is the locally signed `f4f916a` standalone Release, not an EAS Preview. The free Personal Team profile expires on 2026-08-17; there is no EAS build ID, install URL, or QR.
 - Paid EAS Preview/internal distribution remains unavailable until an active paid Apple Developer Program team exists. Do not purchase membership as part of dogfooding automation.
-- Physical local notification permission, native scheduling, and background lock-screen delivery passed on both earlier standalone build cycles. DF-013 is fixed and regression-tested in source, but physical delivery still needs a build containing `f4f916a` or later.
+- Physical local-notification permission, native scheduling, background delivery, and DF-013 interpolation passed on the current standalone build. iOS's delivered-notification store contained the numeric Hebrew body and no unresolved token.
 - Remote push/APNs is not used by the current Shiftty notification flow and is not enabled in the Personal Team build. Focus-mode variations, prolonged power-management behavior, calendar import interoperability, native share targets, keyboard avoidance, and dynamic-text extremes remain unverified.
 - Simulator development-client checks still require Metro on LAN port `8081`; the installed physical Release build does not.
 

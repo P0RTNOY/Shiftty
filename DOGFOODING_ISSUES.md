@@ -148,11 +148,11 @@ This file records verified dogfooding findings. Simulator evidence uses disposab
 - **Fix:** Both locale templates now use `{{offsetMinutes}}`, matching the shared interpolation contract.
 - **Fix commit:** `f4f916a` (`fix: resolve dogfooding consistency defects`)
 - **Automated verification:** The translation regression asserts that a concrete offset is rendered and no brace token remains.
-- **Native verification:** Pending a physical-iPhone build containing `f4f916a` or later. The 2026-08-12 Release compiled through the embedded bundle but could not be signed because the macOS login keychain was locked; no replacement was installed. The previous two installed builds predate the fix.
-- **Screenshot:** Not captured; observed directly during the physical-device smoke test.
-- **Reproducible?:** Confirmed on both the original and Expo-patch-aligned standalone Release builds; source mismatch is deterministic.
-- **Data integrity affected?:** No. The notification record had a native identifier, SQLite integrity was `ok`, and foreign-key verification returned zero violations.
-- **Status:** Fixed in source; awaiting physical notification-delivery retest after the documented keychain/signing blocker is cleared.
+- **Native verification:** Resolved on 2026-08-14. A signed `f4f916a` Release on the physical iPhone scheduled the disposable reminder with a native identifier. iOS's delivered-notification store returned title `תזכורת: משמרת מתקרבת` and body `המשמרת שלך מתחילה בעוד 0 דקות.` for that exact identifier; the body contains numeric `0` and no brace token.
+- **Screenshot:** The transient banner was forwarded to macOS by iPhone Mirroring and was not captured. Delivery content was read back from `UNUserNotificationCenter` for the exact native identifier.
+- **Reproducible?:** The defect was confirmed on the two pre-fix standalone builds and is not present in the current physical build.
+- **Data integrity affected?:** No. The disposable shift and notification record were removed by restoring the complete pre-test SQLite directory. Database, WAL, and SHM were byte-identical after relaunch; integrity was `ok` and foreign-key verification returned zero violations.
+- **Status:** Resolved in source, automated regression coverage, and physical notification delivery.
 
 ## DF-014 — Reports and exports disagree about monthly financial truth
 

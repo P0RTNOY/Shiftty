@@ -1,6 +1,6 @@
 # Shiftty Project Status
 
-Last updated: 2026-08-12
+Last updated: 2026-08-14
 
 ## Current milestone
 
@@ -8,7 +8,7 @@ The dogfooding UX consistency and simplification sprint is implemented on `codex
 
 There are no known source-level iOS P0/P1 blockers after DF-014–DF-018. The automated gate and a fresh iPhone 17 Pro Simulator walkthrough pass. Android remains externally unverified because no emulator, AVD, or physical Android device is available.
 
-The only incomplete acceptance item is the replacement physical-iPhone install. A Release build compiled through the embedded Hermes bundle, but macOS codesign could not access the Apple Development private key because the login keychain was locked. The prior phone build and its data were not modified. Exact recovery instructions are in `DOGFOODING.md`.
+The replacement physical-iPhone Release is signed, installed, and launch-verified, and the DF-013 reminder passed physical background delivery with a numeric offset and no brace token. The complete pre-test SQLite directory was restored byte-for-byte after the disposable test.
 
 ## Git truth
 
@@ -22,6 +22,7 @@ Published sprint commits:
 - `2e4728f` — `fix(ui): standardize date and time inputs`
 - `4876ccc` — `feat(reports): unify monthly report exports`
 - `f4f916a` — `fix: resolve dogfooding consistency defects`
+- `5dfa4ff` — `docs: record UX consistency dogfooding handoff`
 
 The earlier dogfooding corrections DF-001–DF-012 remain in branch history and regression coverage. This sprint did not rewrite historical data, destructive-data flows, backup/restore, or recurrence storage.
 
@@ -61,7 +62,7 @@ Reports was reduced to the completed monthly answer: month, completed count, wor
 
 ### Dogfooding and audit corrections
 
-- **DF-013:** reminder copy uses `{{offsetMinutes}}`; automated output contains the number and no brace token. Physical delivery retest awaits the replacement phone build.
+- **DF-013:** reminder copy uses `{{offsetMinutes}}`; automated output and the physical iPhone delivery contain the number and no brace token.
 - **DF-014:** Reports/Exports now share financial truth and timezone/month selection.
 - **DF-015:** raw editable temporal text fields were replaced by native controls.
 - **DF-016:** manual breaks after midnight resolve on the shift timeline rather than the first calendar date.
@@ -114,28 +115,17 @@ The overnight 01:00 manual-break instant resolution is regression-tested at the 
 
 ## Physical-iPhone build status
 
-The connected iPhone 15 Pro Max remains paired and contains the earlier `com.oportnoy.shiftty.dogfood` 0.1.0 (1) standalone Release built from `4e8e0b3`. Before the replacement attempt, a complete SQLite directory copy (including WAL/SHM) showed:
+The connected iPhone 15 Pro Max contains the `f4f916a` application candidate as `com.oportnoy.shiftty.dogfood` 0.1.0 (1). The standalone Release was built with automatic signing for Personal Team `9R9UQ6GTQW`, and deep/strict verification passed with CDHash `eeb93d4d592a14c4f34325ecc1f43b4a1ff28af1`. Its provisioning profile expires on 2026-08-17 and contains the one intended device; APNs is absent because the app uses local notifications.
 
-- `PRAGMA integrity_check = ok`;
-- zero foreign-key violations;
-- two completed shifts and zero breaks.
+Build, installation, launch, and persistence checks passed. The final restored physical snapshot contains four completed shifts, zero active shifts, and zero open breaks, with `PRAGMA integrity_check = ok` and zero foreign-key violations. Database, WAL, and SHM match the complete pre-test snapshot byte-for-byte.
 
-The 2026-08-12 replacement attempt used the current source in a disposable native copy, removed the unsupported APNs entitlement in that copy only, and used the cached Personal Team profile for `com.oportnoy.shiftty.dogfood` (expiry 2026-08-17). The build compiled native dependencies and the embedded Hermes bundle, then failed while signing `ExpoFileSystem.framework` with `errSecInternalComponent`.
-
-Diagnosis:
-
-- the cached provisioning profile, device registration, bundle identifier, and Apple Development identity match;
-- the initial single-file database warning was a torn WAL snapshot and disappeared when the complete SQLite directory was copied;
-- `security show-keychain-info` confirms the macOS login keychain is locked/inaccessible;
-- no artifact was installed, so the existing app/container remains unchanged.
-
-Required external action: manually unlock the login keychain in Keychain Access, then rerun the documented automatic-signing command. No Apple credentials should be typed into shell history or handled by automation.
+DF-013 was retested with a disposable zero-minute reminder. The application stored a native notification identifier, iOS delivered the notification in the background, and `UNUserNotificationCenter` returned `המשמרת שלך מתחילה בעוד 0 דקות.` for that exact identifier. A temporary diagnostic build was used only to read the delivered system notification; the untouched signed Release was then reinstalled and the original data restored.
 
 ## Remaining manual/platform limitations
 
 - Android execution is pending because no Android runtime/device exists locally.
-- Physical verification of this sprint's picker/report/export changes and DF-013 requires the replacement build after keychain unlock.
-- The existing Personal Team install/profile expires on 2026-08-17.
+- The installed Personal Team profile expires on 2026-08-17.
+- The extended picker/report/export/share-target sweep was completed on Simulator; it was not repeated end-to-end on the physical phone during the focused DF-013 delivery retest.
 - Paid EAS Preview/internal distribution remains unavailable without an active paid Apple Developer Program team; no purchase was made.
 - Remote push/APNs is not used by the current local-notification flow. Focus-mode variations, prolonged power-management behavior, calendar import interoperability, native share targets on a physical phone, keyboard avoidance, and dynamic-text extremes remain unverified.
 - Product/UI copy uses **Shiftty / שיפטי** while Expo's native `name`/`slug` remain **Shifty / shifty**. This remains a documented P3 naming task.

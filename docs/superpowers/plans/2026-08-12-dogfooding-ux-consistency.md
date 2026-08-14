@@ -8,9 +8,9 @@
 
 **Tech Stack:** Expo SDK 57, React Native 0.86, Expo Router, TypeScript, React Hook Form, `@react-native-community/datetimepicker`, SQLite, Jest, Expo Print/Sharing.
 
-## Execution status — 2026-08-12
+## Execution status — 2026-08-14
 
-The checklists below preserve the original implementation plan. Tasks 1–8 and the PDF/Simulator portions of Task 9 are complete. Application milestones were published as `2e4728f`, `4876ccc`, and `f4f916a`; final documentation is a separate follow-up milestone. The physical Release compiled through its embedded Hermes bundle but could not be signed or installed because the macOS login keychain was locked. `DOGFOODING.md` records the exact external action and rerun command.
+The checklists below preserve the original implementation plan. Tasks 1–9 are complete. Application milestones were published as `2e4728f`, `4876ccc`, and `f4f916a`, followed by documentation milestone `5dfa4ff` and this closeout. The signed `f4f916a` Release was installed on the physical iPhone, DF-013 passed background delivery with a numeric offset and no brace token, and the complete pre-test SQLite directory was restored byte-for-byte afterward.
 
 ## Global Constraints
 
