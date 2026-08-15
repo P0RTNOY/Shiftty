@@ -229,6 +229,224 @@ This file records verified dogfooding findings. Simulator evidence uses disposab
 - **Data integrity affected?:** No confirmed corruption; setup errors were more likely.
 - **Status:** Resolved.
 
+## DF-019 — Clock-out review and saved salary disagree
+
+- **Date:** 2026-08-14
+- **Severity:** P0
+- **Screen:** Home → Clock Out review; Home; Reports
+- **Steps:** Track a short shift across a minute boundary with two breaks, tap **יציאה**, compare the review estimate with the saved shift and Reports.
+- **Expected:** The review, finalized record, Home, and Reports use the same clock-out instant and show the same amount.
+- **Actual:** The review showed ₪1.00; after saving, Home and Reports showed the authoritative finalized value ₪2.00. SQLite contained two payable minutes and ₪2.00.
+- **Root cause:** The preview calculation used the independently advancing live-render timestamp instead of the exact clock-out timestamp captured by the button press.
+- **Fix:** Freeze the preview calculation at `clockOutAt` and display money only when the calculation result belongs to that exact end instant, preventing a previous live estimate from flashing.
+- **Automated verification:** The Home live-tracking regression covers the frozen instant and suppression of an obsolete salary result.
+- **Native verification:** A new tracked shift was clocked out after one minute. The review showed ₪1.00, remained ₪1.00 while held open across the following wall-clock minute, and finalized as ₪1.00; Home and Reports both included the same amount.
+- **Data integrity affected?:** Persisted salary was correct, but the wrong-money confirmation undermined trust.
+- **Status:** Resolved.
+
+## DF-020 — Editing a completed break can leave reporting time and salary stale
+
+- **Date:** 2026-08-14
+- **Severity:** P0
+- **Screen:** Shift Details → Edit; Home; Reports
+- **Steps:** Open a completed shift whose actual and reporting break are both one minute, change the visible break to zero without opening Advanced, save, then compare Shift Details, Home, Reports, and SQLite.
+- **Expected:** Because the two values matched before editing, the hidden reporting break follows the correction and finalized salary is recalculated automatically.
+- **Actual:** The visible break became zero while the hidden reporting break remained one minute. The shift became stale and continued to show ₪2.00 instead of the expected recalculated value.
+- **Root cause:** The form mirrored actual start/end to reporting time but did not apply the same conditional behavior to breaks; the completed-edit route also saved without finalizing a new salary snapshot.
+- **Fix:** Mirror break/time corrections only when the original actual and reporting values matched and the advanced reporting value was not edited; automatically finalize salary after a completed-shift edit.
+- **Automated verification:** Shift-form and completed-edit regressions cover break mirroring, preservation of explicit reporting values, and salary finalization.
+- **Native verification:** Starting from actual/reporting break `0` and a current ₪3.00 snapshot, changing only the visible break to one minute also changed the hidden reporting break to `1`. Saving produced a new current finalized two-minute/₪2.00 snapshot; Shift Details, Home, Reports, and SQLite agreed, and integrity/foreign-key checks passed.
+- **Data integrity affected?:** Yes. The persisted shift could represent a hidden reporting deduction the user did not intend and expose stale money.
+- **Status:** Resolved.
+
+## DF-021 — “Recalculate salary” can reuse the snapshot it is meant to replace
+
+- **Date:** 2026-08-14
+- **Severity:** P0
+- **Screen:** Shift Details → Salary details
+- **Steps:** Change a completed shift's reporting duration, then force salary recalculation.
+- **Expected:** Force recalculation ignores the historical current snapshot and computes from the edited shift.
+- **Actual:** The coordinator selected the finalized frozen snapshot before honoring the ignore-snapshot option, so recalculation could return the old amount unchanged.
+- **Root cause:** Frozen-snapshot selection was evaluated independently of `ignoreHistoricalSnapshotShiftIds`.
+- **Fix:** A forced recalculation explicitly disables frozen-snapshot reuse for the target shift.
+- **Automated verification:** The regression changes a two-hour shift to three payable hours and proves recalculation changes ₪100 to ₪150.
+- **Native verification:** Editing the reporting break from one minute to zero retired the prior current snapshot and created a new finalized snapshot from the edited shift: payable time changed from two to three minutes and salary from ₪2.00 to ₪3.00.
+- **Data integrity affected?:** Yes. A user-requested money correction could remain wrong while appearing recalculated.
+- **Status:** Resolved.
+
+## DF-022 — Opening Edit can overwrite an explicit reporting-time override
+
+- **Date:** 2026-08-14
+- **Severity:** P0
+- **Screen:** Shift Details → Edit
+- **Steps:** Save a completed shift whose reporting start/end or break intentionally differs from the actual values, reopen Edit, and save an unrelated field.
+- **Expected:** Existing advanced reporting overrides remain unchanged unless edited explicitly.
+- **Actual:** The form's synchronization effect could copy actual values over reporting values on mount because it checked only whether the reporting field was currently dirty.
+- **Root cause:** Synchronization did not require an actual-field edit or equality between the initial actual/reporting values.
+- **Fix:** Synchronization now requires the actual field to be dirty, the reporting field to remain untouched, and the original pair to have been equal.
+- **Automated verification:** Shift-form regressions cover start, end, and break override preservation and conditional mirroring.
+- **Native verification:** Reopening Edit for a shift with actual break `0` and an explicit reporting break `1` preserved the reporting value in Advanced before any field was changed.
+- **Data integrity affected?:** Yes. An intentional employer-reporting correction could be silently removed.
+- **Status:** Resolved.
+
+## DF-023 — Migrated onboarding state can be ignored and setup has a redundant final step
+
+- **Date:** 2026-08-14
+- **Severity:** P1
+- **Screen:** Startup / onboarding
+- **Steps:** Launch with migration 6's boolean `onboarding_completed` value, or complete the fresh workplace form.
+- **Expected:** Existing configured users go directly to Home; fresh setup reaches Home immediately after the required workplace/rate save.
+- **Actual:** Startup recognized only the legacy JSON string form, so a migrated configured user could be sent to onboarding. Fresh setup also required a ceremonial third screen and another tap before recording completion.
+- **Root cause:** The launcher compared serialized JSON text instead of the parsed value, while onboarding completion was persisted in a later route rather than atomically with initial setup.
+- **Fix:** Parse and accept both compatible stored forms; write completion atomically with workplace/profile creation; route directly to Home while retaining the finish route only as a compatibility fallback.
+- **Automated verification:** Route, service integration, and onboarding-screen tests cover both stored forms, direct navigation, and transactional rollback.
+- **Native verification:** A populated Simulator database was integrity-checked, duplicated, and moved aside. A fresh launch completed welcome plus workplace/rate setup and routed directly to Home after the single required form action; `onboarding_completed` was stored as boolean `true`. The original populated SQLite directory was then restored byte-for-byte, with 3 workplaces, 7 shifts, 9 snapshots, and clean integrity/foreign-key checks.
+- **Data integrity affected?:** A configured user could be prompted to create redundant setup records; the atomic fix also prevents partial initial setup.
+- **Status:** Resolved.
+
+## DF-024 — Zero- and one-minute reminders use unnatural plural copy
+
+- **Date:** 2026-08-14
+- **Severity:** P2
+- **Screen:** Local shift-start notification
+- **Steps:** Deliver a reminder at offset 0 or configure an offset of one minute.
+- **Expected:** Zero says the shift starts now; one uses the singular; larger offsets interpolate the number.
+- **Actual:** The verified physical delivery used `המשמרת שלך מתחילה בעוד 0 דקות.` and the same plural template applied to one minute.
+- **Fix:** Notification planning now selects natural 0, 1, or plural bodies in Hebrew and English.
+- **Automated verification:** Planner and translation regressions cover all three forms and interpolation.
+- **Native verification:** Final DF-013 physical delivery retest is pending the one final signed build.
+- **Data integrity affected?:** No.
+- **Status:** Fixed in source and tests; physical delivery retest pending.
+
+## DF-025 — Hebrew duration and report-count grammar is mechanical
+
+- **Date:** 2026-08-14
+- **Severity:** P2
+- **Screen:** Reports; Shift Details
+- **Steps:** Complete one short shift with a one-minute break and inspect Reports and Shift Details.
+- **Expected:** Natural copy such as **משמרת אחת**, **2 דקות עבודה**, and **דקה אחת**.
+- **Actual:** The UI showed forms including `1 משמרות שהושלמו`, `0:02 שעות עבודה`, and `1 דקות`.
+- **Fix:** Shared long-duration formatting now handles Hebrew and English singular forms, Reports uses a singular completed-shift key and natural headline duration, and Shift Details uses the same formatter.
+- **Automated verification:** Duration, Reports, translation, and Shift Details regressions pass.
+- **Native verification:** The corrected `משמרת אחת הושלמה` / `2 דקות עבודה` headline is visible in the running Simulator build. The populated report also uses the dedicated singular salary-warning form `שכר לא זמין עבור משמרת אחת`.
+- **Data integrity affected?:** No.
+- **Status:** Resolved.
+
+## DF-026 — Native date/time buttons do not announce their current value
+
+- **Date:** 2026-08-14
+- **Severity:** P2
+- **Screen:** Add/Edit Shift and every shared date/time picker consumer
+- **Steps:** Inspect an Edit Shift date or time control through the Simulator accessibility tree.
+- **Expected:** The button exposes both its label and current localized value.
+- **Actual:** The current date/time was visible but absent from accessibility metadata.
+- **Fix:** Shared date/time fields expose `accessibilityValue.text` using the displayed value.
+- **Automated verification:** Shared date-field interaction tests cover the value metadata.
+- **Native verification:** The Edit Shift accessibility tree announced `תאריך` as `שישי, 14 באוגוסט 2026`, `כניסה` as `18:06`, and `יציאה` as `18:09`.
+- **Data integrity affected?:** No.
+- **Status:** Resolved.
+
+## DF-027 — Salary details expose engine version and raw calculation timestamp
+
+- **Date:** 2026-08-14
+- **Severity:** P2
+- **Screen:** Shift Details → Salary details
+- **Steps:** Expand the salary breakdown for a completed shift.
+- **Expected:** User-relevant components and status only.
+- **Actual:** The default advanced card ended with raw `1.0.0 · <ISO timestamp>` implementation metadata.
+- **Fix:** Removed engine version and raw calculation timestamp while retaining status, components, segments, and explicit recalculation.
+- **Automated verification:** Salary-breakdown regression confirms neither raw value is rendered.
+- **Native verification:** The expanded salary card in the running Simulator retained the component breakdown and natural duration copy while exposing neither the engine version nor the raw ISO timestamp.
+- **Data integrity affected?:** No.
+- **Status:** Resolved.
+
+## DF-028 — Templates emits a nested VirtualizedList runtime warning
+
+- **Date:** 2026-08-14
+- **Severity:** P2
+- **Screen:** Settings → Shift Templates
+- **Steps:** Open Templates in the development client and navigate onward.
+- **Expected:** A clean list with pull-to-refresh and no runtime warning.
+- **Actual:** React Native reported `VirtualizedLists should never be nested inside plain ScrollViews`; the development error toast persisted over subsequent screens.
+- **Root cause:** The screen placed a vertical `FlatList` inside `AppScreen`'s vertical `ScrollView`.
+- **Fix:** `AppScreen` can delegate scrolling to a virtualized child; Templates uses that mode and keeps its footer outside the list.
+- **Automated verification:** Component regressions cover scrollable and delegated-scroll modes; typecheck passes.
+- **Native verification:** Reopened Templates in the running Simulator. Layout, empty state, and fixed footer rendered correctly, and Metro emitted no new warning.
+- **Data integrity affected?:** No.
+- **Status:** Resolved.
+
+## DF-029 — Stale active-shift routes expose invalid or endless states
+
+- **Date:** 2026-08-14
+- **Severity:** P1
+- **Screen:** Clock Out, Cancel Tracking, Expected End
+- **Steps:** With no active shift, open `/shifts/active/end`, `/cancel`, or `/expected-end` through a stale/deep link.
+- **Expected:** Return safely to Home.
+- **Actual:** Clock Out remained on **טוענים…**, Expected End showed disabled controls for a nonexistent shift, and Cancel Tracking exposed a destructive cancellation action.
+- **Root cause:** The routes treated absence during initial load and authoritative absence after refresh as the same state and had no stale-route guard.
+- **Fix:** After active-state loading completes, all three routes redirect to Home when no active shift exists and render no invalid action while redirecting.
+- **Automated verification:** Route-guard regressions cover all three screens; existing Clock Out tests remain green.
+- **Native verification:** Deep-linked all three routes in the running Simulator; each returned to Home.
+- **Data integrity affected?:** No destructive mutation was observed, but a recovery route exposed an action without a valid target.
+- **Status:** Resolved.
+
+## DF-030 — Backup restore choices expose English implementation terms
+
+- **Date:** 2026-08-14
+- **Severity:** P2
+- **Screen:** Settings → Data Management → Restore
+- **Steps:** Choose a valid backup and inspect the restore strategy prompt.
+- **Expected:** Clear Hebrew choices describing whether existing data remains or is replaced.
+- **Actual:** Buttons used `מזג (Merge)` and `החלף הכל (Replace)`, while the screen described replacement as `לדרוס`.
+- **Fix:** Copy now uses **מיזוג עם הקיים** and **החלפת כל הנתונים**, with a plain-language explanation before file selection.
+- **Automated verification:** The screen regression exercises a valid backup preview and asserts both choices.
+- **Native verification:** Updated explanatory copy rendered in the running Simulator. The destructive restore actions were not executed in this sprint.
+- **Data integrity affected?:** No.
+- **Status:** Resolved.
+
+## DF-031 — An incomplete completed shift can reappear with a numeric salary
+
+- **Date:** 2026-08-15
+- **Severity:** P0
+- **Screen:** Shift Details; Home salary dashboard
+- **Steps:** Create a completed shift for a zero-rate workplace after another workplace has populated a historical rate snapshot, then reopen its details.
+- **Expected:** The current incomplete salary snapshot remains authoritative and no numeric total is shown until explicit recalculation succeeds.
+- **Actual:** Persistence correctly stored an incomplete snapshot with no total, but the dashboard coordinator ignored it and recomputed from the shift's historical numeric rate snapshot, displaying an incorrect ₪480 estimate.
+- **Root cause:** Frozen-result selection covered finalized/stale snapshots only. Completed shifts marked `incomplete` were recalculated for display, allowing an old rate snapshot to override the authoritative missing state.
+- **Fix:** Completed incomplete shifts now preserve their current incomplete snapshot; if that snapshot is unavailable, normal dashboard calculation still suppresses a numeric total. Explicit user recalculation continues to bypass the frozen state.
+- **Automated verification:** Two coordinator regressions cover current incomplete snapshots and the snapshot-persistence-failure fallback. Both were observed red before the minimal fix and green afterward.
+- **Native verification:** The same zero-rate completed shift changed from `שכר משוער · ₪480.00` to `חישוב שכר חסר` with no numeric amount. SQLite retained the incomplete snapshot and missing-rate issue.
+- **Data integrity affected?:** Persisted salary stayed incomplete, but the UI made a false monetary claim.
+- **Status:** Resolved.
+
+## DF-032 — The one-shift salary warning uses a plural noun
+
+- **Date:** 2026-08-15
+- **Severity:** P2
+- **Screen:** Reports
+- **Steps:** Open a populated month with exactly one shift whose salary is unavailable.
+- **Expected:** Natural singular Hebrew.
+- **Actual:** The headline showed `שכר לא זמין עבור 1 משמרות`.
+- **Fix:** Reports now selects a dedicated singular key for exactly one salary issue in Hebrew and English.
+- **Automated verification:** Reports regression covers the singular warning.
+- **Native verification:** The populated August report shows `שכר לא זמין עבור משמרת אחת`.
+- **Data integrity affected?:** No.
+- **Status:** Resolved.
+
+## DF-033 — Cross-midnight PDF/CSV rows hide the exit date
+
+- **Date:** 2026-08-15
+- **Severity:** P1
+- **Screen:** Monthly PDF and CSV exports
+- **Steps:** Export a month containing a shift from Saturday 17:20 to Sunday 05:20.
+- **Expected:** The external report makes the next-day exit unambiguous.
+- **Actual:** Both formats placed the row under `2026-08-08` and showed only `17:20-5:20`, which can be read as a negative or same-day range.
+- **Fix:** When start and end fall on different local dates, the exit value includes the local end date (`2026-08-09 5:20`) in both CSV and PDF.
+- **Automated verification:** Export regression covers the cross-midnight exit date in both formats.
+- **Native verification:** Regenerated the populated August exports. CSV retained its UTF-8 BOM and explicit empty incomplete-salary cell; the rendered one-page RTL PDF was visually clean and showed `17:20-2026-08-09 5:20` without clipping.
+- **Data integrity affected?:** No storage corruption; the external report could previously be misinterpreted.
+- **Status:** Resolved.
+
 ## New issue template
 
 - **ID:**
