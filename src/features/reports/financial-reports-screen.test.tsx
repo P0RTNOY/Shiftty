@@ -34,8 +34,8 @@ describe('ReportsScreen', () => {
     renderApp(<ReportsScreen />);
 
     expect(screen.getByRole('header', { name: 'אוגוסט 2026' })).toBeTruthy();
-    expect(screen.getByText('1 משמרות שהושלמו')).toBeTruthy();
-    expect(screen.getByText('12:00 שעות עבודה')).toBeTruthy();
+    expect(screen.getByText('משמרת אחת הושלמה')).toBeTruthy();
+    expect(screen.getByText('12 שעות עבודה')).toBeTruthy();
     const formattedSalary = new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(1170);
     expect(screen.getByText(`${formattedSalary} שכר`)).toBeTruthy();
     expect(screen.getByText(/שבת/)).toBeTruthy();
@@ -46,5 +46,17 @@ describe('ReportsScreen', () => {
 
     fireEvent.press(screen.getByRole('button', { name: 'ייצוא הדוח' }));
     expect(router.push).toHaveBeenCalledWith('/settings/exports?month=2026-08');
+  });
+
+  it('uses singular Hebrew copy when one shift has unavailable salary', () => {
+    mockReport.totals.salaryIssueCount = 1;
+    mockReport.totals.salaryMinor = undefined;
+
+    renderApp(<ReportsScreen />);
+
+    expect(screen.getByText('שכר לא זמין עבור משמרת אחת')).toBeTruthy();
+
+    mockReport.totals.salaryIssueCount = 0;
+    mockReport.totals.salaryMinor = mockReport.totals.availableSalaryMinor;
   });
 });

@@ -19,7 +19,7 @@ export default function OnboardingFinishScreen() {
     try {
       setLoading(true);
       await db.runAsync(
-        "INSERT INTO app_settings (key, value_json, updated_at) VALUES ('onboarding_completed', '\"true\"', datetime('now')) ON CONFLICT(key) DO UPDATE SET value_json = '\"true\"', updated_at = datetime('now')"
+        "INSERT INTO app_settings (key, value_json, updated_at) VALUES ('onboarding_completed', 'true', datetime('now')) ON CONFLICT(key) DO UPDATE SET value_json = 'true', updated_at = datetime('now')"
       );
       router.replace('/(tabs)');
     } catch (e) {

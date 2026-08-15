@@ -81,7 +81,11 @@ export function buildNotificationPlan(input: NotificationPlannerInput): Notifica
             shiftId: shift.id,
             workplaceId: shift.workplaceId,
             titleKey: 'notification.shiftReminderTitle',
-            bodyKey: 'notification.shiftReminderBody',
+            bodyKey: offsetMinutes === 0
+              ? 'notification.shiftReminderBodyNow'
+              : offsetMinutes === 1
+                ? 'notification.shiftReminderBodyOne'
+                : 'notification.shiftReminderBody',
             bodyParams: { offsetMinutes },
           });
         }

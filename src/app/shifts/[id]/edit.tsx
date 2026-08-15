@@ -1,6 +1,6 @@
 import { subDays, format } from 'date-fns';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, Text } from 'react-native';
 
 import type { RecurrenceException, RecurrenceScope, RecurrenceSeries, Shift } from '@/domain/entities';
@@ -17,11 +17,13 @@ import { createId } from '@/shared/utils/id';
 import { confirmAlert } from '@/shared/utils/confirm-alert';
 import { formatLocalDateKey, formatLocalTime, resolveLocalShiftRange } from '@/shared/utils/zoned-time';
 import { reportUnexpectedError } from '@/shared/utils/report-unexpected-error';
+import { SalaryCalculationCoordinator } from '@/features/pay-rules/services/salary-calculation-coordinator';
 
 export default function EditShiftScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { shift, loading } = useShift(id);
   const repositories = useRepositories();
+  const salaryCoordinator = useMemo(() => new SalaryCalculationCoordinator(repositories), [repositories]);
   const { workplaces, roles } = useWorkplaces();
   const { templates } = useShiftTemplates();
   const { t } = useTranslation();
@@ -32,7 +34,7 @@ export default function EditShiftScreen() {
     if (!dirty || await confirmAlert(t('form.unsavedTitle'), t('form.unsavedBody'), t('common.cancel'), t('common.confirm'), true)) router.back();
   };
   const submit = async (next: Shift) => {
-    if (shift?.recurrenceGroupId) setDraft(next);
+    if (shift?.status === 'scheduled' && shift.recurrenceGroupId) setDraft(next);
     else await saveDirect(next);
   };
   const saveDirect = async (next: Shift) => {
@@ -41,6 +43,7 @@ export default function EditShiftScreen() {
       const overlaps = await repositories.shifts.findOverlapping(getEffectiveShiftRange(next), next.id);
       if (overlaps.length && !await confirmAlert(t('form.overlapTitle'), t('form.overlapBody'), t('common.cancel'), t('common.confirm'))) return;
       await repositories.shifts.update(next);
+      if (next.status === 'completed') await salaryCoordinator.finalizeCompletedShift(next, next.updatedAt, true);
       router.replace(`/shifts/${next.id}`);
     } catch (caught) { reportUnexpectedError('shift.edit.save', caught); Alert.alert(t('common.error')); }
     finally { setSaving(false); }

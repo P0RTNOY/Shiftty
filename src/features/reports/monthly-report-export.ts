@@ -33,7 +33,7 @@ export function generateMonthlyReportCsv(report: MonthlyReport, locale: DateTime
     rows: report.rows.map((row) => ({
       date: formatLocalDateKey(row.start, report.timezone),
       start: formatTime(row.start, locale, report.timezone),
-      end: formatTime(row.end, locale, report.timezone),
+      end: formatExit(row.start, row.end, locale, report.timezone),
       duration: formatMinutes(row.paidMinutes),
       breaks: formatMinutes(row.breakMinutes),
       workplace: row.workplaceName,
@@ -66,7 +66,7 @@ export function generateMonthlyReportPdfHtml(report: MonthlyReport, locale: Date
       formatLocalDateKey(row.start, report.timezone),
       row.title ?? labels.shift,
       row.workplaceName,
-      `\u200E${formatTime(row.start, locale, report.timezone)}-${formatTime(row.end, locale, report.timezone)}\u200E`,
+      `\u200E${formatTime(row.start, locale, report.timezone)}-${formatExit(row.start, row.end, locale, report.timezone)}\u200E`,
       formatMinutes(row.paidMinutes),
       formatMinutes(row.breakMinutes),
       salaryStatusLabel(row.salaryStatus, locale),
@@ -76,6 +76,12 @@ export function generateMonthlyReportPdfHtml(report: MonthlyReport, locale: Date
 }
 
 function salaryStatusLabel(status: ReportSalaryStatus, locale: DateTimeLocale): string { return copy[locale].statuses[status]; }
+function formatExit(start: string, end: string, locale: DateTimeLocale, timezone: string): string {
+  const endTime = formatTime(end, locale, timezone);
+  const startDate = formatLocalDateKey(start, timezone);
+  const endDate = formatLocalDateKey(end, timezone);
+  return startDate === endDate ? endTime : `${endDate} ${endTime}`;
+}
 function formatMinutes(minutes: number): string { return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`; }
 function formatCurrency(minor: number, locale: DateTimeLocale): string { return new Intl.NumberFormat(locale === 'he' ? 'he-IL' : 'en-US', { style: 'currency', currency: 'ILS', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(minor / 100); }
 function formatDateTime(value: string, locale: DateTimeLocale, timezone: string): string { return new Intl.DateTimeFormat(locale === 'he' ? 'he-IL' : 'en-US', { dateStyle: 'short', timeStyle: 'short', timeZone: timezone }).format(new Date(value)); }

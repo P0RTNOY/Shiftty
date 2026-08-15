@@ -54,8 +54,15 @@ export class SalaryCalculationCoordinator {
 
     for (const shift of [...relevant].sort((left, right) => sourceStart(left).localeCompare(sourceStart(right)))) {
       const frozen = snapshots.get(shift.id);
-      const useFrozen = shift.status === 'completed' && ['finalized', 'stale'].includes(shift.salaryCalculationStatus) && frozen?.status === 'finalized';
-      const result = useFrozen ? frozen.result : await this.calculatePrepared(shift, context, calculatedAt, priorResults, activeEnd, options.ignoreHistoricalSnapshotShiftIds?.has(shift.id) ?? false, breaksByShift[shift.id] ?? []);
+      const ignoreHistoricalSnapshot = options.ignoreHistoricalSnapshotShiftIds?.has(shift.id) ?? false;
+      const useFrozen = !ignoreHistoricalSnapshot && shift.status === 'completed' && (
+        (['finalized', 'stale'].includes(shift.salaryCalculationStatus) && frozen?.status === 'finalized')
+        || (shift.salaryCalculationStatus === 'incomplete' && frozen?.status === 'incomplete')
+      );
+      const calculated = useFrozen ? frozen.result : await this.calculatePrepared(shift, context, calculatedAt, priorResults, activeEnd, ignoreHistoricalSnapshot, breaksByShift[shift.id] ?? []);
+      const result = !ignoreHistoricalSnapshot && shift.status === 'completed' && shift.salaryCalculationStatus === 'incomplete' && calculated.totalGrossPayMinor !== undefined
+        ? { ...calculated, totalGrossPayMinor: undefined }
+        : calculated;
       results[shift.id] = result;
       if (shift.salaryCalculationStatus === 'stale') output.staleShiftCount += 1;
       const includedSegments = result.segments.filter((segment) => isInReportingRange(segment.start, options.reportingRange));

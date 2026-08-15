@@ -25,7 +25,8 @@ it('shows a simple salary estimate and discloses calculation details on request'
   fireEvent.press(screen.getByRole('button', { name: 'פירוט שכר' }));
   expect(screen.getByText('שכר בסיס')).toBeTruthy();
   expect(screen.getByLabelText('הערכה בלבד')).toBeTruthy();
-  expect(screen.getByText(/1\.0\.0/)).toBeTruthy();
+  expect(screen.queryByText(/1\.0\.0/)).toBeNull();
+  expect(screen.queryByText(/2026-07-15T22:00:00/)).toBeNull();
 });
 
 it('keeps stale and missing salary warnings visible without disclosure', () => {

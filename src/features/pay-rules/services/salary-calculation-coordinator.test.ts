@@ -36,6 +36,65 @@ describe('SalaryCalculationCoordinator', () => {
     expect(saveSnapshot).toHaveBeenCalledWith(snapshot);
   });
 
+  it('keeps a current incomplete snapshot authoritative for a completed shift', async () => {
+    const completed = createShift({
+      status: 'completed',
+      actualStart: '2026-07-15T08:00:00+03:00',
+      actualEnd: '2026-07-15T10:00:00+03:00',
+      payableStart: '2026-07-15T08:00:00+03:00',
+      payableEnd: '2026-07-15T10:00:00+03:00',
+      payableBreakMinutes: 0,
+      payableSource: 'actual',
+      completedAt: '2026-07-15T10:00:00+03:00',
+      hourlyRateSnapshotMinor: 6000,
+      salaryCalculationStatus: 'incomplete',
+    });
+    const incompleteResult = calculateSalary({
+      shift: { ...completed, hourlyRateSnapshotMinor: 0 },
+      rules: [],
+      breaks: [],
+      holidayIntervals: [],
+      calculatedAt: completed.completedAt!,
+    });
+    const snapshot = {
+      id: 'incomplete-snapshot',
+      shiftId: completed.id,
+      version: 1,
+      status: 'incomplete' as const,
+      result: incompleteResult,
+      isCurrent: true,
+      createdAt: completed.completedAt!,
+    };
+    const deps = repositories({
+      salaryCalculations: { listCurrentForShifts: jest.fn().mockResolvedValue([snapshot]) } as unknown as SalaryCoordinatorRepositories['salaryCalculations'],
+    });
+
+    const summary = await new SalaryCalculationCoordinator(deps).calculateMany([completed], '2026-08-01T00:00:00+03:00');
+
+    expect(summary.resultsByShiftId[completed.id]?.totalGrossPayMinor).toBeUndefined();
+    expect(summary).toMatchObject({ earnedMinor: 0, incompleteShiftCount: 1 });
+  });
+
+  it('does not surface a numeric total for an incomplete completed shift when its snapshot is unavailable', async () => {
+    const completed = createShift({
+      status: 'completed',
+      actualStart: '2026-07-15T08:00:00+03:00',
+      actualEnd: '2026-07-15T10:00:00+03:00',
+      payableStart: '2026-07-15T08:00:00+03:00',
+      payableEnd: '2026-07-15T10:00:00+03:00',
+      payableBreakMinutes: 0,
+      payableSource: 'actual',
+      completedAt: '2026-07-15T10:00:00+03:00',
+      hourlyRateSnapshotMinor: 6000,
+      salaryCalculationStatus: 'incomplete',
+    });
+
+    const summary = await new SalaryCalculationCoordinator(repositories()).calculateMany([completed], '2026-08-01T00:00:00+03:00');
+
+    expect(summary.resultsByShiftId[completed.id]?.totalGrossPayMinor).toBeUndefined();
+    expect(summary).toMatchObject({ earnedMinor: 0, incompleteShiftCount: 1 });
+  });
+
   it('includes earlier completed shifts when finalizing a daily threshold', async () => {
     const profile = createSalaryProfile({ baseHourlyRateMinor: 6000 });
     const first = createShift({ id: 'first', status: 'completed', scheduledStart: '2026-07-14T08:00:00+03:00', scheduledEnd: '2026-07-14T11:00:00+03:00', actualStart: '2026-07-15T08:00:00+03:00', actualEnd: '2026-07-15T11:00:00+03:00', payableStart: '2026-07-15T08:00:00+03:00', payableEnd: '2026-07-15T11:00:00+03:00', payableBreakMinutes: 0, payableSource: 'actual', completedAt: '2026-07-15T11:00:00+03:00', hourlyRateSnapshotMinor: 6000, salaryCalculationStatus: 'finalized' });
@@ -61,6 +120,23 @@ describe('SalaryCalculationCoordinator', () => {
     const saveSnapshot = jest.fn().mockResolvedValue(undefined); const deps = repositories({ shifts: { list: jest.fn().mockResolvedValue([shift]) } as unknown as SalaryCoordinatorRepositories['shifts'], salaryProfiles: { listByWorkplace: jest.fn().mockResolvedValue([profile]), getById: jest.fn() } as unknown as SalaryCoordinatorRepositories['salaryProfiles'], salaryCalculations: { listCurrentForShifts: jest.fn().mockResolvedValue([]), listHistory: jest.fn().mockResolvedValue([]), saveSnapshot } as unknown as SalaryCoordinatorRepositories['salaryCalculations'] });
     const snapshot = await new SalaryCalculationCoordinator(deps).finalizeCompletedShift(shift, '2026-08-01T00:00:00+03:00', true);
     expect(snapshot.result).toMatchObject({ resolvedBaseHourlyRateMinor: 10000, totalGrossPayMinor: 20000 });
+  });
+
+  it('explicit recalculation ignores the current frozen snapshot after payable time changes', async () => {
+    const profile = createSalaryProfile({ baseHourlyRateMinor: 5000 });
+    const original = createShift({ status: 'completed', actualStart: '2026-07-15T08:00:00+03:00', actualEnd: '2026-07-15T10:00:00+03:00', payableStart: '2026-07-15T08:00:00+03:00', payableEnd: '2026-07-15T10:00:00+03:00', payableBreakMinutes: 0, payableSource: 'actual', completedAt: '2026-07-15T10:00:00+03:00', hourlyRateSnapshotMinor: 5000, salaryCalculationStatus: 'finalized' });
+    const oldResult = calculateSalary({ shift: original, profile, rules: [], breaks: [], holidayIntervals: [], calculatedAt: original.completedAt! });
+    const oldSnapshot = { id: 'old-snapshot', shiftId: original.id, version: 1, status: 'finalized' as const, salaryProfileId: profile.id, result: oldResult, isCurrent: true, createdAt: original.completedAt! };
+    const edited = { ...original, actualEnd: '2026-07-15T11:00:00+03:00', payableEnd: '2026-07-15T11:00:00+03:00', salaryCalculationStatus: 'stale' as const };
+    const deps = repositories({
+      shifts: { list: jest.fn().mockResolvedValue([edited]) } as unknown as SalaryCoordinatorRepositories['shifts'],
+      salaryProfiles: { listByWorkplace: jest.fn().mockResolvedValue([profile]), getById: jest.fn() } as unknown as SalaryCoordinatorRepositories['salaryProfiles'],
+      salaryCalculations: { listCurrentForShifts: jest.fn().mockResolvedValue([oldSnapshot]), listHistory: jest.fn().mockResolvedValue([oldSnapshot]), saveSnapshot: jest.fn().mockResolvedValue(undefined) } as unknown as SalaryCoordinatorRepositories['salaryCalculations'],
+    });
+
+    const snapshot = await new SalaryCalculationCoordinator(deps).finalizeCompletedShift(edited, '2026-08-01T00:00:00+03:00', true);
+
+    expect(snapshot.result).toMatchObject({ payableMinutes: 180, totalGrossPayMinor: 15000 });
   });
 
   it('resolves a role override before freezing a newly completed shift placeholder rate', async () => {

@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 
 import type { Workplace } from '@/domain/entities';
 import { ShiftForm } from '@/features/shifts/components/shift-form';
+import { createShift } from '@/test/fixtures';
 import { renderApp } from '@/test/render';
 
 const workplace: Workplace = {
@@ -76,6 +77,46 @@ describe('ShiftForm', () => {
     fireEvent.changeText(screen.getByLabelText('שעת התחלה לדיווח'), '09:30');
     fireEvent.changeText(screen.getByLabelText('כניסה'), '09:20');
     expect(screen.getByLabelText('שעת התחלה לדיווח')).toHaveProp('value', '09:30');
+  });
+
+  it('mirrors the actual break into the payable break until the user customizes it', async () => {
+    const initialShift = createShift({
+      status: 'completed',
+      actualStart: '2026-07-10T09:00:00+03:00',
+      actualEnd: '2026-07-10T17:00:00+03:00',
+      payableStart: '2026-07-10T09:00:00+03:00',
+      payableEnd: '2026-07-10T17:00:00+03:00',
+      actualBreakMinutes: 30,
+      payableBreakMinutes: 30,
+    });
+    renderApp(<ShiftForm initialShift={initialShift} mode="completed" workplaces={[workplace]} onSave={jest.fn()} />);
+
+    fireEvent.press(screen.getByRole('button', { name: 'אפשרויות נוספות' }));
+    fireEvent.changeText(screen.getByLabelText('הפסקה'), '20');
+    await waitFor(() => expect(screen.getByLabelText('הפסקה לדיווח בדקות')).toHaveProp('value', '20'));
+
+    fireEvent.changeText(screen.getByLabelText('הפסקה לדיווח בדקות'), '15');
+    fireEvent.changeText(screen.getByLabelText('הפסקה'), '10');
+    expect(screen.getByLabelText('הפסקה לדיווח בדקות')).toHaveProp('value', '15');
+  });
+
+  it('preserves existing payable overrides when editing a completed shift', () => {
+    const initialShift = createShift({
+      status: 'completed',
+      actualStart: '2026-07-10T09:00:00+03:00',
+      actualEnd: '2026-07-10T17:00:00+03:00',
+      payableStart: '2026-07-10T09:15:00+03:00',
+      payableEnd: '2026-07-10T16:45:00+03:00',
+      actualBreakMinutes: 30,
+      payableBreakMinutes: 20,
+    });
+    renderApp(<ShiftForm initialShift={initialShift} mode="completed" workplaces={[workplace]} onSave={jest.fn()} />);
+
+    fireEvent.press(screen.getByRole('button', { name: 'אפשרויות נוספות' }));
+
+    expect(screen.getByLabelText('שעת התחלה לדיווח')).toHaveProp('value', '09:15');
+    expect(screen.getByLabelText('שעת סיום לדיווח')).toHaveProp('value', '16:45');
+    expect(screen.getByLabelText('הפסקה לדיווח בדקות')).toHaveProp('value', '20');
   });
 
   it('applies an existing shift template without coupling it to salary logic', () => {

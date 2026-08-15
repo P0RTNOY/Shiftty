@@ -13,7 +13,8 @@ export default function IndexScreen() {
         const result = await db.getFirstAsync<{ value_json: string }>(
           "SELECT value_json FROM app_settings WHERE key = 'onboarding_completed'"
         );
-        if (result && result.value_json === '"true"') {
+        const completed = result ? JSON.parse(result.value_json) : false;
+        if (completed === true || completed === 'true') {
           setInitialRoute('/(tabs)');
         } else {
           setInitialRoute('/onboarding');

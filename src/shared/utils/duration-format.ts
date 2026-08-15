@@ -6,13 +6,17 @@ export function formatDurationLong(minutes: number, locale: SupportedLocale): st
   const remainder = safeMinutes % 60;
 
   if (locale === 'he') {
-    if (!hours) return `${remainder} דקות`;
-    if (!remainder) return `${hours} שעות`;
-    return `${hours} שעות ו־${remainder} דקות`;
+    const minuteText = remainder === 1 ? 'דקה אחת' : `${remainder} דקות`;
+    const hourText = hours === 1 ? 'שעה אחת' : `${hours} שעות`;
+    if (!hours) return minuteText;
+    if (!remainder) return hourText;
+    return `${hourText} ${remainder === 1 ? 'ו' : 'ו־'}${minuteText}`;
   }
-  if (!hours) return `${remainder} minutes`;
-  if (!remainder) return `${hours} hours`;
-  return `${hours} hours and ${remainder} minutes`;
+  const minuteText = `${remainder} ${remainder === 1 ? 'minute' : 'minutes'}`;
+  const hourText = `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+  if (!hours) return minuteText;
+  if (!remainder) return hourText;
+  return `${hourText} and ${minuteText}`;
 }
 
 export function formatDurationCompact(minutes: number, locale: SupportedLocale = 'he'): string {

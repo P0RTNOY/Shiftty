@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { PayableSource } from '@/domain/entities';
@@ -17,6 +17,7 @@ export default function EndShiftReviewScreen() {
   const [capturedNow] = useState(() => new Date()); const [actualEndDate, setActualEndDate] = useState(() => formatLocalDateKey(capturedNow)); const [actualEndTime, setActualEndTime] = useState(() => formatLocalTime(capturedNow));
   const [source, setSource] = useState<PayableSource>('actual'); const [roundingMinutes, setRoundingMinutes] = useState<5 | 10 | 15 | 30>(15); const [roundingMode, setRoundingMode] = useState<RoundingMode>('nearest');
   const [manualStart, setManualStart] = useState(() => active.activeShift?.actualStart ? formatLocalTime(active.activeShift.actualStart, active.activeShift.timezone) : ''); const [manualEnd, setManualEnd] = useState(actualEndTime); const [manualBreak, setManualBreak] = useState('0'); const [closeOpenAtEnd, setCloseOpenAtEnd] = useState(false); const [error, setError] = useState<string | null>(null);
+  useEffect(() => { if (!active.loading && !shift) router.replace('/'); }, [active.loading, shift]);
   const actualEnd = useMemo(() => { try { return shift ? resolveLocalDateTime(actualEndDate, actualEndTime, shift.timezone) : undefined; } catch { return undefined; } }, [actualEndDate, actualEndTime, shift]);
   const openBreak = active.breaks.find((item) => !item.end); let review: ReturnType<typeof buildEndShiftReview> | undefined;
   try { if (shift && actualEnd) review = buildEndShiftReview(shift, active.breaks, actualEnd); } catch { review = undefined; }
@@ -29,7 +30,7 @@ export default function EndShiftReviewScreen() {
       if (completed) router.replace(`/shifts/${completed.id}`);
     } catch { setError(t('end.invalid')); }
   };
-  if (!shift) return <AppScreen title={t('end.title')}><SecondaryButton label={t('common.back')} onPress={() => router.back()} /><Text style={{ color: colors.textMuted }}>{t('common.loading')}</Text></AppScreen>;
+  if (!shift) return null;
   return <AppScreen title={t('end.title')}>
     <SecondaryButton label={t('common.back')} onPress={() => router.back()} />
     {openBreak ? <View style={[styles.warning, { backgroundColor: colors.surface, borderColor: colors.warning }]}><Text accessibilityRole="header" style={[styles.heading, { color: colors.warning }]}>{t('end.openBreakTitle')}</Text><Text style={{ color: colors.text }}>{t('end.openBreakBody')}</Text><PrimaryButton disabled={active.busy} label={t('end.endBreakNow')} onPress={() => void active.endBreak(new Date().toISOString()).catch(() => setError(t('end.invalid')))} /><SecondaryButton label={t('end.breakEndsWithShift')} onPress={() => setCloseOpenAtEnd(true)} /></View> : null}

@@ -65,7 +65,7 @@ export function ShiftDetailView({ shift, workplaceName, roleName, templateName, 
       <SummaryRow label={primaryKind === 'actual' ? t('form.actualStart') : t('form.scheduledStart')} value={formatTime(primaryStart, shift, formatDate)} />
       <SummaryRow label={primaryKind === 'actual' ? t('form.actualEnd') : t('form.scheduledEnd')} value={formatTime(primaryEnd, shift, formatDate)} />
       <SummaryRow label={t('shift.total')} value={primaryDuration ? formatDurationLong(primaryDuration.paidMinutes, locale) : '—'} />
-      <SummaryRow label={t('shift.break')} value={`${primaryBreakMinutes} ${t('active.minutes')}`} />
+      <SummaryRow label={t('shift.break')} value={formatDurationLong(primaryBreakMinutes, locale)} />
       {reportingDiffers ? <RangeRow label={t('shift.reportingHours')} shift={shift} kind="payable" /> : null}
 
       <SecondaryButton label={showMore ? t('shift.hideDetails') : t('shift.moreDetails')} onPress={() => setShowMore((value) => !value)} />

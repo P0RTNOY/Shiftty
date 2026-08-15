@@ -46,7 +46,7 @@ export default function OnboardingWorkplaceScreen() {
       });
 
 
-      router.push('/onboarding/finish');
+      router.replace('/(tabs)');
     } catch (error) {
       reportUnexpectedError('onboarding.workplace.save', error);
       Alert.alert(t('common.error'));
@@ -65,6 +65,7 @@ export default function OnboardingWorkplaceScreen() {
           <View style={styles.formGroup}>
             <Text style={textStyle}>שם מקום העבודה</Text>
             <TextInput 
+              accessibilityLabel="שם מקום העבודה"
               style={inputStyle} 
               placeholder="לדוגמה: בית קפה, מסעדה" 
               placeholderTextColor={colors.textMuted}
@@ -76,6 +77,7 @@ export default function OnboardingWorkplaceScreen() {
           <View style={styles.formGroup}>
             <Text style={textStyle}>שכר שעתי (₪)</Text>
             <TextInput 
+              accessibilityLabel="שכר שעתי (₪)"
               style={inputStyle} 
               placeholder="0.00" 
               placeholderTextColor={colors.textMuted}

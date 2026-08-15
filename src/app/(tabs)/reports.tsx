@@ -8,7 +8,7 @@ import { AppScreen, EmptyState, PrimaryButton, SecondaryButton } from '@/shared/
 import { useTranslation } from '@/shared/i18n';
 import { radius, spacing, typography, useAppTheme } from '@/shared/theme';
 import { formatMonth } from '@/shared/utils/date-time-format';
-import { formatDurationCompact } from '@/shared/utils/duration-format';
+import { formatDurationLong } from '@/shared/utils/duration-format';
 import { formatLocalDateKey } from '@/shared/utils/zoned-time';
 
 const REPORT_TIMEZONE = 'Asia/Jerusalem';
@@ -34,10 +34,10 @@ export default function ReportsScreen() {
 
     {report && report.rows.length > 0 ? <>
       <View style={styles.headline}>
-        <Text style={[styles.headlineValue, { color: colors.text, textAlign: align }]}>{t('reports.completedShiftCount', { count: report.totals.shiftCount })}</Text>
-        <Text style={[styles.headlineValue, { color: colors.text, textAlign: align }]}>{t('reports.workedDuration', { duration: formatDurationCompact(report.totals.paidMinutes, locale).replace(/ שעות$| hours$/, '') })}</Text>
+        <Text style={[styles.headlineValue, { color: colors.text, textAlign: align }]}>{report.totals.shiftCount === 1 ? t('reports.completedShiftCountOne') : t('reports.completedShiftCount', { count: report.totals.shiftCount })}</Text>
+        <Text style={[styles.headlineValue, { color: colors.text, textAlign: align }]}>{t('reports.workedDuration', { duration: formatDurationLong(report.totals.paidMinutes, locale) })}</Text>
         {report.totals.salaryMinor === undefined
-          ? <Text accessibilityRole="alert" style={[styles.warning, { color: colors.warning, textAlign: align }]}>{t('reports.salaryUnavailable', { count: report.totals.salaryIssueCount })}</Text>
+          ? <Text accessibilityRole="alert" style={[styles.warning, { color: colors.warning, textAlign: align }]}>{report.totals.salaryIssueCount === 1 ? t('reports.salaryUnavailableOne') : t('reports.salaryUnavailable', { count: report.totals.salaryIssueCount })}</Text>
           : <Text style={[styles.salary, { color: colors.primary, textAlign: align }]}>{t('reports.earnedAmount', { amount: formatCurrency(report.totals.salaryMinor) })}</Text>}
         {report.totals.invalidShiftCount > 0 ? <Text accessibilityRole="alert" style={[styles.warning, { color: colors.warning, textAlign: align }]}>{t('reports.invalidShiftCount', { count: report.totals.invalidShiftCount })}</Text> : null}
       </View>

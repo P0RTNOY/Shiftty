@@ -79,7 +79,7 @@ export default function DataManagementScreen() {
         [
           { text: 'ביטול', style: 'cancel' },
           { 
-            text: 'מזג (Merge)', 
+            text: 'מיזוג עם הקיים',
             onPress: async () => {
               setLoading(true);
               const result = await orchestrator.restoreMerge(content);
@@ -94,7 +94,7 @@ export default function DataManagementScreen() {
             } 
           },
           { 
-            text: 'החלף הכל (Replace)', 
+            text: 'החלפת כל הנתונים',
             style: 'destructive',
             onPress: async () => {
               setLoading(true);
@@ -167,7 +167,7 @@ export default function DataManagementScreen() {
 
           <View style={styles.section}>
             <Text style={headingStyle}>שחזור נתונים</Text>
-            <Text style={textStyle}>ייבוא מתוך קובץ גיבוי של Shiftty. תוכל לבחור האם למזג או לדרוס.</Text>
+            <Text style={textStyle}>ייבוא מתוך קובץ גיבוי של Shiftty. לאחר בחירת הקובץ אפשר למזג אותו עם הנתונים הקיימים או להחליף אותם.</Text>
             <PrimaryButton label="בחר קובץ לשחזור" onPress={handleRestoreBackup} />
           </View>
 

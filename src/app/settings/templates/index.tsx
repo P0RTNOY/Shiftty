@@ -21,7 +21,11 @@ export default function TemplatesListScreen() {
   }
 
   return (
-    <AppScreen title={t('settings.templates')}>
+    <AppScreen
+      footer={<View style={[styles.footer, { borderTopColor: colors.border }]}><PrimaryButton label={t('templates.add')} onPress={() => router.push('/settings/templates/new')} /></View>}
+      scrollable={false}
+      title={t('settings.templates')}
+    >
       <Stack.Screen options={{ title: t('templates.title') }} />
       <FlatList
         data={templates}
@@ -61,13 +65,8 @@ export default function TemplatesListScreen() {
         )}
         onRefresh={refresh}
         refreshing={loading}
+        style={styles.virtualizedList}
       />
-      <View style={[styles.footer, { borderTopColor: colors.border }]}>
-        <PrimaryButton
-          label={t('templates.add')}
-          onPress={() => router.push('/settings/templates/new')}
-        />
-      </View>
     </AppScreen>
   );
 }
@@ -80,4 +79,5 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: typography.title, fontWeight: '700' },
   emptyBody: { fontSize: typography.body, textAlign: 'center' },
   footer: { borderTopWidth: StyleSheet.hairlineWidth, padding: spacing.md },
+  virtualizedList: { flex: 1 },
 });

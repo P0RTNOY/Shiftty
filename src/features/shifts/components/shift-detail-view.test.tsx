@@ -53,6 +53,22 @@ describe('ShiftDetailView', () => {
     expect(screen.getByText('שעות לדיווח')).toBeTruthy();
   });
 
+  it('uses natural singular copy for a one-minute break', () => {
+    const shift = createShift({
+      status: 'completed',
+      actualStart: '2026-07-15T13:30:00+03:00',
+      actualEnd: '2026-07-15T14:30:00+03:00',
+      payableStart: '2026-07-15T13:30:00+03:00',
+      payableEnd: '2026-07-15T14:30:00+03:00',
+      actualBreakMinutes: 1,
+      payableBreakMinutes: 1,
+    });
+    renderApp(<ShiftDetailView onCancel={jest.fn()} onDelete={jest.fn()} onDuplicate={jest.fn()} onEdit={jest.fn()} onMarkMissed={jest.fn()} onRestore={jest.fn()} shift={shift} workplaceName="בית קפה" />);
+
+    expect(screen.getByText('דקה אחת')).toBeTruthy();
+    expect(screen.queryByText('1 דקות')).toBeNull();
+  });
+
   it('shows only valid scheduled-shift actions', () => {
     renderApp(<ShiftDetailView now={new Date('2026-07-16T12:00:00+03:00')} onCancel={jest.fn()} onDelete={jest.fn()} onDuplicate={jest.fn()} onEdit={jest.fn()} onMarkMissed={jest.fn()} onRestore={jest.fn()} shift={createShift()} workplaceName="בית קפה" />);
     expect(screen.getByRole('button', { name: 'סימון כלא בוצעה' })).toBeTruthy();

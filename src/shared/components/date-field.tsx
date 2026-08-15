@@ -63,6 +63,7 @@ export function DateTimeField({ value, onChange, mode, label, error, disabled, o
         accessibilityLabel={label}
         accessibilityRole="button"
         accessibilityState={{ disabled: Boolean(disabled) }}
+        accessibilityValue={{ text: displayValue }}
         disabled={disabled} 
         onPress={() => {
           setTempValue(pickerDate(value, mode));

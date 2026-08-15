@@ -18,9 +18,14 @@ function reportFixture() {
     actualStart: '2026-08-05T08:00:00+03:00', actualEnd: '2026-08-05T09:00:00+03:00',
     payableStart: '2026-08-05T08:00:00+03:00', payableEnd: '2026-08-05T09:00:00+03:00', payableBreakMinutes: 0,
   });
+  const overnight = createShift({
+    id: 'overnight', status: 'completed', salaryCalculationStatus: 'finalized',
+    actualStart: '2026-08-06T17:20:00+03:00', actualEnd: '2026-08-07T05:20:00+03:00',
+    payableStart: '2026-08-06T17:20:00+03:00', payableEnd: '2026-08-07T05:20:00+03:00', payableBreakMinutes: 0,
+  });
   return buildMonthlyReport({
     month: '2026-08', timezone: 'Asia/Jerusalem', generatedAt: '2026-08-12T10:00:00+03:00',
-    shifts: [final, missing], snapshots: [snapshot(final.id, 42_500)],
+    shifts: [final, missing, overnight], snapshots: [snapshot(final.id, 42_500), snapshot(overnight.id, 72_000)],
     workplaces: [{ id: 'workplace-1', name: 'קפה' } as never], roles: [],
   });
 }
@@ -36,6 +41,15 @@ describe('monthly report exports', () => {
     expect(lines[1]).toContain('425.00');
     expect(lines[2]).toContain('חישוב חסר');
     expect(lines[2]!.endsWith(',')).toBe(true);
+  });
+
+  it('includes the local exit date when a shift crosses midnight', () => {
+    const report = reportFixture();
+    const csvLines = generateMonthlyReportCsv(report, 'he').replace(/^\uFEFF/, '').trim().split('\r\n');
+    const html = generateMonthlyReportPdfHtml(report, 'he');
+
+    expect(csvLines[3]).toContain('2026-08-07 05:20');
+    expect(html).toContain('17:20-2026-08-07 05:20');
   });
 
   it('generates a readable RTL multipage-safe PDF report with honest salary availability', () => {

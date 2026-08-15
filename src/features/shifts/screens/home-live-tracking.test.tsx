@@ -15,7 +15,10 @@ jest.mock('@/features/shifts/hooks/use-active-shift', () => ({ useActiveShift: (
 jest.mock('@/features/shifts/hooks/use-shifts', () => ({ useShifts: (query: { statuses?: string[] }) => query.statuses ? mockNearbyShiftsHook() : mockShiftsHook() }));
 jest.mock('@/features/shifts/hooks/use-shift-templates', () => ({ useShiftTemplates: () => ({ templates: [] }) }));
 jest.mock('@/features/workplaces/hooks/use-workplaces', () => ({ useWorkplaces: () => mockWorkplacesHook() }));
-jest.mock('@/features/pay-rules', () => ({ useSalaryDashboard: () => mockSalaryHook() }));
+jest.mock('@/features/pay-rules', () => ({
+  useSalaryDashboard: (shifts: unknown, calculatedAt: string, activeEnd?: string, reportingRange?: unknown) =>
+    mockSalaryHook(shifts, calculatedAt, activeEnd, reportingRange),
+}));
 jest.mock('@/shared/hooks', () => ({ useLiveNow: () => new Date('2026-07-15T17:00:00+03:00') }));
 jest.mock('@/shared/utils/clock', () => ({ systemClock: { now: () => new Date('2026-07-15T17:00:30+03:00') } }));
 jest.mock('@/features/shifts/hooks/use-shift-prediction', () => ({ useShiftPrediction: () => [null, jest.fn()] }));
@@ -146,6 +149,44 @@ describe('Home live tracking state', () => {
       payableSource: 'actual',
       closeOpenBreak: false,
     }));
+  });
+
+  it('calculates the clock-out review at the exact timestamp that will be saved', () => {
+    mockActiveHook.mockReturnValue({ ...emptyActive, activeShift: createShift({ status: 'active', actualStart: '2026-07-15T13:00:00+03:00', activeOrigin: 'scheduled' }) });
+    renderApp(<HomeScreen />);
+
+    fireEvent.press(screen.getByRole('button', { name: 'יציאה' }));
+
+    expect(mockSalaryHook.mock.calls).toContainEqual([
+      expect.any(Array),
+      '2026-07-15T14:00:30.000Z',
+      '2026-07-15T14:00:30.000Z',
+      undefined,
+    ]);
+  });
+
+  it('does not show a salary preview calculated for an earlier timestamp', () => {
+    const activeShift = createShift({ status: 'active', actualStart: '2026-07-15T13:00:00+03:00', activeOrigin: 'scheduled' });
+    const stalePay = new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(24_000 / 100);
+    mockActiveHook.mockReturnValue({ ...emptyActive, activeShift });
+    mockSalaryHook.mockReturnValue({
+      summary: {
+        resultsByShiftId: {
+          [activeShift.id]: {
+            sourceRange: { start: activeShift.actualStart, end: '2026-07-15T14:00:00.000Z' },
+            totalGrossPayMinor: 24_000,
+          },
+        },
+      },
+      loading: false,
+      error: null,
+      coordinator: {},
+    });
+    renderApp(<HomeScreen />);
+
+    fireEvent.press(screen.getByRole('button', { name: 'יציאה' }));
+
+    expect(screen.queryByText(stalePay)).toBeNull();
   });
 
   it('offers recovery instead of auto-ending a stale shift', () => {

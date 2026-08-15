@@ -9,22 +9,16 @@ interface AppScreenProps extends PropsWithChildren {
   title: string;
   eyebrow?: string;
   footer?: ReactNode;
+  scrollable?: boolean;
 }
 
-export function AppScreen({ title, eyebrow, children, footer }: AppScreenProps) {
+export function AppScreen({ title, eyebrow, children, footer, scrollable = true }: AppScreenProps) {
   const { colors } = useAppTheme();
   const { isRtl } = useTranslation();
   const textAlignment = isRtl ? 'right' : 'left';
 
-  return (
-    <SafeAreaView edges={['top', 'bottom']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <ScrollView
-        automaticallyAdjustKeyboardInsets
-        contentContainerStyle={styles.content}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
+  const content = (
+    <>
         <View style={styles.header}>
           {eyebrow ? (
             <Text style={[styles.eyebrow, { color: colors.primary, textAlign: textAlignment }]}>
@@ -36,7 +30,24 @@ export function AppScreen({ title, eyebrow, children, footer }: AppScreenProps) 
           </Text>
         </View>
         {children}
-      </ScrollView>
+    </>
+  );
+
+  return (
+    <SafeAreaView edges={['top', 'bottom']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      {scrollable ? (
+        <ScrollView
+          automaticallyAdjustKeyboardInsets
+          contentContainerStyle={styles.content}
+          contentInsetAdjustmentBehavior="automatic"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {content}
+        </ScrollView>
+      ) : (
+        <View style={[styles.content, styles.staticContent]}>{content}</View>
+      )}
       {footer}
     </SafeAreaView>
   );
@@ -50,6 +61,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
     paddingHorizontal: spacing.md,
   },
+  staticContent: { flex: 1 },
   header: {
     gap: spacing.xs,
     paddingTop: spacing.md,

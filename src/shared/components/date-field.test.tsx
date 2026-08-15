@@ -17,7 +17,7 @@ describe('DateField', () => {
     renderApp(<DateField label="תאריך" onChange={jest.fn()} value="2026-08-08" />);
 
     expect(screen.getByText('שבת, 8 באוגוסט 2026')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'תאריך' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'תאריך' })).toHaveProp('accessibilityValue', { text: 'שבת, 8 באוגוסט 2026' });
   });
 
   it('shows an honest empty state for an optional date instead of inventing a value', () => {
@@ -48,7 +48,7 @@ describe('TimeField', () => {
     renderApp(<TimeField label="כניסה" onChange={jest.fn()} value="08:05" />);
 
     expect(screen.getByText('08:05')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'כניסה' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'כניסה' })).toHaveProp('accessibilityValue', { text: '08:05' });
     expect(screen.queryByDisplayValue('08:05')).toBeNull();
   });
 });

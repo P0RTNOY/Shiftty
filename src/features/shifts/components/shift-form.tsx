@@ -60,6 +60,7 @@ export function ShiftForm({ mode, workplaces, roles = [], templates = [], initia
   const { control, handleSubmit, setValue, setError, formState: { errors, dirtyFields, isDirty } } = useForm<ShiftFormValues>({ defaultValues: defaults });
   const actualStart = useWatch({ control, name: 'actualStart' });
   const actualEnd = useWatch({ control, name: 'actualEnd' });
+  const actualBreak = useWatch({ control, name: 'actualBreak' });
   const recurring = useWatch({ control, name: 'recurring' });
   const weekdays = useWatch({ control, name: 'weekdays' });
   const workplaceId = useWatch({ control, name: 'workplaceId' });
@@ -72,9 +73,13 @@ export function ShiftForm({ mode, workplaces, roles = [], templates = [], initia
 
   useEffect(() => {
     if (mode !== 'completed') return;
-    if (!dirtyFields.payableStart) setValue('payableStart', actualStart);
-    if (!dirtyFields.payableEnd) setValue('payableEnd', actualEnd);
-  }, [actualEnd, actualStart, dirtyFields.payableEnd, dirtyFields.payableStart, mode, setValue]);
+    if (dirtyFields.actualStart && !dirtyFields.payableStart && defaults.actualStart === defaults.payableStart) setValue('payableStart', actualStart);
+    if (dirtyFields.actualEnd && !dirtyFields.payableEnd && defaults.actualEnd === defaults.payableEnd) setValue('payableEnd', actualEnd);
+  }, [actualEnd, actualStart, defaults.actualEnd, defaults.actualStart, defaults.payableEnd, defaults.payableStart, dirtyFields.actualEnd, dirtyFields.actualStart, dirtyFields.payableEnd, dirtyFields.payableStart, mode, setValue]);
+
+  useEffect(() => {
+    if (mode === 'completed' && dirtyFields.actualBreak && !dirtyFields.payableBreak && defaults.actualBreak === defaults.payableBreak) setValue('payableBreak', actualBreak);
+  }, [actualBreak, defaults.actualBreak, defaults.payableBreak, dirtyFields.actualBreak, dirtyFields.payableBreak, mode, setValue]);
 
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 

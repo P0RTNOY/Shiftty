@@ -54,6 +54,23 @@ describe('buildNotificationPlan', () => {
     expect(keys).toContain('shift_reminder:shift-1:15');
   });
 
+  it('selects context-aware reminder copy for zero, one, and multiple minutes', () => {
+    const plan = buildNotificationPlan(makeInput({
+      preferences: { ...DEFAULT_PREFS, shiftReminderOffsets: [0, 1, 15] },
+    }));
+
+    expect(plan.notifications.find((item) => item.logicalKey.endsWith(':0'))).toMatchObject({
+      bodyKey: 'notification.shiftReminderBodyNow',
+    });
+    expect(plan.notifications.find((item) => item.logicalKey.endsWith(':1'))).toMatchObject({
+      bodyKey: 'notification.shiftReminderBodyOne',
+    });
+    expect(plan.notifications.find((item) => item.logicalKey.endsWith(':15'))).toMatchObject({
+      bodyKey: 'notification.shiftReminderBody',
+      bodyParams: { offsetMinutes: 15 },
+    });
+  });
+
   it('schedules missed clock-in reminder after grace period', () => {
     const plan = buildNotificationPlan(makeInput());
     const missedClockIn = plan.notifications.find((n) => n.type === 'missed_clock_in');

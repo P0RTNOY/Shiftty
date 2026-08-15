@@ -63,6 +63,12 @@ export class WorkplaceSetupService {
       // 3. Update Workplace with the salary profile ID
       workplace.salaryProfileId = profileId;
       await this.workplaceRepo.save(workplace);
+
+      // 4. Initial setup is complete; keep this atomic with the records it depends on.
+      await this.db.runAsync(
+        "INSERT INTO app_settings (key, value_json, updated_at) VALUES ('onboarding_completed', 'true', ?) ON CONFLICT(key) DO UPDATE SET value_json = 'true', updated_at = excluded.updated_at",
+        now,
+      );
     });
 
     return { workplaceId: wpId, profileId };

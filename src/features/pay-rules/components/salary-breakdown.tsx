@@ -40,7 +40,6 @@ export function SalaryBreakdown({ result, status, onRecalculate }: { result?: Pa
       <Row label={t('salary.regularHours')} value={formatDurationLong(result.regularMinutes, locale)} />
       <Row label={t('salary.specialHours')} value={formatDurationLong(result.specialRateMinutes, locale)} />
       {result.segments.map((segment) => <View key={`${segment.start}-${segment.end}`} style={[styles.segment, { borderTopColor: colors.border }]}><Text style={{ color: colors.text, textAlign: align }}>{formatDurationLong(segment.minutes, locale)} · {segment.multiplierBasisPoints / 100}%</Text><Text style={{ color: colors.textMuted, textAlign: align }}>{segment.labels.join(' + ') || t('salary.regularHours')} · {formatCurrency(segment.totalPayMinor)}</Text></View>)}
-      <Text style={{ color: colors.textMuted, textAlign: align }}>{result.engineVersion} · {result.calculatedAt}</Text>
       {onRecalculate ? <PrimaryButton label={t('salary.recalculate')} onPress={onRecalculate} /> : null}
     </View> : null}
   </View>;
