@@ -94,6 +94,25 @@ describe('Backup Merge Integration', () => {
     expect(await db.getFirstAsync('SELECT workplace_id FROM workplace_notification_overrides WHERE workplace_id = ?', ['wp-imported'])).not.toBeNull();
   });
 
+  it('merges non-default workweek salary configuration', async () => {
+    const timestamp = '2026-08-04T00:00:00Z';
+    const content = makeBackup({
+      workplaces: [workplace('wp-weekly', timestamp)],
+      salaryProfiles: [{
+        id: 'profile-weekly', workplaceId: 'wp-weekly', name: 'Weekly', currency: 'ILS', timezone: 'Asia/Jerusalem',
+        baseHourlyRateMinor: 6000, defaultTravelReimbursementMinor: 0, defaultShiftBonusMinor: 0,
+        calculationRoundingMode: 'half_up', breakPolicy: 'perBreak', workweekStartWeekday: 1,
+        weeklyOvertimeEnabled: true, weeklyRegularMinutes: 2400,
+        weeklyOvertimeMultiplierBasisPoints: 15000, weeklyOvertimeBasis: 'gross',
+        isActive: true, isArchived: false, createdAt: timestamp, updatedAt: timestamp,
+      }],
+    });
+
+    await expect(orchestrator.restoreMerge(JSON.stringify(content))).resolves.toMatchObject({ success: true });
+    expect(await db.getFirstAsync("SELECT workweek_start_weekday, weekly_overtime_enabled, weekly_regular_minutes, weekly_overtime_multiplier_basis_points, weekly_overtime_basis FROM salary_profiles WHERE id='profile-weekly'"))
+      .toEqual({ workweek_start_weekday: 1, weekly_overtime_enabled: 1, weekly_regular_minutes: 2400, weekly_overtime_multiplier_basis_points: 15000, weekly_overtime_basis: 'gross' });
+  });
+
   it('preserves an imported active shift only when it does not conflict with local tracking', async () => {
     const timestamp = '2026-08-04T00:00:00Z';
     const importedActive = activeShift('active-imported', 'wp-imported', timestamp);

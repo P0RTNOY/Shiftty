@@ -7,12 +7,12 @@ const { join } = require('node:path');
 const source = readFileSync(join(__dirname, '..', 'src', 'data', 'database', 'migrations.ts'), 'utf8');
 const migrations = [...source.matchAll(/version:\s*(\d+),\s*name:\s*'([^']+)',\s*sql:\s*`([\s\S]*?)`/g)]
   .map((match) => ({ version: Number(match[1]), name: match[2], sql: match[3] }));
-if (migrations.length !== 7) throw new Error(`Expected seven migrations, found ${migrations.length}.`);
+if (migrations.length !== 8) throw new Error(`Expected eight migrations, found ${migrations.length}.`);
 
 const directory = mkdtempSync(join(tmpdir(), 'shifty-migrations-'));
 try {
-  for (const startingVersion of [0, 1, 2, 3, 4, 5, 6, 7]) validateUpgrade(startingVersion);
-  process.stdout.write('Migration 7 smoke tests passed for empty, v1, v2, v3, v4, v5, v6, and current v7 databases.\n');
+  for (const startingVersion of [0, 1, 2, 3, 4, 5, 6, 7, 8]) validateUpgrade(startingVersion);
+  process.stdout.write('Migration 8 smoke tests passed for empty, v1, v2, v3, v4, v5, v6, v7, and current v8 databases.\n');
 } finally {
   rmSync(directory, { recursive: true, force: true });
 }
@@ -36,11 +36,15 @@ function validateUpgrade(startingVersion) {
   if (snapshotTable !== '1') throw new Error(`Snapshot table missing after v${startingVersion} upgrade.`);
   const shiftTypeColumns = sqlite(database, "SELECT count(*) FROM pragma_table_info('shifts') WHERE name IN ('shift_type_name_snapshot', 'shift_type_pay_multiplier_basis_points');");
   if (shiftTypeColumns !== '2') throw new Error(`Shift type snapshot columns missing after v${startingVersion} upgrade.`);
+  const workweekColumns = sqlite(database, "SELECT count(*) FROM pragma_table_info('salary_profiles') WHERE name IN ('workweek_start_weekday', 'weekly_overtime_enabled', 'weekly_regular_minutes', 'weekly_overtime_multiplier_basis_points', 'weekly_overtime_basis');");
+  if (workweekColumns !== '5') throw new Error(`Workweek salary columns missing after v${startingVersion} upgrade.`);
   if (startingVersion > 0) {
     const neutralMultiplier = sqlite(database, "SELECT shift_type_pay_multiplier_basis_points FROM shifts WHERE id='seed-shift';");
     if (neutralMultiplier !== '10000') throw new Error(`Legacy shift multiplier was not neutral after v${startingVersion}: ${neutralMultiplier}`);
     const templateMultiplier = sqlite(database, "SELECT pay_multiplier_basis_points FROM shift_templates WHERE id='seed-template';");
     if (templateMultiplier !== '10000') throw new Error(`Legacy shift type multiplier was not neutral after v${startingVersion}: ${templateMultiplier}`);
+    const weeklyDefaults = sqlite(database, "SELECT workweek_start_weekday || '|' || weekly_overtime_enabled || '|' || weekly_overtime_basis || '|' || (weekly_regular_minutes IS NULL) || '|' || (weekly_overtime_multiplier_basis_points IS NULL) FROM salary_profiles WHERE id='seed-profile';");
+    if (weeklyDefaults !== '0|0|net|1|1') throw new Error(`Legacy weekly salary settings were not neutral after v${startingVersion}: ${weeklyDefaults}`);
   }
   if (startingVersion > 0 && startingVersion < 4) {
     const state = sqlite(database, "SELECT status || '|' || salary_calculation_status FROM shifts WHERE id='seed-shift';");

@@ -252,7 +252,7 @@ export class BackupOrchestrator {
           await this.db.runAsync('INSERT INTO workplaces (id, name, address, default_hourly_rate_minor, default_break_minutes, salary_profile_id, color, default_travel_reimbursement_minor, default_shift_bonus_minor, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [w.id, w.name, w.address || null, w.defaultHourlyRateMinor ?? null, w.defaultBreakMinutes ?? 0, null, w.color || null, w.defaultTravelReimbursementMinor ?? 0, w.defaultShiftBonusMinor ?? 0, w.isArchived ? 1 : 0, w.createdAt, w.updatedAt]);
         }
         for (const sp of data.salaryProfiles) {
-          await this.db.runAsync('INSERT INTO salary_profiles (id, workplace_id, name, currency, standard_hourly_rate_minor, break_policy, timezone, default_travel_reimbursement_minor, default_shift_bonus_minor, calculation_rounding_mode, effective_from, effective_to, is_active, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [sp.id, sp.workplaceId || null, sp.name, sp.currency, sp.baseHourlyRateMinor ?? null, sp.breakPolicy, sp.timezone, sp.defaultTravelReimbursementMinor ?? 0, sp.defaultShiftBonusMinor ?? 0, sp.calculationRoundingMode, sp.effectiveFrom ?? null, sp.effectiveTo ?? null, sp.isActive ? 1 : 0, sp.isArchived ? 1 : 0, sp.createdAt, sp.updatedAt]);
+          await this.db.runAsync('INSERT INTO salary_profiles (id, workplace_id, name, currency, standard_hourly_rate_minor, break_policy, timezone, default_travel_reimbursement_minor, default_shift_bonus_minor, calculation_rounding_mode, workweek_start_weekday, weekly_overtime_enabled, weekly_regular_minutes, weekly_overtime_multiplier_basis_points, weekly_overtime_basis, effective_from, effective_to, is_active, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [sp.id, sp.workplaceId || null, sp.name, sp.currency, sp.baseHourlyRateMinor ?? null, sp.breakPolicy, sp.timezone, sp.defaultTravelReimbursementMinor ?? 0, sp.defaultShiftBonusMinor ?? 0, sp.calculationRoundingMode, sp.workweekStartWeekday, sp.weeklyOvertimeEnabled ? 1 : 0, sp.weeklyRegularMinutes ?? null, sp.weeklyOvertimeMultiplierBasisPoints ?? null, sp.weeklyOvertimeBasis, sp.effectiveFrom ?? null, sp.effectiveTo ?? null, sp.isActive ? 1 : 0, sp.isArchived ? 1 : 0, sp.createdAt, sp.updatedAt]);
         }
         for (const r of data.payRules) {
           await this.db.runAsync('INSERT INTO pay_rules (id, salary_profile_id, name, priority, conditions_json, effect_json, can_stack, is_enabled, effective_from, effective_to, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [r.id, r.salaryProfileId, r.name, r.priority, JSON.stringify(r.conditions), JSON.stringify(r.effect), r.canStack ? 1 : 0, r.isEnabled ? 1 : 0, r.effectiveFrom || null, r.effectiveTo || null, r.createdAt, r.updatedAt]);
@@ -284,6 +284,13 @@ export class BackupOrchestrator {
         }
         for (const ss of data.salarySnapshots) {
           await this.db.runAsync('INSERT INTO salary_calculation_snapshots (id, shift_id, version, status, context, salary_profile_id, resolved_rate_minor, payable_minutes, regular_minutes, special_rate_minutes, base_pay_minor, premium_pay_minor, fixed_bonuses_minor, reimbursements_minor, total_gross_pay_minor, result_json, engine_version, calculated_at, is_current, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [ss.id, ss.shiftId, ss.version, ss.status, ss.result.context, ss.salaryProfileId ?? null, ss.result.resolvedBaseHourlyRateMinor ?? null, ss.result.payableMinutes, ss.result.regularMinutes, ss.result.specialRateMinutes, ss.result.basePayMinor, ss.result.premiumPayMinor, ss.result.fixedBonusesMinor, ss.result.reimbursementsMinor, ss.result.totalGrossPayMinor ?? null, JSON.stringify(ss.result), ss.result.engineVersion, ss.result.calculatedAt, ss.isCurrent ? 1 : 0, ss.createdAt]);
+        }
+        // Current-snapshot insertion deliberately runs salary dependency triggers.
+        // Replace restore must nevertheless reproduce the backup exactly and be
+        // independent of payload order, so reinstate each backed-up shift status
+        // after all snapshot relationships have been reconstructed.
+        for (const s of data.shifts) {
+          await this.db.runAsync('UPDATE shifts SET salary_calculation_status = ? WHERE id = ?', [s.salaryCalculationStatus, s.id]);
         }
         for (const pf of data.predictionFeedback) {
           await this.db.runAsync('INSERT INTO prediction_feedback (id, feedback_type, engine_version, candidate_source, candidate_source_id, score, accepted_fields_json, rejected_fields_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [pf.id, pf.feedbackType, pf.engineVersion, pf.candidateSource, pf.candidateSourceId, pf.score, JSON.stringify(pf.acceptedFields), JSON.stringify(pf.rejectedFields), pf.createdAt]);
@@ -364,7 +371,7 @@ export class BackupOrchestrator {
         }
         for (const sp of data.salaryProfiles) {
           const { id, skip } = await remapId('salary_profiles', sp.id, sp);
-          if (!skip) await this.db.runAsync('INSERT INTO salary_profiles (id, workplace_id, name, currency, standard_hourly_rate_minor, break_policy, timezone, default_travel_reimbursement_minor, default_shift_bonus_minor, calculation_rounding_mode, effective_from, effective_to, is_active, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, getMappedId(sp.workplaceId), sp.name, sp.currency, sp.baseHourlyRateMinor ?? null, sp.breakPolicy, sp.timezone, sp.defaultTravelReimbursementMinor ?? 0, sp.defaultShiftBonusMinor ?? 0, sp.calculationRoundingMode, sp.effectiveFrom ?? null, sp.effectiveTo ?? null, sp.isActive ? 1 : 0, sp.isArchived ? 1 : 0, sp.createdAt, sp.updatedAt]);
+          if (!skip) await this.db.runAsync('INSERT INTO salary_profiles (id, workplace_id, name, currency, standard_hourly_rate_minor, break_policy, timezone, default_travel_reimbursement_minor, default_shift_bonus_minor, calculation_rounding_mode, workweek_start_weekday, weekly_overtime_enabled, weekly_regular_minutes, weekly_overtime_multiplier_basis_points, weekly_overtime_basis, effective_from, effective_to, is_active, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, getMappedId(sp.workplaceId), sp.name, sp.currency, sp.baseHourlyRateMinor ?? null, sp.breakPolicy, sp.timezone, sp.defaultTravelReimbursementMinor ?? 0, sp.defaultShiftBonusMinor ?? 0, sp.calculationRoundingMode, sp.workweekStartWeekday, sp.weeklyOvertimeEnabled ? 1 : 0, sp.weeklyRegularMinutes ?? null, sp.weeklyOvertimeMultiplierBasisPoints ?? null, sp.weeklyOvertimeBasis, sp.effectiveFrom ?? null, sp.effectiveTo ?? null, sp.isActive ? 1 : 0, sp.isArchived ? 1 : 0, sp.createdAt, sp.updatedAt]);
         }
         for (const r of data.payRules) {
           const { id, skip } = await remapId('pay_rules', r.id, r);
@@ -568,6 +575,10 @@ export class BackupOrchestrator {
     baseHourlyRateMinor: row.standard_hourly_rate_minor, breakPolicy: row.break_policy,
     timezone: row.timezone, defaultTravelReimbursementMinor: row.default_travel_reimbursement_minor,
     defaultShiftBonusMinor: row.default_shift_bonus_minor, calculationRoundingMode: row.calculation_rounding_mode,
+    workweekStartWeekday: row.workweek_start_weekday, weeklyOvertimeEnabled: row.weekly_overtime_enabled === 1,
+    weeklyRegularMinutes: row.weekly_regular_minutes,
+    weeklyOvertimeMultiplierBasisPoints: row.weekly_overtime_multiplier_basis_points,
+    weeklyOvertimeBasis: row.weekly_overtime_basis,
     effectiveFrom: row.effective_from, effectiveTo: row.effective_to, isActive: row.is_active === 1,
     isArchived: row.is_archived === 1, createdAt: row.created_at, updatedAt: row.updated_at
   });

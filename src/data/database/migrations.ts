@@ -697,4 +697,252 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       END;
     `,
   },
+  {
+    version: 8,
+    name: 'workweek_aware_salary',
+    sql: `
+      -- Sunday is the Hebrew-first display default, but weekly overtime remains
+      -- disabled so upgrading cannot change any existing calculation.
+      ALTER TABLE salary_profiles ADD COLUMN workweek_start_weekday INTEGER NOT NULL DEFAULT 0
+        CHECK (workweek_start_weekday >= 0 AND workweek_start_weekday <= 6);
+      ALTER TABLE salary_profiles ADD COLUMN weekly_overtime_enabled INTEGER NOT NULL DEFAULT 0
+        CHECK (weekly_overtime_enabled IN (0, 1));
+      ALTER TABLE salary_profiles ADD COLUMN weekly_regular_minutes INTEGER
+        CHECK (weekly_regular_minutes IS NULL OR weekly_regular_minutes > 0);
+      ALTER TABLE salary_profiles ADD COLUMN weekly_overtime_multiplier_basis_points INTEGER
+        CHECK (weekly_overtime_multiplier_basis_points IS NULL OR weekly_overtime_multiplier_basis_points >= 10000);
+      ALTER TABLE salary_profiles ADD COLUMN weekly_overtime_basis TEXT NOT NULL DEFAULT 'net'
+        CHECK (weekly_overtime_basis IN ('net', 'gross'))
+        CHECK (
+          weekly_overtime_enabled = 0 OR
+          (weekly_regular_minutes IS NOT NULL AND weekly_overtime_multiplier_basis_points IS NOT NULL)
+        );
+
+      -- Daily dependency invalidation from the salary-engine migration remains
+      -- independent. Weekly dependencies use engine-authored local-week keys from
+      -- the frozen JSON, which is exact across timezones and overnight boundaries.
+      CREATE TRIGGER mark_later_weekly_salary_dependencies_stale
+      AFTER UPDATE OF workplace_id, role_id, salary_profile_id, status, scheduled_start, scheduled_end,
+        actual_start, actual_end, payable_start, payable_end, payable_break_minutes,
+        hourly_rate_override_minor, fixed_bonus_override_minor, travel_reimbursement_override_minor,
+        shift_type_pay_multiplier_basis_points ON shifts
+      WHEN OLD.status = 'completed'
+      BEGIN
+        UPDATE shifts SET salary_calculation_status = 'stale'
+        WHERE id IN (
+          SELECT dependency_shift.id
+          FROM salary_calculation_snapshots target_snapshot
+          JOIN shifts dependency_shift
+            ON dependency_shift.workplace_id = OLD.workplace_id
+           AND dependency_shift.id != OLD.id
+           AND dependency_shift.status = 'completed'
+           AND dependency_shift.salary_calculation_status = 'finalized'
+          JOIN salary_calculation_snapshots dependency_snapshot
+            ON dependency_snapshot.shift_id = dependency_shift.id
+           AND dependency_snapshot.is_current = 1
+           AND dependency_snapshot.status = 'finalized'
+           AND dependency_snapshot.salary_profile_id = target_snapshot.salary_profile_id
+          WHERE target_snapshot.shift_id = OLD.id
+            AND target_snapshot.is_current = 1
+            AND EXISTS (
+              SELECT 1 FROM json_each(dependency_snapshot.result_json, '$.explanations') weekly_explanation
+              WHERE weekly_explanation.value LIKE 'salary.explanations.weekly_overtime:%'
+                 OR weekly_explanation.value = 'salary.explanations.configured_weekly_overtime'
+            )
+            AND julianday(COALESCE(dependency_shift.payable_start, dependency_shift.actual_start, dependency_shift.scheduled_start))
+              > julianday(COALESCE(OLD.payable_start, OLD.actual_start, OLD.scheduled_start))
+            AND EXISTS (
+              SELECT 1
+              FROM json_each(target_snapshot.result_json, '$.workweekAllocations') target_week
+              JOIN json_each(dependency_snapshot.result_json, '$.workweekAllocations') dependency_week
+                ON json_extract(dependency_week.value, '$.startLocalDate') = json_extract(target_week.value, '$.startLocalDate')
+            )
+        );
+      END;
+
+      -- A newly persisted current snapshot is the authoritative point at which a
+      -- completed shift acquires (or changes) its destination weekly cohort. This
+      -- covers historical inserts, scheduled-to-completed transitions, and moves
+      -- across workplace/profile/workweek boundaries after recalculation.
+      CREATE TRIGGER mark_later_weekly_salary_dependencies_stale_after_snapshot_insert
+      AFTER INSERT ON salary_calculation_snapshots
+      WHEN NEW.is_current = 1 AND NEW.status IN ('finalized', 'incomplete')
+      BEGIN
+        UPDATE shifts SET salary_calculation_status = 'stale'
+        WHERE id IN (
+          SELECT dependency_shift.id
+          FROM shifts target_shift
+          JOIN shifts dependency_shift
+            ON dependency_shift.workplace_id = target_shift.workplace_id
+           AND dependency_shift.id != target_shift.id
+           AND dependency_shift.status = 'completed'
+           AND dependency_shift.salary_calculation_status = 'finalized'
+          JOIN salary_calculation_snapshots dependency_snapshot
+            ON dependency_snapshot.shift_id = dependency_shift.id
+           AND dependency_snapshot.is_current = 1
+           AND dependency_snapshot.status = 'finalized'
+           AND dependency_snapshot.salary_profile_id = NEW.salary_profile_id
+          WHERE target_shift.id = NEW.shift_id
+            AND target_shift.status = 'completed'
+            AND EXISTS (
+              SELECT 1 FROM json_each(dependency_snapshot.result_json, '$.explanations') weekly_explanation
+              WHERE weekly_explanation.value LIKE 'salary.explanations.weekly_overtime:%'
+                 OR weekly_explanation.value = 'salary.explanations.configured_weekly_overtime'
+            )
+            AND julianday(COALESCE(dependency_shift.payable_start, dependency_shift.actual_start, dependency_shift.scheduled_start))
+              > julianday(COALESCE(target_shift.payable_start, target_shift.actual_start, target_shift.scheduled_start))
+            AND EXISTS (
+              SELECT 1
+              FROM json_each(NEW.result_json, '$.workweekAllocations') target_week
+              JOIN json_each(dependency_snapshot.result_json, '$.workweekAllocations') dependency_week
+                ON json_extract(dependency_week.value, '$.startLocalDate') = json_extract(target_week.value, '$.startLocalDate')
+            )
+        );
+      END;
+
+      CREATE TRIGGER mark_later_salary_dependencies_stale_before_delete
+      BEFORE DELETE ON shifts
+      WHEN OLD.status = 'completed'
+      BEGIN
+        UPDATE shifts SET salary_calculation_status = 'stale'
+        WHERE id IN (
+          SELECT dependency_shift.id
+          FROM salary_calculation_snapshots target_snapshot
+          JOIN shifts dependency_shift
+            ON dependency_shift.workplace_id = OLD.workplace_id
+           AND dependency_shift.id != OLD.id
+           AND dependency_shift.status = 'completed'
+           AND dependency_shift.salary_calculation_status = 'finalized'
+          JOIN salary_calculation_snapshots dependency_snapshot
+            ON dependency_snapshot.shift_id = dependency_shift.id
+           AND dependency_snapshot.is_current = 1
+           AND dependency_snapshot.status = 'finalized'
+           AND dependency_snapshot.salary_profile_id = target_snapshot.salary_profile_id
+          WHERE target_snapshot.shift_id = OLD.id
+            AND target_snapshot.is_current = 1
+            AND EXISTS (
+              SELECT 1 FROM json_each(dependency_snapshot.result_json, '$.explanations') weekly_explanation
+              WHERE weekly_explanation.value LIKE 'salary.explanations.weekly_overtime:%'
+                 OR weekly_explanation.value = 'salary.explanations.configured_weekly_overtime'
+            )
+            AND julianday(COALESCE(dependency_shift.payable_start, dependency_shift.actual_start, dependency_shift.scheduled_start))
+              > julianday(COALESCE(OLD.payable_start, OLD.actual_start, OLD.scheduled_start))
+            AND EXISTS (
+              SELECT 1
+              FROM json_each(target_snapshot.result_json, '$.workweekAllocations') target_week
+              JOIN json_each(dependency_snapshot.result_json, '$.workweekAllocations') dependency_week
+                ON json_extract(dependency_week.value, '$.startLocalDate') = json_extract(target_week.value, '$.startLocalDate')
+            )
+        );
+      END;
+
+      CREATE TRIGGER mark_weekly_salary_stale_after_break_insert
+      AFTER INSERT ON break_sessions
+      BEGIN
+        UPDATE shifts SET salary_calculation_status = 'stale'
+        WHERE id IN (
+          SELECT dependency_shift.id
+          FROM shifts target_shift
+          JOIN salary_calculation_snapshots target_snapshot
+            ON target_snapshot.shift_id = target_shift.id AND target_snapshot.is_current = 1
+          JOIN shifts dependency_shift
+            ON dependency_shift.workplace_id = target_shift.workplace_id
+           AND dependency_shift.id != target_shift.id
+           AND dependency_shift.status = 'completed'
+           AND dependency_shift.salary_calculation_status = 'finalized'
+          JOIN salary_calculation_snapshots dependency_snapshot
+            ON dependency_snapshot.shift_id = dependency_shift.id
+           AND dependency_snapshot.is_current = 1
+           AND dependency_snapshot.status = 'finalized'
+           AND dependency_snapshot.salary_profile_id = target_snapshot.salary_profile_id
+          WHERE target_shift.id = NEW.shift_id
+            AND EXISTS (
+              SELECT 1 FROM json_each(dependency_snapshot.result_json, '$.explanations') weekly_explanation
+              WHERE weekly_explanation.value LIKE 'salary.explanations.weekly_overtime:%'
+                 OR weekly_explanation.value = 'salary.explanations.configured_weekly_overtime'
+            )
+            AND julianday(COALESCE(dependency_shift.payable_start, dependency_shift.actual_start, dependency_shift.scheduled_start))
+              > julianday(COALESCE(target_shift.payable_start, target_shift.actual_start, target_shift.scheduled_start))
+            AND EXISTS (
+              SELECT 1
+              FROM json_each(target_snapshot.result_json, '$.workweekAllocations') target_week
+              JOIN json_each(dependency_snapshot.result_json, '$.workweekAllocations') dependency_week
+                ON json_extract(dependency_week.value, '$.startLocalDate') = json_extract(target_week.value, '$.startLocalDate')
+            )
+        );
+      END;
+
+      CREATE TRIGGER mark_weekly_salary_stale_after_break_update
+      AFTER UPDATE OF start_at, end_at, is_paid, shift_id ON break_sessions
+      BEGIN
+        UPDATE shifts SET salary_calculation_status = 'stale'
+        WHERE id IN (
+          SELECT dependency_shift.id
+          FROM shifts target_shift
+          JOIN salary_calculation_snapshots target_snapshot
+            ON target_snapshot.shift_id = target_shift.id AND target_snapshot.is_current = 1
+          JOIN shifts dependency_shift
+            ON dependency_shift.workplace_id = target_shift.workplace_id
+           AND dependency_shift.id NOT IN (OLD.shift_id, NEW.shift_id)
+           AND dependency_shift.status = 'completed'
+           AND dependency_shift.salary_calculation_status = 'finalized'
+          JOIN salary_calculation_snapshots dependency_snapshot
+            ON dependency_snapshot.shift_id = dependency_shift.id
+           AND dependency_snapshot.is_current = 1
+           AND dependency_snapshot.status = 'finalized'
+           AND dependency_snapshot.salary_profile_id = target_snapshot.salary_profile_id
+          WHERE target_shift.id IN (OLD.shift_id, NEW.shift_id)
+            AND EXISTS (
+              SELECT 1 FROM json_each(dependency_snapshot.result_json, '$.explanations') weekly_explanation
+              WHERE weekly_explanation.value LIKE 'salary.explanations.weekly_overtime:%'
+                 OR weekly_explanation.value = 'salary.explanations.configured_weekly_overtime'
+            )
+            AND julianday(COALESCE(dependency_shift.payable_start, dependency_shift.actual_start, dependency_shift.scheduled_start))
+              > julianday(COALESCE(target_shift.payable_start, target_shift.actual_start, target_shift.scheduled_start))
+            AND EXISTS (
+              SELECT 1
+              FROM json_each(target_snapshot.result_json, '$.workweekAllocations') target_week
+              JOIN json_each(dependency_snapshot.result_json, '$.workweekAllocations') dependency_week
+                ON json_extract(dependency_week.value, '$.startLocalDate') = json_extract(target_week.value, '$.startLocalDate')
+            )
+        );
+      END;
+
+      CREATE TRIGGER mark_weekly_salary_stale_after_break_delete
+      AFTER DELETE ON break_sessions
+      BEGIN
+        UPDATE shifts SET salary_calculation_status = 'stale'
+        WHERE id IN (
+          SELECT dependency_shift.id
+          FROM shifts target_shift
+          JOIN salary_calculation_snapshots target_snapshot
+            ON target_snapshot.shift_id = target_shift.id AND target_snapshot.is_current = 1
+          JOIN shifts dependency_shift
+            ON dependency_shift.workplace_id = target_shift.workplace_id
+           AND dependency_shift.id != target_shift.id
+           AND dependency_shift.status = 'completed'
+           AND dependency_shift.salary_calculation_status = 'finalized'
+          JOIN salary_calculation_snapshots dependency_snapshot
+            ON dependency_snapshot.shift_id = dependency_shift.id
+           AND dependency_snapshot.is_current = 1
+           AND dependency_snapshot.status = 'finalized'
+           AND dependency_snapshot.salary_profile_id = target_snapshot.salary_profile_id
+          WHERE target_shift.id = OLD.shift_id
+            AND EXISTS (
+              SELECT 1 FROM json_each(dependency_snapshot.result_json, '$.explanations') weekly_explanation
+              WHERE weekly_explanation.value LIKE 'salary.explanations.weekly_overtime:%'
+                 OR weekly_explanation.value = 'salary.explanations.configured_weekly_overtime'
+            )
+            AND julianday(COALESCE(dependency_shift.payable_start, dependency_shift.actual_start, dependency_shift.scheduled_start))
+              > julianday(COALESCE(target_shift.payable_start, target_shift.actual_start, target_shift.scheduled_start))
+            AND EXISTS (
+              SELECT 1
+              FROM json_each(target_snapshot.result_json, '$.workweekAllocations') target_week
+              JOIN json_each(dependency_snapshot.result_json, '$.workweekAllocations') dependency_week
+                ON json_extract(dependency_week.value, '$.startLocalDate') = json_extract(target_week.value, '$.startLocalDate')
+            )
+        );
+      END;
+    `,
+  },
 ];

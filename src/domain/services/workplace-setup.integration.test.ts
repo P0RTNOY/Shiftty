@@ -48,6 +48,13 @@ describe('WorkplaceSetupService Integration', () => {
     expect(spRows[0].workplace_id).toBe(result.workplaceId);
     expect(spRows[0].standard_hourly_rate_minor).toBe(5850);
     expect(spRows[0].break_policy).toBe('perBreak');
+    expect(spRows[0]).toMatchObject({
+      workweek_start_weekday: 0,
+      weekly_overtime_enabled: 0,
+      weekly_regular_minutes: null,
+      weekly_overtime_multiplier_basis_points: null,
+      weekly_overtime_basis: 'net',
+    });
 
     const onboardingSetting = await db.getFirstAsync<{ value_json: string }>("SELECT value_json FROM app_settings WHERE key = 'onboarding_completed'");
     expect(onboardingSetting?.value_json).toBe('true');

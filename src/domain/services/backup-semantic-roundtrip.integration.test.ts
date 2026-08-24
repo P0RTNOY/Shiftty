@@ -35,7 +35,11 @@ describe('Backup Semantic Round-trip Integration', () => {
 
     await db.execAsync(`INSERT INTO roles (id, workplace_id, name, created_at, updated_at) VALUES ('r1', 'wp1', 'Role', '2026-08-01T00:00:00Z', '2026-08-01T00:00:00Z')`);
 
-    await db.execAsync(`INSERT INTO salary_profiles (id, workplace_id, name, standard_hourly_rate_minor, break_policy, created_at, updated_at) VALUES ('sp1', 'wp1', 'Profile 1', 5000, 'unpaid', '2026-08-01T00:00:00Z', '2026-08-01T00:00:00Z')`);
+    await db.execAsync(`INSERT INTO salary_profiles (
+      id, workplace_id, name, standard_hourly_rate_minor, break_policy,
+      workweek_start_weekday, weekly_overtime_enabled, weekly_regular_minutes,
+      weekly_overtime_multiplier_basis_points, weekly_overtime_basis, created_at, updated_at
+    ) VALUES ('sp1', 'wp1', 'Profile 1', 5000, 'unpaid', 1, 1, 2400, 15000, 'gross', '2026-08-01T00:00:00Z', '2026-08-01T00:00:00Z')`);
 
     // Shifts
     await db.execAsync(`
@@ -94,6 +98,13 @@ describe('Backup Semantic Round-trip Integration', () => {
     // Verify specifically that omitted/null fields remained undefined
     expect(backupB.data.workplaces?.[0]?.address).toBeUndefined();
     expect(backupB.data.salaryProfiles?.[0]?.effectiveTo).toBeUndefined();
+    expect(backupB.data.salaryProfiles?.[0]).toMatchObject({
+      workweekStartWeekday: 1,
+      weeklyOvertimeEnabled: true,
+      weeklyRegularMinutes: 2400,
+      weeklyOvertimeMultiplierBasisPoints: 15000,
+      weeklyOvertimeBasis: 'gross',
+    });
     expect(backupB.data.shifts?.[0]?.notes).toBeUndefined();
     expect(backupB.data.shifts?.[0]?.actualEnd).toBeUndefined();
     expect(backupB.data.breakSessions?.[0]?.end).toBeUndefined();

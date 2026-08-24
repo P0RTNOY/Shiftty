@@ -93,4 +93,19 @@ describe('database migrations', () => {
     expect(migration?.sql).toContain('UPDATE recurrence_series');
     expect(migration?.sql).toContain('shift_type_pay_multiplier_basis_points ON shifts');
   });
+
+  it('adds opt-in workweek configuration and scoped dependency invalidation', () => {
+    const migration = DATABASE_MIGRATIONS.find((item) => item.version === 8);
+    expect(migration?.name).toBe('workweek_aware_salary');
+    expect(migration?.sql).toContain('workweek_start_weekday INTEGER NOT NULL DEFAULT 0');
+    expect(migration?.sql).toContain('weekly_overtime_enabled INTEGER NOT NULL DEFAULT 0');
+    expect(migration?.sql).toContain('weekly_regular_minutes INTEGER');
+    expect(migration?.sql).toContain('weekly_overtime_multiplier_basis_points INTEGER');
+    expect(migration?.sql).toContain("weekly_overtime_basis TEXT NOT NULL DEFAULT 'net'");
+    expect(migration?.sql).toContain("json_each(target_snapshot.result_json, '$.workweekAllocations')");
+    expect(migration?.sql).toContain('mark_later_weekly_salary_dependencies_stale');
+    expect(migration?.sql).toContain('mark_later_weekly_salary_dependencies_stale_after_snapshot_insert');
+    expect(migration?.sql).toContain('mark_later_salary_dependencies_stale_before_delete');
+    expect(migration?.sql).not.toContain('UPDATE salary_calculation_snapshots SET result_json');
+  });
 });

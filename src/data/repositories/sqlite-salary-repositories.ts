@@ -15,6 +15,8 @@ interface SalaryProfileRow {
   id: string; workplace_id: string | null; name: string; currency: string; timezone: string;
   standard_hourly_rate_minor: number; default_travel_reimbursement_minor: number; default_shift_bonus_minor: number;
   calculation_rounding_mode: 'half_up' | 'floor' | 'ceiling'; break_policy: 'paid' | 'unpaid' | 'perBreak';
+  workweek_start_weekday: number; weekly_overtime_enabled: number; weekly_regular_minutes: number | null;
+  weekly_overtime_multiplier_basis_points: number | null; weekly_overtime_basis: 'net' | 'gross';
   effective_from: string | null; effective_to: string | null; is_active: number; is_archived: number; created_at: string; updated_at: string;
 }
 interface PayRuleRow {
@@ -57,17 +59,23 @@ export class SqliteSalaryProfileRepository implements SalaryProfileRepository {
   private async save(input: SalaryProfile, insertOnly: boolean): Promise<void> {
     const profile = salaryProfileSchema.parse(input);
     const sql = `INSERT INTO salary_profiles (id, workplace_id, name, currency, standard_hourly_rate_minor, break_policy, timezone,
-      default_travel_reimbursement_minor, default_shift_bonus_minor, calculation_rounding_mode, effective_from, effective_to,
-      is_active, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      default_travel_reimbursement_minor, default_shift_bonus_minor, calculation_rounding_mode, workweek_start_weekday,
+      weekly_overtime_enabled, weekly_regular_minutes, weekly_overtime_multiplier_basis_points, weekly_overtime_basis,
+      effective_from, effective_to, is_active, is_archived, created_at, updated_at) VALUES (${Array.from({ length: 21 }, () => '?').join(', ')})
       ${insertOnly ? '' : `ON CONFLICT(id) DO UPDATE SET workplace_id=excluded.workplace_id, name=excluded.name, currency=excluded.currency,
       standard_hourly_rate_minor=excluded.standard_hourly_rate_minor, break_policy=excluded.break_policy, timezone=excluded.timezone,
       default_travel_reimbursement_minor=excluded.default_travel_reimbursement_minor, default_shift_bonus_minor=excluded.default_shift_bonus_minor,
-      calculation_rounding_mode=excluded.calculation_rounding_mode, effective_from=excluded.effective_from, effective_to=excluded.effective_to,
+      calculation_rounding_mode=excluded.calculation_rounding_mode, workweek_start_weekday=excluded.workweek_start_weekday,
+      weekly_overtime_enabled=excluded.weekly_overtime_enabled, weekly_regular_minutes=excluded.weekly_regular_minutes,
+      weekly_overtime_multiplier_basis_points=excluded.weekly_overtime_multiplier_basis_points, weekly_overtime_basis=excluded.weekly_overtime_basis,
+      effective_from=excluded.effective_from, effective_to=excluded.effective_to,
       is_active=excluded.is_active, is_archived=excluded.is_archived, updated_at=excluded.updated_at`};`;
     if (!profile.workplaceId) throw new Error('New salary profiles require a workplace.');
     await this.database.runAsync(sql, profile.id, profile.workplaceId, profile.name, profile.currency, profile.baseHourlyRateMinor,
       profile.breakPolicy, profile.timezone, profile.defaultTravelReimbursementMinor, profile.defaultShiftBonusMinor,
-      profile.calculationRoundingMode, profile.effectiveFrom ?? null, profile.effectiveTo ?? null, profile.isActive ? 1 : 0,
+      profile.calculationRoundingMode, profile.workweekStartWeekday, profile.weeklyOvertimeEnabled ? 1 : 0,
+      profile.weeklyRegularMinutes ?? null, profile.weeklyOvertimeMultiplierBasisPoints ?? null, profile.weeklyOvertimeBasis,
+      profile.effectiveFrom ?? null, profile.effectiveTo ?? null, profile.isActive ? 1 : 0,
       profile.isArchived ? 1 : 0, profile.createdAt, profile.updatedAt);
   }
 }
@@ -122,7 +130,11 @@ export class SqliteSalaryCalculationRepository implements SalaryCalculationRepos
 function mapProfile(row: SalaryProfileRow): SalaryProfile { return salaryProfileSchema.parse({ id: row.id, workplaceId: row.workplace_id ?? undefined,
   name: row.name, currency: row.currency, timezone: row.timezone, baseHourlyRateMinor: row.standard_hourly_rate_minor,
   defaultTravelReimbursementMinor: row.default_travel_reimbursement_minor, defaultShiftBonusMinor: row.default_shift_bonus_minor,
-  calculationRoundingMode: row.calculation_rounding_mode, breakPolicy: row.break_policy, effectiveFrom: row.effective_from ?? undefined,
+  calculationRoundingMode: row.calculation_rounding_mode, breakPolicy: row.break_policy,
+  workweekStartWeekday: row.workweek_start_weekday, weeklyOvertimeEnabled: row.weekly_overtime_enabled === 1,
+  weeklyRegularMinutes: row.weekly_regular_minutes ?? undefined,
+  weeklyOvertimeMultiplierBasisPoints: row.weekly_overtime_multiplier_basis_points ?? undefined,
+  weeklyOvertimeBasis: row.weekly_overtime_basis, effectiveFrom: row.effective_from ?? undefined,
   effectiveTo: row.effective_to ?? undefined, isActive: row.is_active === 1, isArchived: row.is_archived === 1, createdAt: row.created_at, updatedAt: row.updated_at }); }
 function toRuleParams(rule: PayRule): SQLiteBindValue[] { return [rule.id, rule.salaryProfileId, rule.name, rule.priority, JSON.stringify(rule.conditions), JSON.stringify(rule.effect), rule.canStack ? 1 : 0, rule.isEnabled ? 1 : 0, rule.effectiveFrom ?? null, rule.effectiveTo ?? null, rule.createdAt, rule.updatedAt]; }
 function mapRule(row: PayRuleRow): PayRule { return payRuleSchema.parse({ id: row.id, salaryProfileId: row.salary_profile_id, name: row.name,
