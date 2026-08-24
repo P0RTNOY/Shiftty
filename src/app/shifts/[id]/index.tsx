@@ -117,7 +117,12 @@ export default function ShiftDetailsScreen() {
       templateName={templates.find((item) => item.id === shift.shiftTemplateId)?.name}
       workplaceName={workplaces.find((item) => item.id === shift.workplaceId)?.name ?? '—'}
     /> : null}
-    {shift ? <SalaryBreakdown result={salary.summary?.resultsByShiftId[shift.id]} status={shift.salaryCalculationStatus} onRecalculate={shift.status === 'completed' ? () => void recalculateSalary() : undefined} /> : null}
+    {shift ? <SalaryBreakdown
+      onOpenSalarySettings={() => router.push('/settings/salary')}
+      onRecalculate={shift.status === 'completed' ? () => void recalculateSalary() : undefined}
+      result={salary.summary?.resultsByShiftId[shift.id]}
+      status={shift.salaryCalculationStatus}
+    /> : null}
     <RecurrenceScopeChooser onChoose={(scope) => pendingAction ? void applyAction(pendingAction, scope) : undefined} onDismiss={() => setPendingAction(null)} visible={pendingAction !== null} />
   </AppScreen>;
 }

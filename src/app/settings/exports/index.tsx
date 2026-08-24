@@ -36,7 +36,11 @@ export default function ExportsScreen() {
       } else if (format === 'pdf') {
         await processPdf({ html: generateMonthlyReportPdfHtml(report, locale), filename: `shiftty-report-${month}.pdf`, action: 'share' });
       } else {
-        await shareFile({ filename: `shiftty-shifts-${month}.ics`, content: generateIcs(report.rows.map((row) => row.shift)), mimeType: 'text/calendar' });
+        await shareFile({
+          filename: `shiftty-shifts-${month}.ics`,
+          content: generateIcs(report.rows.map((row) => row.shift), { fallbackTitle: t('exports.icsFallbackTitle') }),
+          mimeType: 'text/calendar',
+        });
       }
     } catch (caught) {
       reportUnexpectedError(`export.${format}`, caught);

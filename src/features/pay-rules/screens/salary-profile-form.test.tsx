@@ -11,6 +11,10 @@ describe('salary profile form', () => {
   beforeEach(() => { mockCreate.mockClear(); mockListByWorkplace.mockClear(); });
   it('uses Hebrew accessible currency fields and persists exact minor units', async () => {
     renderApp(<SalaryProfilesScreen />);
+    const assumptions = screen.getByRole('button', { name: 'איך חושב הסכום?' });
+    expect(assumptions.props.accessibilityState).toEqual({ expanded: false });
+    fireEvent.press(assumptions);
+    expect(screen.getByText('מה עדיין לא מחושב במלואו')).toBeTruthy();
     fireEvent.changeText(screen.getByLabelText('שם פרופיל'), 'שכר קיץ');
     fireEvent.changeText(screen.getByLabelText('תעריף שעתי'), '58.50');
     fireEvent.press(screen.getByRole('button', { name: 'יצירת פרופיל שכר' }));

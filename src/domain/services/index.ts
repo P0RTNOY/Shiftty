@@ -21,6 +21,7 @@ export * from './payable-time-service';
 export * from './rate-resolution-service';
 export * from './salary-calculation-service';
 export * from './salary-forecast-service';
+export * from './salary-trust-service';
 export * from './holiday-provider';
 export * from './week-calendar-service';
 export * from './workplace-setup-service';

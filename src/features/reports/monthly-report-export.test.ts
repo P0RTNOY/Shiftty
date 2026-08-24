@@ -23,9 +23,14 @@ function reportFixture() {
     actualStart: '2026-08-06T17:20:00+03:00', actualEnd: '2026-08-07T05:20:00+03:00',
     payableStart: '2026-08-06T17:20:00+03:00', payableEnd: '2026-08-07T05:20:00+03:00', payableBreakMinutes: 0,
   });
+  const zero = createShift({
+    id: 'zero', status: 'completed', salaryCalculationStatus: 'finalized',
+    actualStart: '2026-08-08T08:00:00+03:00', actualEnd: '2026-08-08T09:00:00+03:00',
+    payableStart: '2026-08-08T08:00:00+03:00', payableEnd: '2026-08-08T09:00:00+03:00', payableBreakMinutes: 0,
+  });
   return buildMonthlyReport({
     month: '2026-08', timezone: 'Asia/Jerusalem', generatedAt: '2026-08-12T10:00:00+03:00',
-    shifts: [final, missing, overnight], snapshots: [snapshot(final.id, 42_500), snapshot(overnight.id, 72_000)],
+    shifts: [final, missing, overnight, zero], snapshots: [snapshot(final.id, 42_500), snapshot(overnight.id, 72_000), snapshot(zero.id, 0)],
     workplaces: [{ id: 'workplace-1', name: 'קפה' } as never], roles: [],
   });
 }
@@ -39,8 +44,24 @@ describe('monthly report exports', () => {
     expect(lines[1]).toContain('2026-08-04');
     expect(lines[1]).toContain('10:30');
     expect(lines[1]).toContain('425.00');
+    expect(lines[0]).toContain('שכר ברוטו משוער');
+    expect(lines[0]).toContain('הערה על הערכת השכר');
+    expect(lines[1]).toContain('סכומי השכר הם הערכות המבוססות על הגדרות השכר שהזנת.');
+    expect(lines.join('\n').match(/סכומי השכר הם הערכות המבוססות על הגדרות השכר שהזנת\./g)).toHaveLength(1);
     expect(lines[2]).toContain('חישוב חסר');
     expect(lines[2]!.endsWith(',')).toBe(true);
+    expect(lines[4]).toContain('0.00');
+  });
+
+  it('uses honest English estimate terminology and includes the concise CSV note once', () => {
+    const csv = generateMonthlyReportCsv(reportFixture(), 'en');
+
+    expect(csv).toContain('Estimated-pay status');
+    expect(csv).toContain('Estimated gross pay');
+    expect(csv).toContain('Estimated-pay note');
+    expect(csv).toContain('Estimated,425.00');
+    expect(csv.match(/Pay amounts are estimates based on the pay settings you configured\./g)).toHaveLength(1);
+    expect(csv).not.toContain('Final');
   });
 
   it('includes the local exit date when a shift crosses midnight', () => {
@@ -59,11 +80,24 @@ describe('monthly report exports', () => {
 
     expect(html).toContain('<html dir="rtl" lang="he">');
     expect(html).toContain('אוגוסט 2026');
+    expect(html).toContain('שכר ברוטו משוער');
+    expect(html).toContain('סה״כ שכר ברוטו משוער');
+    expect(html.match(/סכומי השכר הם הערכות המבוססות על הגדרות השכר שהזנת\./g)).toHaveLength(1);
     expect(html).toContain('לא זמין');
     expect(html).toContain('08:00-09:00');
     expect(html).toContain('display: table-header-group');
     expect(html).toContain('page-break-inside: avoid');
     expect((html.match(/<tr>/g) ?? []).length).toBeGreaterThanOrEqual(121);
     expect(html).not.toContain('חתימת עובד');
+  });
+
+  it('uses honest English estimate terminology and includes the concise PDF note once', () => {
+    const html = generateMonthlyReportPdfHtml(reportFixture(), 'en');
+
+    expect(html).toContain('Estimated-pay status');
+    expect(html).toContain('Estimated gross pay');
+    expect(html).toContain('Total estimated gross pay');
+    expect(html.match(/Pay amounts are estimates based on the pay settings you configured\./g)).toHaveLength(1);
+    expect(html).not.toContain('>Final<');
   });
 });

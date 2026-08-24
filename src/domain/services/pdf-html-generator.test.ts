@@ -40,6 +40,7 @@ describe('pdf-html-generator', () => {
       const result = generatePdfHtml({
         ...baseOptions,
         subtitle: 'חודש אוגוסט',
+        note: 'הסכום <משוער> & אינו תלוש',
         totals: [
           { label: 'סה"כ שעות', value: '15:00' },
           { label: 'שכר כולל', value: '₪ 500' }
@@ -49,6 +50,8 @@ describe('pdf-html-generator', () => {
       expect(result).toContain('חודש אוגוסט');
       expect(result).toContain('סה&quot;כ שעות');
       expect(result).toContain('₪ 500');
+      expect(result).toContain('<p class="note">הסכום &lt;משוער&gt; &amp; אינו תלוש</p>');
+      expect(result).toContain('break-inside: avoid');
     });
 
     it('does not add irrelevant signature fields to a data export', () => {
@@ -59,13 +62,14 @@ describe('pdf-html-generator', () => {
 
     it('keeps every escaped row in a long RTL report with multipage-safe table styles', () => {
       const rows = Array.from({ length: 120 }, (_, index) => [`${index + 1}`, `משמרת <${index + 1}>`]);
-      const result = generatePdfHtml({ title: 'דוח ארוך', headers: ['מספר', 'כותרת'], rows });
+      const result = generatePdfHtml({ title: 'דוח ארוך', note: 'הערה יחידה', headers: ['מספר', 'כותרת'], rows });
 
       expect(result).toContain('<html dir="rtl" lang="he">');
       expect(result).toContain('display: table-header-group');
       expect(result).toContain('page-break-inside: avoid');
       expect((result.match(/<tr>/g) ?? []).length).toBe(121);
       expect(result).toContain('משמרת &lt;120&gt;');
+      expect(result.match(/הערה יחידה/g)).toHaveLength(1);
     });
   });
 });

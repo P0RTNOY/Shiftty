@@ -2,6 +2,35 @@
 
 Last updated: 2026-08-24
 
+## Salary Trust Foundation — 2026-08-24
+
+Salary-bearing screens and exports now identify Shiftty's figures as transparent gross estimates without changing the underlying salary arithmetic.
+
+- A pure read-time classifier derives `unavailable`, `basic_estimate`, or `configured_estimate` from the existing result, issue provenance, and calculation status. Trust state is not persisted.
+- Hebrew and English UI copy consistently uses estimate terminology. A reusable, accessible RTL/LTR disclosure explains the assumptions included in each calculation and the limits that are not fully modeled.
+- The default 8-hour/125%/150% overtime schedule now records its own visible provenance and points users to Salary Settings. The default remains a product assumption, not a legal rule.
+- Salary Settings, Shift Details, active tracking, quick clock-out, Home, and Reports share the same trust presentation. Missing, incomplete, and stale results remain explicit and non-numeric; a valid finalized zero remains numeric zero.
+- Monthly reports, PDF, and CSV use localized estimated-gross terminology and include the estimate note once. ICS export is strictly calendar-only and contains no financial claims.
+- Finalized salary snapshots remain authoritative historical records. The milestone does not rewrite historical result JSON, recalculate saved totals, add a migration, persist trust state, or change the version 1 backup format or its merge/replace behavior.
+- Weekly overtime, automatic Israeli holiday determination, employer-specific agreements, deductions, tax, pension, National Insurance, and net pay are not fully modeled. The feature therefore makes no Israeli labor-law compliance claim.
+
+The implementation and boundaries are documented in `docs/salary-trust-foundation.md`. The recommended next milestone is an opt-in, workweek-aware salary engine with configurable weekly thresholds and deterministic daily/weekly interaction.
+
+Fresh repository verification:
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed with zero errors/warnings |
+| `npm test -- --runInBand` | Passed; 112 suites, 520 tests, 0 failures |
+| `npm run validate:migrations` | Passed for empty, v1–v6, and current v7 databases |
+| `npm run validate:expo` | Passed; web export produced 36 static routes |
+| `npx expo install --check` | Reports the accepted baseline of eight SDK 57 patch-level dependency updates; dependencies were intentionally left unchanged |
+| `npx expo config --type public` | Passed; SDK 57.0.0 with iOS, Android, and web targets |
+| `git diff --check` | Passed |
+
+No native Simulator or physical-device verification was performed for this documentation completion pass. The Salary Trust changes are covered by domain, component, report/export, localization, accessibility, RTL/LTR, and static terminology tests.
+
 ## Predefined shift types and pay multipliers — 2026-08-24
 
 The existing Shift Templates architecture now provides the user-facing **Shift Types / סוגי משמרת** feature without creating a parallel scheduling model.

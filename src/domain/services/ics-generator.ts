@@ -3,10 +3,10 @@ import { format, parseISO } from 'date-fns';
 import { tz } from '@date-fns/tz';
 
 export interface IcsExportOptions {
-  includeSalary?: boolean;
+  fallbackTitle: string;
 }
 
-export function generateIcs(shifts: Shift[], options?: IcsExportOptions): string {
+export function generateIcs(shifts: Shift[], options: IcsExportOptions): string {
   let ics = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Shiftty//App//HE\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\n`;
 
   for (const shift of shifts) {
@@ -17,7 +17,7 @@ export function generateIcs(shifts: Shift[], options?: IcsExportOptions): string
   return ics;
 }
 
-function generateIcsEvent(shift: Shift, options?: IcsExportOptions): string {
+function generateIcsEvent(shift: Shift, options: IcsExportOptions): string {
   // Use payable, actual, or scheduled times in that order of preference
   const startIso = shift.payableStart || shift.actualStart || shift.scheduledStart;
   const endIso = shift.payableEnd || shift.actualEnd || shift.scheduledEnd || shift.expectedEnd;
@@ -38,19 +38,14 @@ function generateIcsEvent(shift: Shift, options?: IcsExportOptions): string {
   // Stable UID based only on the persisted shift ID so calendar imports update moved events.
   const uid = `${shift.id}@shiftty.app`;
 
-  const summary = shift.title || 'משמרת';
-  
-  let descriptionParts = [];
+  const summary = shift.title || options.fallbackTitle;
+
+  const descriptionParts: string[] = [];
   if (shift.notes) {
     descriptionParts.push(shift.notes);
   }
-  
-  if (options?.includeSalary && shift.status === 'completed' && shift.payableGrossPayMinor !== undefined) {
-    const amount = (shift.payableGrossPayMinor / 100).toFixed(2);
-    descriptionParts.push(`שכר משוער: ₪${amount}`);
-  }
 
-  const description = descriptionParts.length > 0 
+  const description = descriptionParts.length > 0
     ? escapeIcsText(descriptionParts.join('\n'))
     : '';
 

@@ -8,6 +8,8 @@ The application includes onboarding, workplaces and roles, shift planning and li
 
 The corrected candidate has a real Shiftty icon, zero-break defaults, an uninterrupted active-break experience, Hebrew weekdays, one Add Shift flow, predefined shift types, and a simplified salary-first monthly report. Salary engine `1.3.0` transparently defaults to 8 net hours at the normal rate, the next 2 at 125%, and the next 2 at 150%, with a 12-hour maximum for new/manual shifts; configured or disabled threshold rules override both tiers. Android verification and distribution details are tracked separately in the project status.
 
+The Salary Trust Foundation labels every salary figure as unavailable, a basic estimate, or an estimate using configured settings. A reusable Hebrew/English assumptions disclosure explains what is included and what is not fully modeled; reports, PDF, and CSV keep missing/stale states explicit, while ICS remains calendar-only. This presentation layer does not change totals, persist trust state, rewrite snapshots, or claim legal compliance. See [`docs/salary-trust-foundation.md`](docs/salary-trust-foundation.md).
+
 See [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the current evidence-based milestone and known gaps, and [`DOGFOODING.md`](DOGFOODING.md) for the frozen-candidate launch and daily-use checklist. The frontend audit and approved simplification sequence are in [`docs/frontend-audit.md`](docs/frontend-audit.md) and [`docs/frontend-simplification-plan.md`](docs/frontend-simplification-plan.md).
 
 ## Development

@@ -30,14 +30,14 @@ describe('ReportsScreen', () => {
 
   afterAll(() => jest.useRealTimers());
 
-  it('shows a focused authoritative monthly report and one export path', () => {
+  it('shows a focused monthly estimated-pay report and one export path', () => {
     renderApp(<ReportsScreen />);
 
     expect(screen.getByRole('header', { name: 'אוגוסט 2026' })).toBeTruthy();
     expect(screen.getByText('משמרת אחת הושלמה')).toBeTruthy();
     expect(screen.getByText('12 שעות עבודה')).toBeTruthy();
     const formattedSalary = new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(1170);
-    expect(screen.getByText(`${formattedSalary} שכר`)).toBeTruthy();
+    expect(screen.getByText(`סה״כ שכר משוער: ${formattedSalary}`)).toBeTruthy();
     expect(screen.getByText(/שבת/)).toBeTruthy();
     expect(screen.getByText('12:00 שעות')).toBeTruthy();
     expect(screen.getByText('קפה')).toBeTruthy();
@@ -54,7 +54,7 @@ describe('ReportsScreen', () => {
 
     renderApp(<ReportsScreen />);
 
-    expect(screen.getByText('שכר לא זמין עבור משמרת אחת')).toBeTruthy();
+    expect(screen.getByText('הערכת שכר לא זמינה עבור משמרת אחת')).toBeTruthy();
 
     mockReport.totals.salaryIssueCount = 0;
     mockReport.totals.salaryMinor = mockReport.totals.availableSalaryMinor;

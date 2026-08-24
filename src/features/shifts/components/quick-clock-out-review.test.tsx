@@ -20,6 +20,7 @@ describe('QuickClockOutReview', () => {
     />);
 
     expect(screen.getByText('סיימת משמרת')).toBeTruthy();
+    expect(screen.getByText('שכר משוער')).toBeTruthy();
     expect(screen.getByText('₪157.50')).toBeTruthy();
     fireEvent.press(screen.getByRole('button', { name: 'שמור' }));
     expect(onSave).toHaveBeenCalledTimes(1);

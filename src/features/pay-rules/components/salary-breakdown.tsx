@@ -5,30 +5,33 @@ import type { PayCalculationResult, SalaryCalculationStatus } from '@/domain/ent
 import {
   DEFAULT_OVERTIME_TIER_ONE_RULE_NAME,
   DEFAULT_OVERTIME_TIER_TWO_RULE_NAME,
+  deriveSalaryTrustState,
 } from '@/domain/services';
+import { SalaryTrustDisclosure } from '@/features/pay-rules/components/salary-trust-disclosure';
 import { PrimaryButton, SecondaryButton } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { radius, spacing, typography, useAppTheme } from '@/shared/theme';
 import { formatDurationLong } from '@/shared/utils/duration-format';
 
-export function SalaryBreakdown({ result, status, onRecalculate }: { result?: PayCalculationResult; status: SalaryCalculationStatus; onRecalculate?: () => void }) {
+export function SalaryBreakdown({ result, status, onRecalculate, onOpenSalarySettings }: { result?: PayCalculationResult; status: SalaryCalculationStatus; onRecalculate?: () => void; onOpenSalarySettings?: () => void }) {
   const { colors } = useAppTheme();
   const { formatCurrency, isRtl, locale, t } = useTranslation();
   const [showDetails, setShowDetails] = useState(false);
   const align = isRtl ? 'right' : 'left';
   const exceedsMaximumDuration = result?.issues.some((issue) => issue.code === 'shift_duration_exceeds_maximum');
-  if (!result || result.totalGrossPayMinor === undefined) {
+  const trustState = deriveSalaryTrustState(result, status);
+  if (trustState === 'unavailable' || !result || result.totalGrossPayMinor === undefined) {
     return <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.warning }]}>
-      <Text accessibilityRole="alert" style={[styles.title, { color: colors.warning, textAlign: align }]}>{t('salary.missingConfig')}</Text>
+      <Text accessibilityRole="alert" style={[styles.title, { color: colors.warning, textAlign: align }]}>{t(status === 'stale' ? 'salary.stale' : 'salary.trustUnavailable')}</Text>
       {exceedsMaximumDuration ? <Text style={[styles.warning, { color: colors.warning, textAlign: align }]}>{t('salary.issues.shiftDurationExceedsMaximum')}</Text> : null}
       {onRecalculate ? <PrimaryButton label={t('salary.recalculate')} onPress={onRecalculate} /> : null}
+      <SalaryTrustDisclosure onOpenSalarySettings={onOpenSalarySettings} result={result} status={status} />
     </View>;
   }
 
   const statusKey = status === 'finalized' ? 'salary.finalized' : status === 'stale' ? 'salary.stale' : 'salary.estimateOnly';
-  const summaryStatus = status === 'finalized' ? t('salary.finalPay') : status === 'stale' ? t('salary.stale') : t('salary.estimatedPay');
+  const summaryStatus = t('salary.estimatedPay');
   const hasLegacyBaseOnlyCalculation = result.issues.some((issue) => issue.code === 'no_pay_rules_configured');
-  const hasDefaultOvertime = result.issues.some((issue) => issue.code === 'default_overtime_applied');
   const shiftTypeMultiplier = result.shiftTypeMultiplierBasisPoints ?? 10_000;
   const effectiveShiftTypeRate = result.resolvedBaseHourlyRateMinor === undefined
     ? undefined
@@ -43,9 +46,9 @@ export function SalaryBreakdown({ result, status, onRecalculate }: { result?: Pa
     <Row label={t('salary.shiftTypeMultiplier')} value={`${shiftTypeMultiplier / 100}%`} />
     {effectiveShiftTypeRate !== undefined ? <Row label={t('salary.effectiveHourlyRate')} value={formatCurrency(effectiveShiftTypeRate)} /> : null}
     {hasLegacyBaseOnlyCalculation ? <Text accessibilityRole="alert" style={[styles.warning, { color: colors.warning, textAlign: align }]}>{t('salary.noPayRules')}</Text> : null}
-    {hasDefaultOvertime ? <Text accessibilityRole="alert" style={[styles.warning, { color: colors.warning, textAlign: align }]}>{t('salary.defaultOvertimeApplied')}</Text> : null}
     {hasLegacyBaseOnlyCalculation && onRecalculate ? <PrimaryButton label={t('salary.applyDefaultOvertime')} onPress={onRecalculate} /> : null}
-    <SecondaryButton label={showDetails ? t('salary.hideDetails') : t('salary.showDetails')} onPress={() => setShowDetails((value) => !value)} />
+    <SalaryTrustDisclosure onOpenSalarySettings={onOpenSalarySettings} result={result} status={status} />
+    <SecondaryButton label={showDetails ? t('salary.hideBreakdown') : t('salary.showBreakdown')} onPress={() => setShowDetails((value) => !value)} />
 
     {showDetails ? <View style={styles.details}>
       <Text accessibilityLabel={t(statusKey)} style={{ color: status === 'stale' ? colors.warning : colors.textMuted, textAlign: align }}>{t(statusKey)}</Text>

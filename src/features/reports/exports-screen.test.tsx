@@ -37,6 +37,8 @@ describe('ExportsScreen', () => {
     expect(input.filename).toBe('shiftty-report-2026-08.csv');
     expect(input.content).toContain('2026-08-05');
     expect(input.content).not.toContain('2026-08-05T08:00:00+03:00');
-    expect(input.content.trim().endsWith(',')).toBe(true);
+    const shiftLine = input.content.split('\r\n').find((line) => line.startsWith('2026-08-05'))!;
+    expect(shiftLine.split(',')[9]).toBe('');
+    expect(shiftLine).toContain('סכומי השכר הם הערכות המבוססות על הגדרות השכר שהזנת.');
   });
 });

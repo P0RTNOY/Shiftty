@@ -21,6 +21,7 @@ const mockCompletedShift = createShift({
   payableBreakMinutes: 0,
   payableSource: 'actual',
   completedAt: '2026-08-09T16:00:00+03:00',
+  salaryCalculationStatus: 'finalized',
 });
 
 jest.mock('expo-router', () => ({
@@ -44,8 +45,17 @@ jest.mock('@/features/workplaces/hooks/use-workplaces', () => ({
   useWorkplaces: () => ({ workplaces: [{ id: 'workplace-1', name: 'Workplace' }], roles: [] }),
 }));
 jest.mock('@/features/pay-rules', () => ({
-  SalaryBreakdown: () => null,
-  useSalaryDashboard: () => ({ summary: undefined, coordinator: {} }),
+  ...jest.requireActual('@/features/pay-rules'),
+  useSalaryDashboard: () => {
+    const { calculateSalary } = jest.requireActual('@/domain/services');
+    const { createSalaryProfile } = jest.requireActual('@/test/fixtures');
+    const result = calculateSalary({
+      shift: mockCompletedShift,
+      profile: createSalaryProfile({ baseHourlyRateMinor: 6_000 }),
+      rules: [], breaks: [], holidayIntervals: [], calculatedAt: '2026-08-09T16:00:00+03:00',
+    });
+    return { summary: { resultsByShiftId: { [mockCompletedShift.id]: result } }, coordinator: {} };
+  },
 }));
 
 describe('ShiftDetailsScreen deletion', () => {
@@ -60,5 +70,15 @@ describe('ShiftDetailsScreen deletion', () => {
     await waitFor(() => expect(mockDeleteMany).toHaveBeenCalledWith([mockCompletedShift.id]));
     expect(mockClear).toHaveBeenCalledTimes(1);
     expect(router.replace).toHaveBeenCalledWith('/calendar');
+  });
+
+  it('presents a finalized snapshot as estimated pay and links assumptions to Salary Settings', () => {
+    renderApp(<ShiftDetailsScreen />);
+
+    expect(screen.getByRole('header', { name: 'הערכת שכר למשמרת' })).toBeTruthy();
+    expect(screen.getByText('שכר משוער')).toBeTruthy();
+    expect(screen.queryByText('שכר סופי')).toBeNull();
+    fireEvent.press(screen.getByRole('button', { name: 'פתיחת הגדרות שכר' }));
+    expect(router.push).toHaveBeenCalledWith('/settings/salary');
   });
 });

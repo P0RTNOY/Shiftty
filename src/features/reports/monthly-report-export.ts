@@ -1,22 +1,12 @@
 import { generateCsv } from '@/domain/services/csv-generator';
 import { generatePdfHtml } from '@/domain/services/pdf-html-generator';
 import type { MonthlyReport, ReportSalaryStatus } from '@/features/reports/monthly-report-service';
+import { en, he } from '@/shared/i18n/translations';
 import { formatMonth, formatTime, type DateTimeLocale } from '@/shared/utils/date-time-format';
 import { formatLocalDateKey } from '@/shared/utils/zoned-time';
 
-const copy = {
-  he: {
-    title: 'דוח משמרות', date: 'תאריך', start: 'כניסה', end: 'יציאה', duration: 'שעות בתשלום', breaks: 'הפסקות', workplace: 'מקום עבודה', role: 'תפקיד', shift: 'משמרת', salaryStatus: 'מצב שכר', salary: 'שכר ברוטו', shifts: 'משמרות', totalHours: 'סה״כ שעות בתשלום', totalBreaks: 'סה״כ הפסקות', totalSalary: 'סה״כ שכר ברוטו', unavailable: 'לא זמין', generated: 'הופק',
-    statuses: { available: 'סופי', missing: 'חישוב חסר', stale: 'חישוב לא מעודכן', incomplete: 'חישוב לא שלם' },
-  },
-  en: {
-    title: 'Shift report', date: 'Date', start: 'Start', end: 'End', duration: 'Paid hours', breaks: 'Breaks', workplace: 'Workplace', role: 'Role', shift: 'Shift', salaryStatus: 'Salary status', salary: 'Gross salary', shifts: 'Shifts', totalHours: 'Total paid hours', totalBreaks: 'Total breaks', totalSalary: 'Total gross salary', unavailable: 'Unavailable', generated: 'Generated',
-    statuses: { available: 'Final', missing: 'Missing calculation', stale: 'Outdated calculation', incomplete: 'Incomplete calculation' },
-  },
-} as const;
-
 export function generateMonthlyReportCsv(report: MonthlyReport, locale: DateTimeLocale): string {
-  const labels = copy[locale];
+  const labels = exportLabels(locale);
   return generateCsv({
     columns: [
       { key: 'date', header: labels.date },
@@ -27,10 +17,11 @@ export function generateMonthlyReportCsv(report: MonthlyReport, locale: DateTime
       { key: 'workplace', header: labels.workplace, isUserText: true },
       { key: 'role', header: labels.role, isUserText: true },
       { key: 'title', header: labels.shift, isUserText: true },
-      { key: 'salaryStatus', header: labels.salaryStatus },
+      { key: 'salaryStatus', header: labels.estimateStatus },
       { key: 'salary', header: labels.salary },
+      { key: 'estimateNote', header: labels.noteHeader },
     ],
-    rows: report.rows.map((row) => ({
+    rows: report.rows.map((row, index) => ({
       date: formatLocalDateKey(row.start, report.timezone),
       start: formatTime(row.start, locale, report.timezone),
       end: formatExit(row.start, row.end, locale, report.timezone),
@@ -41,18 +32,20 @@ export function generateMonthlyReportCsv(report: MonthlyReport, locale: DateTime
       title: row.title ?? labels.shift,
       salaryStatus: labels.statuses[row.salaryStatus],
       salary: row.salaryMinor === undefined ? undefined : (row.salaryMinor / 100).toFixed(2),
+      estimateNote: index === 0 ? labels.estimateNote : undefined,
     })),
   });
 }
 
 export function generateMonthlyReportPdfHtml(report: MonthlyReport, locale: DateTimeLocale): string {
-  const labels = copy[locale];
+  const labels = exportLabels(locale);
   const salaryTotal = report.totals.salaryMinor === undefined
     ? `${labels.unavailable} (${report.totals.salaryIssueCount})`
     : formatCurrency(report.totals.salaryMinor, locale);
   return generatePdfHtml({
     title: labels.title,
     subtitle: `${formatMonth(report.month, locale)} · ${labels.generated} ${formatDateTime(report.generatedAt, locale, report.timezone)}`,
+    note: labels.estimateNote,
     direction: locale === 'he' ? 'rtl' : 'ltr',
     language: locale,
     totals: [
@@ -61,7 +54,7 @@ export function generateMonthlyReportPdfHtml(report: MonthlyReport, locale: Date
       { label: labels.totalBreaks, value: formatMinutes(report.totals.breakMinutes) },
       { label: labels.totalSalary, value: salaryTotal },
     ],
-    headers: [labels.date, labels.shift, labels.workplace, `${labels.start}–${labels.end}`, labels.duration, labels.breaks, labels.salaryStatus, labels.salary],
+    headers: [labels.date, labels.shift, labels.workplace, `${labels.start}–${labels.end}`, labels.duration, labels.breaks, labels.estimateStatus, labels.salary],
     rows: report.rows.map((row) => [
       formatLocalDateKey(row.start, report.timezone),
       row.title ?? labels.shift,
@@ -75,7 +68,38 @@ export function generateMonthlyReportPdfHtml(report: MonthlyReport, locale: Date
   });
 }
 
-function salaryStatusLabel(status: ReportSalaryStatus, locale: DateTimeLocale): string { return copy[locale].statuses[status]; }
+function salaryStatusLabel(status: ReportSalaryStatus, locale: DateTimeLocale): string { return exportLabels(locale).statuses[status]; }
+
+function exportLabels(locale: DateTimeLocale) {
+  const messages = locale === 'he' ? he : en;
+  return {
+    title: messages['exports.report.title'],
+    date: messages['exports.report.date'],
+    start: messages['exports.report.start'],
+    end: messages['exports.report.end'],
+    duration: messages['exports.report.duration'],
+    breaks: messages['exports.report.breaks'],
+    workplace: messages['exports.report.workplace'],
+    role: messages['exports.report.role'],
+    shift: messages['exports.report.shift'],
+    estimateStatus: messages['exports.report.estimateStatus'],
+    salary: messages['exports.report.estimatedGrossPay'],
+    shifts: messages['exports.report.shifts'],
+    totalHours: messages['exports.report.totalHours'],
+    totalBreaks: messages['exports.report.totalBreaks'],
+    totalSalary: messages['exports.report.totalEstimatedGrossPay'],
+    unavailable: messages['exports.report.unavailable'],
+    generated: messages['exports.report.generated'],
+    noteHeader: messages['exports.report.noteHeader'],
+    estimateNote: messages['exports.report.estimateNote'],
+    statuses: {
+      available: messages['exports.report.statusAvailable'],
+      missing: messages['exports.report.statusMissing'],
+      stale: messages['exports.report.statusStale'],
+      incomplete: messages['exports.report.statusIncomplete'],
+    } satisfies Record<ReportSalaryStatus, string>,
+  };
+}
 function formatExit(start: string, end: string, locale: DateTimeLocale, timezone: string): string {
   const endTime = formatTime(end, locale, timezone);
   const startDate = formatLocalDateKey(start, timezone);

@@ -1,6 +1,7 @@
 export interface PdfHtmlOptions {
   title: string;
   subtitle?: string;
+  note?: string;
   totals?: { label: string; value: string }[];
   headers: string[];
   rows: string[][];
@@ -9,7 +10,7 @@ export interface PdfHtmlOptions {
 }
 
 export function generatePdfHtml(options: PdfHtmlOptions): string {
-  const { title, subtitle, totals, headers, rows, direction = 'rtl', language = 'he' } = options;
+  const { title, subtitle, note, totals, headers, rows, direction = 'rtl', language = 'he' } = options;
 
   const html = `
 <!DOCTYPE html>
@@ -43,6 +44,15 @@ export function generatePdfHtml(options: PdfHtmlOptions): string {
       font-size: 14px;
       color: #64748b;
       margin: 0;
+    }
+    .note {
+      background-color: #f8fafc;
+      border: 1px solid #cbd5e1;
+      color: #475569;
+      margin: 0 0 14px 0;
+      padding: 8px;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     table {
       width: 100%;
@@ -89,6 +99,8 @@ export function generatePdfHtml(options: PdfHtmlOptions): string {
     <h1>${escapeHtml(title)}</h1>
     ${subtitle ? `<p class="subtitle">${escapeHtml(subtitle)}</p>` : ''}
   </div>
+
+  ${note ? `<p class="note">${escapeHtml(note)}</p>` : ''}
 
   ${totals && totals.length > 0 ? `
   <table class="totals">

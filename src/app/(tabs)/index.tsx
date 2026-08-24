@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
-import { buildEndShiftReview, createActiveShift, isActiveShiftStale, resolveClockInDecision, summarizeShifts } from '@/domain/services';
+import { buildEndShiftReview, createActiveShift, deriveSalaryTrustState, isActiveShiftStale, resolveClockInDecision, summarizeShifts } from '@/domain/services';
 import { ShiftCard } from '@/features/shifts/components/shift-card';
 import { ActiveShiftPanel } from '@/features/shifts/components/active-shift-panel';
 import { useActiveShift } from '@/features/shifts/hooks/use-active-shift';
@@ -59,6 +59,9 @@ export default function HomeScreen() {
   const activeExpectedEnd = candidateExpectedEnd && active.activeShift?.actualStart && Date.parse(candidateExpectedEnd) > Date.parse(active.activeShift.actualStart) ? candidateExpectedEnd : undefined;
   const activeExpectedSalaryShifts = useMemo(() => activeExpectedEnd ? activeSalaryShifts : [], [activeExpectedEnd, activeSalaryShifts]);
   const expectedSalary = useSalaryDashboard(activeExpectedSalaryShifts, active.activeShift ? now.toISOString() : calculatedAt, activeExpectedEnd);
+  const completedSalaryIsAvailable = summary.completedCount > 0 && shifts
+    .filter((item) => item.status === 'completed')
+    .every((item) => deriveSalaryTrustState(salary.summary?.resultsByShiftId[item.id], item.salaryCalculationStatus) !== 'unavailable');
 
   const startAtWorkplace = async (workplaceId: string) => {
     const workplace = workplaces.find((item) => item.id === workplaceId);
@@ -142,11 +145,13 @@ export default function HomeScreen() {
         breaks={active.breaks}
         busy={active.busy}
         estimatedPay={clockOutSalaryResult?.totalGrossPayMinor !== undefined ? formatCurrency(clockOutSalaryResult.totalGrossPayMinor) : undefined}
+        salaryResult={clockOutSalaryResult}
         onCancel={() => setClockOutAt(null)}
         onEdit={() => { setClockOutAt(null); router.push('/shifts/active/end'); }}
         onSave={() => void saveQuickClockOut()}
+        onOpenSalarySettings={() => router.push('/settings/salary')}
         shift={shift}
-      /> : <ActiveShiftPanel breaks={active.breaks} busy={active.busy} now={now} provisionalPay={activeSalaryResult?.totalGrossPayMinor !== undefined ? formatCurrency(activeSalaryResult.totalGrossPayMinor) : undefined} expectedPay={expectedSalary.summary?.resultsByShiftId[shift.id]?.totalGrossPayMinor !== undefined ? formatCurrency(expectedSalary.summary.resultsByShiftId[shift.id]!.totalGrossPayMinor!) : undefined} salaryIncomplete={activeSalaryResult?.totalGrossPayMinor === undefined} onChangeExpectedEnd={() => router.push('/shifts/active/expected-end')} onEndBreak={() => void invoke(() => active.endBreak(systemClock.now().toISOString()))} onEndShift={() => setClockOutAt(systemClock.now().toISOString())} onManageBreaks={() => router.push(`/shifts/${shift.id}/breaks`)} onOpenDetails={() => router.push(`/shifts/${shift.id}`)} onStartBreak={(paid) => void invoke(() => active.startBreak(paid, systemClock.now().toISOString()))} roleName={roles.find((item) => item.id === shift.roleId)?.name} shift={shift} workplaceName={workplaces.find((item) => item.id === shift.workplaceId)?.name ?? '—'} />}
+      /> : <ActiveShiftPanel breaks={active.breaks} busy={active.busy} now={now} provisionalPay={activeSalaryResult?.totalGrossPayMinor !== undefined ? formatCurrency(activeSalaryResult.totalGrossPayMinor) : undefined} expectedPay={expectedSalary.summary?.resultsByShiftId[shift.id]?.totalGrossPayMinor !== undefined ? formatCurrency(expectedSalary.summary.resultsByShiftId[shift.id]!.totalGrossPayMinor!) : undefined} salaryIncomplete={activeSalaryResult?.totalGrossPayMinor === undefined} salaryResult={activeSalaryResult} onChangeExpectedEnd={() => router.push('/shifts/active/expected-end')} onEndBreak={() => void invoke(() => active.endBreak(systemClock.now().toISOString()))} onEndShift={() => setClockOutAt(systemClock.now().toISOString())} onManageBreaks={() => router.push(`/shifts/${shift.id}/breaks`)} onOpenDetails={() => router.push(`/shifts/${shift.id}`)} onOpenSalarySettings={() => router.push('/settings/salary')} onStartBreak={(paid) => void invoke(() => active.startBreak(paid, systemClock.now().toISOString()))} roleName={roles.find((item) => item.id === shift.roleId)?.name} shift={shift} workplaceName={workplaces.find((item) => item.id === shift.workplaceId)?.name ?? '—'} />}
       {active.error ? <Text accessibilityRole="alert" style={{ color: colors.danger }}>{t('active.mutationError')}</Text> : null}
       {active.salaryError ? <Text accessibilityRole="alert" style={{ color: colors.warning }}>{t('salary.snapshotFailed')}</Text> : null}
     </AppScreen>;
@@ -179,7 +184,7 @@ export default function HomeScreen() {
         </Text>
         <View style={[styles.metrics, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}>
           <MetricCard label={t('home.completedHours')} value={formatDurationLong(summary.workedMinutes, locale)} />
-          {salary.summary ? <MetricCard emphasized label={t('home.earned')} value={formatCurrency(salary.summary.earnedMinor)} /> : null}
+          {salary.summary ? <MetricCard emphasized label={t('home.earned')} value={completedSalaryIsAvailable ? formatCurrency(salary.summary.earnedMinor) : t('common.notAvailable')} /> : null}
         </View>
       </View>
     </AppScreen>

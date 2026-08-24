@@ -51,16 +51,22 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
   const timezone = input.profile?.timezone ?? input.shift.timezone;
   const grossMinutes = differenceInMinutes(range.end, range.start);
   const breakSummary = resolveBreaks(input, range, context);
-  const rulesWithDefaultOvertime = hasConfiguredOvertimeRule(input.rules)
-    ? input.rules
-    : [...input.rules, ...createDefaultOvertimeRules(input)];
-  const enabledRules = rulesWithDefaultOvertime.filter((rule) => isRuleEnabledForRange(rule, range, timezone));
+  const usesDefaultOvertime = !hasConfiguredOvertimeRule(input.rules);
+  const resolvedRules = usesDefaultOvertime
+    ? [...input.rules, ...createDefaultOvertimeRules(input)]
+    : input.rules;
+  const enabledRules = resolvedRules.filter((rule) => isRuleEnabledForRange(rule, range, timezone));
   const boundaries = collectBoundaries(range, timezone, enabledRules, input.holidayIntervals, breakSummary.unpaidIntervals);
   const workIntervals = createWorkIntervals(boundaries, breakSummary.unpaidIntervals);
-  const issues: PayCalculationIssue[] = [];
+  const issues: PayCalculationIssue[] = usesDefaultOvertime ? [{
+    code: 'default_overtime_applied',
+    severity: 'warning',
+    messageKey: 'salary.defaultOvertimeApplied',
+  }] : [];
   const explanations = [
     context === 'completed' ? 'salary.explanations.used_payable_range' : context === 'scheduled' ? 'salary.explanations.used_scheduled_range' : 'salary.explanations.used_active_range',
     `salary.explanations.breaks:${breakSummary.unpaidMinutes}:${breakSummary.paidMinutes}`,
+    usesDefaultOvertime ? 'salary.explanations.default_overtime' : 'salary.explanations.configured_overtime',
   ];
   const sortedRules = [...enabledRules].sort(compareRules);
   const baseResolution = resolveHourlyRate({

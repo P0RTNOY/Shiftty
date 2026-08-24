@@ -29,7 +29,7 @@ export function ReportShiftRow({ shift, workplaceName, salaryMinor, salaryStatus
   try { durationMinutes ??= calculateShiftDuration(shift, durationKind)?.paidMinutes; } catch { durationMinutes = undefined; }
   const resolvedSalaryStatus = salaryStatus ?? (shift.salaryCalculationStatus === 'stale' ? 'stale' : salaryMinor === undefined ? 'missing' : 'available');
   const salaryText = salaryMinor !== undefined && resolvedSalaryStatus === 'available'
-    ? formatCurrency(salaryMinor)
+    ? t('reports.expectedAmount', { amount: formatCurrency(salaryMinor) })
     : t(resolvedSalaryStatus === 'stale' ? 'reports.salaryStale' : resolvedSalaryStatus === 'incomplete' ? 'reports.salaryIncomplete' : 'salary.missingConfig');
   const textAlign = isRtl ? 'right' : 'left';
 

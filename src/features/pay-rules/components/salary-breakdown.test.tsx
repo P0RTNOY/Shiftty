@@ -51,9 +51,9 @@ it('shows a simple salary estimate and discloses calculation details on request'
   expect(screen.queryByText('שכר בסיס')).toBeNull();
   expect(screen.queryByText(/1\.0\.0/)).toBeNull();
 
-  fireEvent.press(screen.getByRole('button', { name: 'פירוט שכר' }));
+  fireEvent.press(screen.getByRole('button', { name: 'פירוט סכומים' }));
   expect(screen.getByText('שכר בסיס')).toBeTruthy();
-  expect(screen.getByLabelText('הערכה בלבד')).toBeTruthy();
+  expect(screen.getByLabelText('הערכה בסיסית')).toBeTruthy();
   expect(screen.queryByText(/1\.0\.0/)).toBeNull();
   expect(screen.queryByText(/2026-07-15T22:00:00/)).toBeNull();
 });
@@ -61,15 +61,16 @@ it('shows a simple salary estimate and discloses calculation details on request'
 it('keeps stale and missing salary warnings visible without disclosure', () => {
   const { unmount } = renderApp(<SalaryBreakdown result={result} status="stale" />);
   expect(screen.getByText('החישוב אינו מעודכן')).toBeTruthy();
+  expect(screen.queryByText(new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(result.totalGrossPayMinor! / 100))).toBeNull();
   unmount();
 
   renderApp(<SalaryBreakdown onRecalculate={jest.fn()} status="estimated" />);
-  expect(screen.getByRole('alert', { name: 'חישוב שכר חסר' })).toBeTruthy();
+  expect(screen.getByRole('alert', { name: 'הערכת השכר אינה זמינה' })).toBeTruthy();
 });
 
 it('labels the 125% and 150% overtime tiers in the Hebrew breakdown', () => {
   renderApp(<SalaryBreakdown result={tieredResult} status="estimated" />);
-  fireEvent.press(screen.getByRole('button', { name: 'פירוט שכר' }));
+  fireEvent.press(screen.getByRole('button', { name: 'פירוט סכומים' }));
 
   expect(screen.getByText(/שעות נוספות 125%/)).toBeTruthy();
   expect(screen.getByText(/שעות נוספות 150%/)).toBeTruthy();

@@ -18,13 +18,13 @@ const completed = createShift({
 });
 
 describe('ReportShiftRow', () => {
-  it('shows localized date, duration, workplace, and authoritative per-shift salary', () => {
+  it('shows localized date, duration, workplace, and estimated pay for the shift', () => {
     renderApp(<ReportShiftRow onPress={jest.fn()} salaryMinor={117_000} shift={completed} workplaceName="קפה" />);
 
     expect(screen.getByText(/שבת/)).toBeTruthy();
     expect(screen.getByText('12:00 שעות')).toBeTruthy();
     expect(screen.getByText('קפה')).toBeTruthy();
-    expect(screen.getByText(new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(1170))).toBeTruthy();
+    expect(screen.getByText(`שכר משוער: ${new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(1170)}`)).toBeTruthy();
   });
 
   it('distinguishes missing, stale, and legitimate zero salary', () => {
@@ -38,7 +38,7 @@ describe('ReportShiftRow', () => {
     staleRender.unmount();
 
     renderApp(<ReportShiftRow onPress={jest.fn()} salaryMinor={0} shift={completed} workplaceName="קפה" />);
-    expect(screen.getByText(new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(0))).toBeTruthy();
+    expect(screen.getByText(`שכר משוער: ${new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(0)}`)).toBeTruthy();
     expect(screen.queryByText('חישוב שכר חסר')).toBeNull();
   });
 });

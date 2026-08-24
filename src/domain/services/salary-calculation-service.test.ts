@@ -14,7 +14,8 @@ const calculate = (shift = regularShift, rules: PayRule[] = [], extra = {}) => c
 describe('salary calculation engine', () => {
   it('calculates one regular future segment using minute/basis-point arithmetic', () => {
     const result = calculate();
-    expect(result).toMatchObject({ context: 'scheduled', grossMinutes: 480, payableMinutes: 480, regularMinutes: 480, specialRateMinutes: 0, basePayMinor: 48000, premiumPayMinor: 0, totalGrossPayMinor: 48000, issues: [] });
+    expect(result).toMatchObject({ context: 'scheduled', grossMinutes: 480, payableMinutes: 480, regularMinutes: 480, specialRateMinutes: 0, basePayMinor: 48000, premiumPayMinor: 0, totalGrossPayMinor: 48000 });
+    expect(result.issues).toContainEqual(expect.objectContaining({ code: 'default_overtime_applied', severity: 'warning' }));
     expect(result.segments).toHaveLength(1);
   });
 

@@ -1,6 +1,6 @@
 import type { ActiveShiftRepository, PayRuleRepository, SalaryCalculationRepository, SalaryProfileRepository, ShiftRepository, WorkplaceRepository } from '@/domain/repositories';
 import type { BreakSession, PayCalculationResult, Role, SalaryCalculationSnapshot, SalaryProfile, Shift, Workplace } from '@/domain/entities';
-import { calculateSalary, hasConfiguredOvertimeRule, NO_HOLIDAYS, type HolidayProvider } from '@/domain/services';
+import { calculateSalary, NO_HOLIDAYS, type HolidayProvider } from '@/domain/services';
 import { createId } from '@/shared/utils/id';
 import { formatLocalDateKey, resolveLocalDateTime } from '@/shared/utils/zoned-time';
 
@@ -176,7 +176,6 @@ export class SalaryCalculationCoordinator {
       ...(conflicts ? [conflicts] : []),
       ...(shift.salaryProfileId && !explicitProfileValid ? [{ code: 'invalid_salary_profile_reference', severity: 'error' as const, messageKey: 'salary.issues.invalidProfileReference', metadata: { salaryProfileId: shift.salaryProfileId } }] : []),
       ...(!roleValid ? [{ code: 'invalid_role_reference', severity: 'error' as const, messageKey: 'salary.issues.invalidRoleReference', metadata: { roleId: shift.roleId } }] : []),
-      ...(profile && !hasConfiguredOvertimeRule(rules) ? [{ code: 'default_overtime_applied', severity: 'warning' as const, messageKey: 'salary.defaultOvertimeApplied' }] : []),
     ];
     return runtimeIssues.some((issue) => issue.severity === 'error')
       ? { ...result, totalGrossPayMinor: undefined, issues: [...result.issues, ...runtimeIssues] }

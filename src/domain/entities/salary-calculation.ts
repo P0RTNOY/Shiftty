@@ -61,6 +61,13 @@ export const payCalculationResultSchema = z.object({
 });
 export type PayCalculationResult = z.infer<typeof payCalculationResultSchema>;
 
+export const salaryTrustStateSchema = z.enum([
+  'unavailable',
+  'basic_estimate',
+  'configured_estimate',
+]);
+export type SalaryTrustState = z.infer<typeof salaryTrustStateSchema>;
+
 export const salaryCalculationSnapshotSchema = z.object({
   id: z.string().min(1),
   shiftId: z.string().min(1),

@@ -1,7 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import type { BreakSession, Shift } from '@/domain/entities';
+import type { BreakSession, PayCalculationResult, Shift } from '@/domain/entities';
 import { buildEndShiftReview } from '@/domain/services';
+import { SalaryTrustDisclosure } from '@/features/pay-rules/components/salary-trust-disclosure';
 import { PrimaryButton, SecondaryButton } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { radius, spacing, typography, useAppTheme } from '@/shared/theme';
@@ -12,13 +13,15 @@ interface QuickClockOutReviewProps {
   breaks: readonly BreakSession[];
   actualEnd: string;
   estimatedPay?: string;
+  salaryResult?: PayCalculationResult;
   busy: boolean;
   onSave: () => void;
   onEdit: () => void;
   onCancel: () => void;
+  onOpenSalarySettings?: () => void;
 }
 
-export function QuickClockOutReview({ shift, breaks, actualEnd, estimatedPay, busy, onSave, onEdit, onCancel }: QuickClockOutReviewProps) {
+export function QuickClockOutReview({ shift, breaks, actualEnd, estimatedPay, salaryResult, busy, onSave, onEdit, onCancel, onOpenSalarySettings }: QuickClockOutReviewProps) {
   const { colors } = useAppTheme();
   const { formatDate, isRtl, locale, t } = useTranslation();
   const review = buildEndShiftReview(shift, breaks, actualEnd);
@@ -36,6 +39,7 @@ export function QuickClockOutReview({ shift, breaks, actualEnd, estimatedPay, bu
       {estimatedPay ? <View style={styles.pay}>
         <Text style={[styles.row, { color: colors.textMuted, textAlign: align }]}>{t('end.estimatedPay')}</Text>
         <Text style={[styles.total, { color: colors.primary, textAlign: align }]}>{estimatedPay}</Text>
+        <SalaryTrustDisclosure onOpenSalarySettings={onOpenSalarySettings} result={salaryResult} />
       </View> : null}
       <PrimaryButton disabled={busy} label={t('end.save')} onPress={onSave} />
       <SecondaryButton disabled={busy} label={t('end.editDetails')} onPress={onEdit} />

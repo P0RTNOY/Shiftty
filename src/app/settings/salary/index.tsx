@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { salaryProfileSchema, type MoneyRoundingMode, type SalaryProfile } from '@/domain/entities';
+import { SalaryTrustDisclosure } from '@/features/pay-rules/components/salary-trust-disclosure';
 import { useRepositories } from '@/features/shifts/hooks/use-repositories';
 import { useWorkplaces } from '@/features/workplaces/hooks/use-workplaces';
 import { AppScreen, DateField, EmptyState, FormField, PrimaryButton, SecondaryButton } from '@/shared/components';
@@ -30,6 +31,7 @@ export default function SalaryProfilesScreen() {
   return <AppScreen title={t('salary.title')}>
     <SecondaryButton label={t('common.back')} onPress={() => router.back()} />
     <Text style={{ color: colors.textMuted, textAlign: isRtl ? 'right' : 'left' }}>{t('salary.disclaimer')}</Text>
+    <SalaryTrustDisclosure mode="generic" />
     <View style={[styles.choices, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}>{workplaces.map((workplace) => <Pressable accessibilityRole="radio" accessibilityState={{ checked: selectedWorkplace === workplace.id }} key={workplace.id} onPress={() => { setWorkplaceId(workplace.id); reset(); }} style={[styles.choice, { borderColor: selectedWorkplace === workplace.id ? colors.primary : colors.border, backgroundColor: colors.surface }]}><Text style={{ color: colors.text }}>{workplace.name}</Text></Pressable>)}</View>
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <FormField label={t('salary.profileName')} onChangeText={setName} value={name} />

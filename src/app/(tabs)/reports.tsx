@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ReportShiftRow } from '@/features/reports/report-shift-row';
+import { SalaryTrustDisclosure } from '@/features/pay-rules/components/salary-trust-disclosure';
 import { useMonthlyReport } from '@/features/reports/use-monthly-report';
 import { AppScreen, EmptyState, PrimaryButton, SecondaryButton } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
@@ -41,6 +42,8 @@ export default function ReportsScreen() {
           : <Text style={[styles.salary, { color: colors.primary, textAlign: align }]}>{t('reports.earnedAmount', { amount: formatCurrency(report.totals.salaryMinor) })}</Text>}
         {report.totals.invalidShiftCount > 0 ? <Text accessibilityRole="alert" style={[styles.warning, { color: colors.warning, textAlign: align }]}>{t('reports.invalidShiftCount', { count: report.totals.invalidShiftCount })}</Text> : null}
       </View>
+
+      <SalaryTrustDisclosure mode="generic" onOpenSalarySettings={() => router.push('/settings/salary')} />
 
       {report.totals.salaryIssueCount > 0 ? <SecondaryButton label={t('salary.openSettings')} onPress={() => router.push('/settings/salary')} /> : null}
 

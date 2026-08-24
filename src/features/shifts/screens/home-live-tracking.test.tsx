@@ -199,10 +199,32 @@ describe('Home live tracking state', () => {
     mockSalaryHook.mockReturnValue({ summary: { earnedMinor: 482000, futureMinor: 324000, forecastMinor: 806000, incompleteShiftCount: 0, regularMinutes: 480, specialRateMinutes: 60, resultsByShiftId: {} }, loading: false, error: null, coordinator: {} });
     renderApp(<HomeScreen />);
     expect(screen.getByText('שעות שהושלמו')).toBeTruthy();
-    expect(screen.getByText('נצבר עד עכשיו')).toBeTruthy();
+    expect(screen.getByText('שכר משוער עד עכשיו')).toBeTruthy();
     expect(screen.queryByText('צפוי ממשמרות עתידיות')).toBeNull();
     expect(screen.queryByText('תחזית חודשית')).toBeNull();
     expect(screen.queryByText('שעות מיוחדות')).toBeNull();
+  });
+
+  it('does not present a stale monthly salary snapshot as a numeric total', () => {
+    const staleShift = createShift({
+      id: 'stale-completed', status: 'completed', salaryCalculationStatus: 'stale',
+      actualStart: '2026-07-15T08:00:00+03:00', actualEnd: '2026-07-15T16:00:00+03:00',
+      payableStart: '2026-07-15T08:00:00+03:00', payableEnd: '2026-07-15T16:00:00+03:00', payableBreakMinutes: 0,
+    });
+    mockActiveHook.mockReturnValue(emptyActive);
+    mockShiftsHook.mockReturnValue({ shifts: [staleShift], loading: false, error: null });
+    mockSalaryHook.mockReturnValue({
+      summary: {
+        earnedMinor: 48_000,
+        resultsByShiftId: { [staleShift.id]: { totalGrossPayMinor: 48_000, issues: [], appliedRuleIds: [], engineVersion: '1.3.0' } },
+      },
+      loading: false, error: null, coordinator: {},
+    });
+
+    renderApp(<HomeScreen />);
+
+    expect(screen.getByText('לא זמין')).toBeTruthy();
+    expect(screen.queryByText(new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(480))).toBeNull();
   });
 
   it('loads the current reporting month in the application timezone', () => {

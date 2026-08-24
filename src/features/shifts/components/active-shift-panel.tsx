@@ -1,7 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import type { BreakSession, Shift } from '@/domain/entities';
+import type { BreakSession, PayCalculationResult, Shift } from '@/domain/entities';
 import { calculateLiveShiftMetrics, resolveExpectedEnd } from '@/domain/services';
+import { SalaryTrustDisclosure } from '@/features/pay-rules/components/salary-trust-disclosure';
 import { PrimaryButton, SecondaryButton } from '@/shared/components';
 import { useLiveNow } from '@/shared/hooks/use-live-now';
 import { useTranslation } from '@/shared/i18n';
@@ -18,6 +19,7 @@ interface Props {
   busy?: boolean;
   provisionalPay?: string;
   expectedPay?: string;
+  salaryResult?: PayCalculationResult;
   salaryIncomplete?: boolean;
   onStartBreak: (paid: boolean) => void;
   onEndBreak?: () => void;
@@ -25,6 +27,7 @@ interface Props {
   onOpenDetails: () => void;
   onManageBreaks: () => void;
   onChangeExpectedEnd?: () => void;
+  onOpenSalarySettings?: () => void;
 }
 
 function ActiveShiftTimer({ shift }: { shift: Shift }) {
@@ -68,6 +71,7 @@ export function ActiveShiftPanel({
   busy = false,
   provisionalPay,
   expectedPay,
+  salaryResult,
   salaryIncomplete,
   ...actions
 }: Props) {
@@ -92,7 +96,11 @@ export function ActiveShiftPanel({
         <Text style={[styles.meta, { color: colors.textMuted, textAlign: align }]}>
           {t('active.actualStart')}: {formatDate(shift.actualStart!, { hour: '2-digit', minute: '2-digit', timeZone: shift.timezone })}
         </Text>
-        {provisionalPay ? <Text style={[styles.provisional, { color: colors.primary, textAlign: align }]}>{provisionalPay}</Text> : null}
+        {provisionalPay ? <View style={styles.payEstimate}>
+          <Text style={[styles.meta, { color: colors.textMuted, textAlign: align }]}>{t('salary.provisionalNow')}</Text>
+          <Text style={[styles.provisional, { color: colors.primary, textAlign: align }]}>{provisionalPay}</Text>
+          <SalaryTrustDisclosure onOpenSalarySettings={actions.onOpenSalarySettings} result={salaryResult} />
+        </View> : null}
         {expectedPay ? <Text style={[styles.meta, { color: colors.primary, textAlign: align }]}>{t('salary.provisionalEnd')}: {expectedPay}</Text> : null}
         {salaryIncomplete ? <Text accessibilityRole="alert" style={[styles.meta, { color: colors.warning, textAlign: align }]}>{t('salary.missingConfig')}</Text> : null}
         {expectedEnd ? <Text style={[styles.meta, { color: colors.textMuted, textAlign: align }]}>
@@ -115,6 +123,7 @@ const styles = StyleSheet.create({
   title: { fontSize: typography.heading, fontWeight: '800' },
   meta: { fontSize: typography.body },
   provisional: { fontSize: typography.title, fontWeight: '800' },
+  payEstimate: { gap: spacing.xs },
   timerGroup: { alignItems: 'center', gap: spacing.xxs },
   timerLabel: { fontSize: typography.caption, fontWeight: '700' },
   timer: { fontSize: 46, fontVariant: ['tabular-nums'], fontWeight: '800', textAlign: 'center' },

@@ -19,7 +19,18 @@ describe('settings translations', () => {
 
 it('keeps empty-state copy focused on visible worker outcomes', () => {
   expect(he['home.noNextShiftBody']).toBe('אפשר להוסיף משמרת מתוכננת והיא תופיע כאן.');
-  expect(he['reports.emptyBody']).toBe('לאחר השלמת משמרת יוצגו כאן השעות והשכר.');
+  expect(he['reports.emptyBody']).toBe('לאחר השלמת משמרת יוצגו כאן השעות והשכר המשוער.');
+});
+
+it('uses estimate vocabulary for calculated pay in Hebrew and English', () => {
+  expect(he['salary.estimatedPay']).toBe('שכר משוער');
+  expect(he['salary.summaryTitle']).toBe('הערכת שכר למשמרת');
+  expect(he['reports.earnedAmount']).toBe('סה״כ שכר משוער: {{amount}}');
+  expect(he['salary.basedOnSettings']).toBe('החישוב מבוסס על הגדרות השכר שהזנת.');
+  expect(en['salary.estimatedPay']).toBe('Estimated pay');
+  expect(en['salary.summaryTitle']).toBe('Estimated pay for this shift');
+  expect(en['reports.earnedAmount']).toBe('Total estimated pay: {{amount}}');
+  expect(en['salary.basedOnSettings']).toBe('Based on the pay settings you configured.');
 });
 
 it('uses ordinary clock-in and clock-out language in the core shift flow', () => {
