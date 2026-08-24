@@ -29,7 +29,7 @@ export function calculateLiveShiftMetrics(shift: Shift, breaks: readonly BreakSe
   return { elapsedMinutes, paidBreakMinutes: summary.paidMinutes, unpaidBreakMinutes: summary.unpaidMinutes, activeBreakMinutes: summary.activeMinutes, netWorkedMinutes: Math.max(0, elapsedMinutes - summary.unpaidMinutes), isOnBreak: Boolean(summary.activeBreak) };
 }
 
-export function isActiveShiftStale(shift: Shift, now: Date, thresholdMinutes = 16 * 60): boolean {
+export function isActiveShiftStale(shift: Shift, now: Date, thresholdMinutes = 12 * 60): boolean {
   return shift.status === 'active' && Boolean(shift.actualStart) && differenceInMinutes(now, shift.actualStart!) >= thresholdMinutes;
 }
 

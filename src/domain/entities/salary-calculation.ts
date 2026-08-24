@@ -51,6 +51,8 @@ export const payCalculationResultSchema = z.object({
   reimbursementsMinor: z.number().int().min(0),
   totalGrossPayMinor: z.number().int().min(0).optional(),
   resolvedBaseHourlyRateMinor: z.number().int().positive().optional(),
+  shiftTypeName: z.string().trim().min(1).max(120).optional(),
+  shiftTypeMultiplierBasisPoints: z.number().int().min(10_000).max(100_000).optional(),
   appliedRuleIds: z.array(z.string()),
   issues: z.array(payCalculationIssueSchema),
   explanations: z.array(z.string()),

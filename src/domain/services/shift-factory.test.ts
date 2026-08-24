@@ -55,6 +55,18 @@ describe('shift factories', () => {
     expect(shift.payableStart).toBeUndefined();
   });
 
+  it('allows exactly 12 hours and rejects a longer scheduled shift', () => {
+    expect(createScheduledShift({
+      date: '2026-08-05', startTime: '08:00', endTime: '20:00', workplaceId: 'workplace-1',
+      expectedBreakMinutes: 0, hourlyRateSnapshotMinor: 4500,
+    }, context).status).toBe('scheduled');
+
+    expect(() => createScheduledShift({
+      date: '2026-08-05', startTime: '08:00', endTime: '20:01', workplaceId: 'workplace-1',
+      expectedBreakMinutes: 0, hourlyRateSnapshotMinor: 4500,
+    }, context)).toThrow('cannot exceed 12 hours');
+  });
+
   it('creates a completed shift with no known scheduled range', () => {
     const shift = createCompletedShift(
       {
@@ -109,6 +121,19 @@ describe('shift factories', () => {
         context,
       ),
     ).toThrow('Actual break');
+  });
+
+  it('rejects manually completed actual or payable ranges over 12 hours', () => {
+    expect(() => createCompletedShift({
+      date: '2026-08-01', actualStartTime: '08:00', actualEndTime: '20:01',
+      actualBreakMinutes: 0, payableBreakMinutes: 0, workplaceId: 'workplace-1', hourlyRateSnapshotMinor: 0,
+    }, context)).toThrow('cannot exceed 12 hours');
+
+    expect(() => createCompletedShift({
+      date: '2026-08-01', actualStartTime: '08:00', actualEndTime: '20:00',
+      payableStartTime: '07:59', payableEndTime: '20:00', actualBreakMinutes: 0,
+      payableBreakMinutes: 0, workplaceId: 'workplace-1', hourlyRateSnapshotMinor: 0,
+    }, context)).toThrow('cannot exceed 12 hours');
   });
 
   it('identifies accidentally future-dated completed work', () => {

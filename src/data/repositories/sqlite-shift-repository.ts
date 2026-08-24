@@ -25,6 +25,8 @@ interface ShiftRow {
   actual_gross_pay_minor: number | null;
   payable_gross_pay_minor: number | null;
   shift_template_id: string | null;
+  shift_type_name_snapshot: string | null;
+  shift_type_pay_multiplier_basis_points: number;
   recurrence_group_id: string | null;
   recurrence_original_start: string | null;
   recurrence_exception_type: 'modified' | null;
@@ -47,12 +49,13 @@ export const SHIFT_COLUMNS = `
   scheduled_start, scheduled_end, actual_start, actual_end, payable_start, payable_end,
   expected_break_minutes, actual_break_minutes, payable_break_minutes, status,
   hourly_rate_snapshot_minor, expected_gross_pay_minor, actual_gross_pay_minor,
-  payable_gross_pay_minor, shift_template_id, recurrence_group_id, recurrence_original_start,
+  payable_gross_pay_minor, shift_template_id, shift_type_name_snapshot,
+  shift_type_pay_multiplier_basis_points, recurrence_group_id, recurrence_original_start,
   recurrence_exception_type, cancelled_at, expected_end, active_origin, payable_source,
   completed_at, hourly_rate_override_minor, fixed_bonus_override_minor,
   travel_reimbursement_override_minor, salary_calculation_status, timezone, created_at, updated_at
 `;
-export const SHIFT_COLUMN_COUNT = 36;
+export const SHIFT_COLUMN_COUNT = 38;
 const DISPLAY_START_EXPRESSION = "CASE status WHEN 'completed' THEN COALESCE(actual_start, payable_start, scheduled_start) WHEN 'active' THEN COALESCE(actual_start, scheduled_start) ELSE COALESCE(scheduled_start, actual_start, payable_start) END";
 const DISPLAY_END_EXPRESSION = "CASE status WHEN 'completed' THEN COALESCE(actual_end, payable_end, scheduled_end) WHEN 'active' THEN COALESCE(actual_end, expected_end, scheduled_end, actual_start) ELSE COALESCE(scheduled_end, actual_end, payable_end) END";
 
@@ -190,6 +193,8 @@ export class SqliteShiftRepository implements ShiftRepository {
           actual_gross_pay_minor = excluded.actual_gross_pay_minor,
           payable_gross_pay_minor = excluded.payable_gross_pay_minor,
           shift_template_id = excluded.shift_template_id,
+          shift_type_name_snapshot = excluded.shift_type_name_snapshot,
+          shift_type_pay_multiplier_basis_points = excluded.shift_type_pay_multiplier_basis_points,
           recurrence_group_id = excluded.recurrence_group_id,
           recurrence_original_start = excluded.recurrence_original_start,
           recurrence_exception_type = excluded.recurrence_exception_type,
@@ -249,6 +254,8 @@ export function toShiftParameters(shift: Shift): SQLiteBindValue[] {
     shift.actualGrossPayMinor ?? null,
     shift.payableGrossPayMinor ?? null,
     shift.shiftTemplateId ?? null,
+    shift.shiftTypeNameSnapshot ?? null,
+    shift.shiftTypePayMultiplierBasisPoints ?? 10_000,
     shift.recurrenceGroupId ?? null,
     shift.recurrenceOriginalStart ?? null,
     shift.recurrenceExceptionType ?? null,
@@ -290,6 +297,8 @@ export function mapShiftRow(row: ShiftRow): Shift {
     actualGrossPayMinor: row.actual_gross_pay_minor ?? undefined,
     payableGrossPayMinor: row.payable_gross_pay_minor ?? undefined,
     shiftTemplateId: row.shift_template_id ?? undefined,
+    shiftTypeNameSnapshot: row.shift_type_name_snapshot ?? undefined,
+    shiftTypePayMultiplierBasisPoints: row.shift_type_pay_multiplier_basis_points,
     recurrenceGroupId: row.recurrence_group_id ?? undefined,
     recurrenceOriginalStart: row.recurrence_original_start ?? undefined,
     recurrenceExceptionType: row.recurrence_exception_type ?? undefined,

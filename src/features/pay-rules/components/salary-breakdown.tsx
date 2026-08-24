@@ -2,6 +2,10 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { PayCalculationResult, SalaryCalculationStatus } from '@/domain/entities';
+import {
+  DEFAULT_OVERTIME_TIER_ONE_RULE_NAME,
+  DEFAULT_OVERTIME_TIER_TWO_RULE_NAME,
+} from '@/domain/services';
 import { PrimaryButton, SecondaryButton } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { radius, spacing, typography, useAppTheme } from '@/shared/theme';
@@ -12,21 +16,35 @@ export function SalaryBreakdown({ result, status, onRecalculate }: { result?: Pa
   const { formatCurrency, isRtl, locale, t } = useTranslation();
   const [showDetails, setShowDetails] = useState(false);
   const align = isRtl ? 'right' : 'left';
+  const exceedsMaximumDuration = result?.issues.some((issue) => issue.code === 'shift_duration_exceeds_maximum');
   if (!result || result.totalGrossPayMinor === undefined) {
     return <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.warning }]}>
       <Text accessibilityRole="alert" style={[styles.title, { color: colors.warning, textAlign: align }]}>{t('salary.missingConfig')}</Text>
+      {exceedsMaximumDuration ? <Text style={[styles.warning, { color: colors.warning, textAlign: align }]}>{t('salary.issues.shiftDurationExceedsMaximum')}</Text> : null}
       {onRecalculate ? <PrimaryButton label={t('salary.recalculate')} onPress={onRecalculate} /> : null}
     </View>;
   }
 
   const statusKey = status === 'finalized' ? 'salary.finalized' : status === 'stale' ? 'salary.stale' : 'salary.estimateOnly';
   const summaryStatus = status === 'finalized' ? t('salary.finalPay') : status === 'stale' ? t('salary.stale') : t('salary.estimatedPay');
-  const hasNoPayRules = result.issues.some((issue) => issue.code === 'no_pay_rules_configured');
+  const hasLegacyBaseOnlyCalculation = result.issues.some((issue) => issue.code === 'no_pay_rules_configured');
+  const hasDefaultOvertime = result.issues.some((issue) => issue.code === 'default_overtime_applied');
+  const shiftTypeMultiplier = result.shiftTypeMultiplierBasisPoints ?? 10_000;
+  const effectiveShiftTypeRate = result.resolvedBaseHourlyRateMinor === undefined
+    ? undefined
+    : Math.round(result.resolvedBaseHourlyRateMinor * shiftTypeMultiplier / 10_000);
   return <View style={[styles.card, { backgroundColor: colors.surface, borderColor: status === 'stale' ? colors.warning : colors.border }]}>
     <Text accessibilityRole="header" style={[styles.title, { color: colors.text, textAlign: align }]}>{t('salary.summaryTitle')}</Text>
     <Text style={[styles.status, { color: status === 'stale' ? colors.warning : colors.textMuted, textAlign: align }]}>{summaryStatus}</Text>
     <Text style={[styles.total, { color: colors.primary, textAlign: align }]}>{formatCurrency(result.totalGrossPayMinor)}</Text>
-    {hasNoPayRules ? <Text accessibilityRole="alert" style={[styles.warning, { color: colors.warning, textAlign: align }]}>{t('salary.noPayRules')}</Text> : null}
+    {result.shiftTypeName ? <Row label={t('salary.shiftType')} value={result.shiftTypeName} /> : null}
+    <Row label={t('salary.workingHours')} value={formatDurationLong(result.payableMinutes, locale)} />
+    {result.resolvedBaseHourlyRateMinor !== undefined ? <Row label={t('salary.baseHourlyRate')} value={formatCurrency(result.resolvedBaseHourlyRateMinor)} /> : null}
+    <Row label={t('salary.shiftTypeMultiplier')} value={`${shiftTypeMultiplier / 100}%`} />
+    {effectiveShiftTypeRate !== undefined ? <Row label={t('salary.effectiveHourlyRate')} value={formatCurrency(effectiveShiftTypeRate)} /> : null}
+    {hasLegacyBaseOnlyCalculation ? <Text accessibilityRole="alert" style={[styles.warning, { color: colors.warning, textAlign: align }]}>{t('salary.noPayRules')}</Text> : null}
+    {hasDefaultOvertime ? <Text accessibilityRole="alert" style={[styles.warning, { color: colors.warning, textAlign: align }]}>{t('salary.defaultOvertimeApplied')}</Text> : null}
+    {hasLegacyBaseOnlyCalculation && onRecalculate ? <PrimaryButton label={t('salary.applyDefaultOvertime')} onPress={onRecalculate} /> : null}
     <SecondaryButton label={showDetails ? t('salary.hideDetails') : t('salary.showDetails')} onPress={() => setShowDetails((value) => !value)} />
 
     {showDetails ? <View style={styles.details}>
@@ -39,7 +57,7 @@ export function SalaryBreakdown({ result, status, onRecalculate }: { result?: Pa
       <Row strong label={t('salary.totalGross')} value={formatCurrency(result.totalGrossPayMinor)} />
       <Row label={t('salary.regularHours')} value={formatDurationLong(result.regularMinutes, locale)} />
       <Row label={t('salary.specialHours')} value={formatDurationLong(result.specialRateMinutes, locale)} />
-      {result.segments.map((segment) => <View key={`${segment.start}-${segment.end}`} style={[styles.segment, { borderTopColor: colors.border }]}><Text style={{ color: colors.text, textAlign: align }}>{formatDurationLong(segment.minutes, locale)} · {segment.multiplierBasisPoints / 100}%</Text><Text style={{ color: colors.textMuted, textAlign: align }}>{segment.labels.join(' + ') || t('salary.regularHours')} · {formatCurrency(segment.totalPayMinor)}</Text></View>)}
+      {result.segments.map((segment) => <View key={`${segment.start}-${segment.end}`} style={[styles.segment, { borderTopColor: colors.border }]}><Text style={{ color: colors.text, textAlign: align }}>{formatDurationLong(segment.minutes, locale)} · {segment.multiplierBasisPoints / 100}%</Text><Text style={{ color: colors.textMuted, textAlign: align }}>{segment.labels.map((label) => label === DEFAULT_OVERTIME_TIER_ONE_RULE_NAME ? t('salary.defaultOvertimeTierOneName') : label === DEFAULT_OVERTIME_TIER_TWO_RULE_NAME ? t('salary.defaultOvertimeTierTwoName') : label).join(' + ') || t('salary.regularHours')} · {formatCurrency(segment.totalPayMinor)}</Text></View>)}
       {onRecalculate ? <PrimaryButton label={t('salary.recalculate')} onPress={onRecalculate} /> : null}
     </View> : null}
   </View>;

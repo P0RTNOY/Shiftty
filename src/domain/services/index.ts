@@ -9,6 +9,7 @@ export * from './recurrence-service';
 export * from './recurrence-scope-service';
 export * from './recurrence-window-service';
 export * from './shift-factory';
+export * from './shift-duration-policy';
 export * from './shift-overlap-service';
 export * from './shift-prediction-engine';
 export * from './shift-status-service';

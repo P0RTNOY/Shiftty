@@ -1,4 +1,5 @@
 import type { PayableSource, Shift } from '@/domain/entities';
+import { MAX_SHIFT_DURATION_MINUTES } from './shift-duration-policy';
 
 export type RoundingMode = 'nearest' | 'floor' | 'ceiling';
 export interface RoundingPreference { incrementMinutes: 5 | 10 | 15 | 30; mode: RoundingMode }
@@ -31,6 +32,12 @@ export function selectPayableTime(input: PayableSelectionInput): PayableSelectio
   }
   const durationMinutes = (Date.parse(payableEnd) - Date.parse(payableStart)) / 60_000;
   if (durationMinutes <= 0) throw new Error('Payable end must be after payable start.');
+  // A manual payroll range is a new user decision and must obey the legal/product cap.
+  // Recorded actual/rounded/scheduled ranges remain selectable so an overdue live shift
+  // can always be clocked out truthfully; the salary engine marks any >12h result invalid.
+  if (input.source === 'manual' && durationMinutes > MAX_SHIFT_DURATION_MINUTES) {
+    throw new Error('Payable shift duration cannot exceed 12 hours.');
+  }
   if (payableBreakMinutes < 0 || payableBreakMinutes > durationMinutes) throw new Error('Payable break cannot exceed payable duration.');
   return { payableStart, payableEnd, payableBreakMinutes, payableSource: input.source };
 }

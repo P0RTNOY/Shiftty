@@ -1,5 +1,5 @@
 import type { SalaryCalculationSnapshot } from '@/domain/entities';
-import { buildMonthlyReport, createMonthlyReportRange } from '@/features/reports/monthly-report-service';
+import { buildMonthlyReport, createMonthlyReportRange, MonthlyReportService } from '@/features/reports/monthly-report-service';
 import { createShift } from '@/test/fixtures';
 
 const workplace = { id: 'workplace-1', name: 'קפה' } as const;
@@ -91,10 +91,69 @@ describe('monthly report model', () => {
     expect(report.totals.salaryIssueCount).toBe(3);
   });
 
+  it('assigns a cross-month shift to the month of its actual clock-out', () => {
+    const endingAtAugustStart = createShift({
+      id: 'august-boundary',
+      status: 'completed',
+      actualStart: '2026-07-31T23:00:00+03:00',
+      actualEnd: '2026-08-01T00:00:00+03:00',
+      payableStart: '2026-07-31T23:00:00+03:00',
+      payableEnd: '2026-08-01T00:00:00+03:00',
+      salaryCalculationStatus: 'finalized',
+    });
+    const crossingIntoAugust = createShift({
+      id: 'into-august',
+      status: 'completed',
+      actualStart: '2026-07-31T23:30:00+03:00',
+      actualEnd: '2026-08-01T00:30:00+03:00',
+      payableStart: '2026-07-31T23:30:00+03:00',
+      payableEnd: '2026-08-01T00:30:00+03:00',
+      salaryCalculationStatus: 'finalized',
+    });
+    const crossingOutOfAugust = createShift({
+      id: 'out-of-august',
+      status: 'completed',
+      actualStart: '2026-08-31T23:30:00+03:00',
+      actualEnd: '2026-09-01T00:30:00+03:00',
+      payableStart: '2026-08-31T23:30:00+03:00',
+      payableEnd: '2026-09-01T00:30:00+03:00',
+      salaryCalculationStatus: 'finalized',
+    });
+    const input = {
+      timezone: 'Asia/Jerusalem',
+      generatedAt: '2026-09-02T10:00:00+03:00',
+      shifts: [endingAtAugustStart, crossingIntoAugust, crossingOutOfAugust],
+      snapshots: [finalizedSnapshot(endingAtAugustStart.id, 4_000), finalizedSnapshot(crossingIntoAugust.id, 5_000), finalizedSnapshot(crossingOutOfAugust.id, 6_000)],
+      workplaces: [workplace],
+      roles: [],
+    };
+
+    expect(buildMonthlyReport({ ...input, month: '2026-08' }).rows.map((row) => row.shiftId)).toEqual(['august-boundary', 'into-august']);
+    expect(buildMonthlyReport({ ...input, month: '2026-09' }).rows.map((row) => row.shiftId)).toEqual(['out-of-august']);
+  });
+
   it('derives daylight-saving-safe month bounds in the configured timezone', () => {
     expect(createMonthlyReportRange('2026-03', 'Asia/Jerusalem')).toEqual({
       start: '2026-03-01T00:00:00.000+02:00',
       end: '2026-04-01T00:00:00.000+03:00',
+    });
+  });
+
+  it('loads candidates by their actual display range before applying clock-out inclusion', async () => {
+    const list = jest.fn().mockResolvedValue([]);
+    const service = new MonthlyReportService({
+      shifts: { list } as never,
+      salaryCalculations: { listCurrentForShifts: jest.fn().mockResolvedValue([]) } as never,
+      workplaces: { list: jest.fn().mockResolvedValue([]), listRoles: jest.fn().mockResolvedValue([]) } as never,
+    });
+
+    await service.load('2026-08', 'Asia/Jerusalem', '2026-09-02T10:00:00+03:00');
+
+    expect(list).toHaveBeenCalledWith({
+      startsBefore: '2026-09-01T00:00:00.000+03:00',
+      endsAfter: '2026-07-31T20:59:59.999Z',
+      statuses: ['completed'],
+      rangeSource: 'display',
     });
   });
 });

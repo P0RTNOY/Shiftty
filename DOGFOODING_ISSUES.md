@@ -447,6 +447,48 @@ This file records verified dogfooding findings. Simulator evidence uses disposab
 - **Data integrity affected?:** No storage corruption; the external report could previously be misinterpreted.
 - **Status:** Resolved.
 
+## DF-034 — Cross-month shifts are assigned by entry instead of exit
+
+- **Date:** 2026-08-23
+- **Severity:** P1
+- **Screen:** Reports; monthly PDF/CSV
+- **Steps:** Complete a cross-midnight shift that begins before a local month boundary and ends after it, then compare the adjacent months.
+- **Expected:** The shift appears in the month containing its actual clock-out, matching the documented authoritative monthly-report rule.
+- **Actual:** The report model filtered by the row's reporting start, so a July 31 → August 1 shift appeared in July and an August 31 → September 1 shift appeared in August.
+- **Root cause:** `buildMonthlyReport` compared the report range to `payableStart`/`actualStart` even though report inclusion is defined by `actualEnd`.
+- **Fix:** Filter completed rows by the parsed actual clock-out instant while retaining payable/actual ranges for displayed duration.
+- **Automated verification:** A boundary regression proves the into-August shift appears only in August and the out-of-August shift appears only in September.
+- **Data integrity affected?:** No stored data changed; monthly financial communication could be assigned to the wrong month.
+- **Status:** Resolved.
+
+## DF-035 — Calendar and Home can initialize to the wrong local day/month
+
+- **Date:** 2026-08-23
+- **Severity:** P2
+- **Screen:** Calendar; Home monthly summary
+- **Steps:** Launch between local midnight in Jerusalem and the corresponding UTC midnight.
+- **Expected:** Calendar selects today's Jerusalem date and Home loads that Jerusalem month.
+- **Actual:** Calendar derived its initial day from a UTC ISO slice, while Home derived the month from the device-local timezone.
+- **Root cause:** These two initialization paths bypassed the shared application-timezone formatter already used by Reports.
+- **Fix:** Calendar uses `formatLocalDateKey` with the application timezone, and Home reuses the daylight-saving-safe monthly report range.
+- **Automated verification:** UTC-boundary regressions cover Calendar's selected day and Home's September range at `2026-08-31T21:30:00Z`.
+- **Data integrity affected?:** No; the initial selection/query could be one day or month behind.
+- **Status:** Resolved.
+
+## DF-036 — An 8½-hour shift remains entirely regular without custom rules
+
+- **Date:** 2026-08-24
+- **Severity:** P0
+- **Screen:** Shift Details / salary breakdown
+- **Steps:** Complete 8 hours 30 minutes of payable work at a neutral 100% shift type without adding a custom overtime rule.
+- **Expected:** 8 regular hours and 30 overtime minutes; at ₪60/hour the final 30 minutes are paid at 125%.
+- **Actual:** The frozen calculation showed 8 hours 30 minutes regular, zero special-rate minutes, and ₪510 total.
+- **Root cause:** Worked-minute thresholds existed only as manually configured rules. The engine had no transparent product default, so onboarding's otherwise valid empty rule set produced one 510-minute segment at 100%.
+- **Fix:** Salary engine `1.3.0` applies visible default per-shift tiers: 480 net regular minutes, 120 minutes with a stacking 25% premium, and 120 minutes with a stacking 50% premium. New/manual shifts are capped at 12 hours. Explicit configured or disabled worked-minute multiplier rules replace or opt out of both tiers. Historical finalized snapshots remain unchanged until the user confirms recalculation; legacy base-only details now expose that action prominently.
+- **Automated verification:** Exact 480/30 and 480/120/120 splits, ₪517.50 and ₪810 totals, cross-midnight continuity, 150% shift-type stacking, the 12-hour boundary, live clock-out recovery, custom override, disabled opt-out, coordinator explanation, and legacy recalculation-action regressions pass.
+- **Data integrity affected?:** The stored time was correct. Existing finalized salary snapshots remain preserved as history and are replaced only through the normal confirmed recalculation flow.
+- **Status:** Resolved.
+
 ## New issue template
 
 - **ID:**

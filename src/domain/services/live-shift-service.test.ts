@@ -89,6 +89,7 @@ describe('live shift calculations', () => {
   it('detects stale sessions without mutating them', () => {
     expect(isActiveShiftStale(active, now, 16 * 60)).toBe(false);
     expect(isActiveShiftStale(active, new Date('2026-07-16T06:00:00+03:00'), 16 * 60)).toBe(true);
+    expect(isActiveShiftStale(active, new Date('2026-07-16T01:00:00+03:00'))).toBe(true);
   });
 
   it('keeps an explicit expected end separate from the scheduled end', () => {

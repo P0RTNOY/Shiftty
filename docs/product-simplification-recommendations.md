@@ -20,6 +20,8 @@ Recommendations are ordered by likely worker impact divided by implementation an
 | Safe stale-route behavior | Active-only routes showed invalid actions with no active shift. | Return to Home after authoritative active-state loading. | Recovery never strands or misleads the worker. | Low | Small | **Yes — done** |
 | Keep Templates as one scroll owner | A list nested inside the screen scroll container emitted a runtime warning. | Let the virtualized list own vertical scrolling; fix the add footer. | Stable layout and clean runtime. | Low | Small | **Yes — done** |
 | Plain Hebrew restore choices | Restore exposed Merge/Replace and “overwrite” jargon. | Explain “merge with existing” versus “replace all data” in Hebrew. | Safer destructive decision. | Low | Small | **Yes — done** |
+| Remove the Reports & Backup navigation hop | Settings opened an intermediate screen containing only Export and Backup destinations. | Link both clearly named tasks directly from Settings; retain the old route as a compatibility redirect. | One fewer navigation tap without conflating report files and full-data backups. | Low | Small | **Yes — done 2026-08-23** |
+| Simplify fallback clock-in | The fallback unscheduled-start route exposed optional planning metadata before clock-in. | Keep workplace and Start visible; put role, template, expected end, title, and notes behind **אפשרויות נוספות**. | Multiple-workplace/fallback clock-in stays focused and fast. | Low | Small | **Yes — done 2026-08-23** |
 
 ## Top 10 Next Simplifications
 
@@ -73,25 +75,25 @@ Recommendations are ordered by likely worker impact divided by implementation an
 - **Effort:** Medium.
 - **Implement now?** No; test notification scheduling and restoration around the new presentation.
 
-### 6. Remove the Reports & Backup intermediate hub
+### 6. Remove the Reports & Backup intermediate hub — completed
 
-- **Current behavior:** Settings opens **דוחות וגיבוי**, which then offers Exports or Backup/Restore.
+- **Previous behavior:** Settings opened **דוחות וגיבוי**, which then offered Exports or Backup/Restore.
 - **Problem:** Two clearly named tasks may not justify an intermediate page.
-- **Proposed behavior:** Put **ייצוא דוחות** and **גיבוי ושחזור** directly in Settings under one section.
+- **Current behavior:** **ייצוא דוחות** and **גיבוי ושחזור** are direct Settings rows. `/settings/reports-backup` redirects safely to Settings for old links.
 - **User benefit:** One fewer navigation tap for infrequent but important tasks.
 - **Risk:** Settings becomes longer; report export and full-data backup must remain conceptually distinct.
 - **Effort:** Small.
-- **Implement now?** No; confirm the Settings group stays scannable on smaller phones.
+- **Implement now?** **Yes — completed and inspected on an iPhone 17 Pro Simulator.**
 
-### 7. Hide optional title, notes, and expected end on the fallback “start now” form
+### 7. Hide optional title, notes, and expected end on the fallback “start now” form — completed
 
-- **Current behavior:** The unscheduled-start route shows workplace, expected-end format, title, and notes before the start button.
+- **Previous behavior:** The unscheduled-start route showed workplace, role/template choices, expected end, title, and notes before the start button.
 - **Problem:** When the one-workplace direct Home start cannot be used, the fallback still asks for optional planning metadata before the worker clocks in.
-- **Proposed behavior:** Show workplace choice and **התחלת משמרת עכשיו**; put expected end/title/notes under **אפשרויות נוספות**.
+- **Current behavior:** Workplace choice and **התחלת משמרת עכשיו** remain visible; role, template, expected end, title, and notes are under **אפשרויות נוספות**.
 - **User benefit:** Multiple-workplace clock in remains nearly as fast as the one-workplace case.
 - **Risk:** Users who rely on expected-end reminders need discoverability.
 - **Effort:** Small.
-- **Implement now?** No. Multiple-workplace native dogfooding is complete; keep this as the next contained start-flow simplification because it changes an active-work safety path.
+- **Implement now?** **Yes — completed with interaction regressions and Simulator inspection.**
 
 ### 8. Collapse per-break actions into row interaction/overflow
 

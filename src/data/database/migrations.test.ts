@@ -83,4 +83,14 @@ describe('database migrations', () => {
     expect(migration?.sql).toContain('shift_templates_active');
     expect(migration?.sql).toContain('json_valid(accepted_fields_json)');
   });
+
+  it('adds backward-compatible shift type pay multipliers and historical snapshots', () => {
+    const migration = DATABASE_MIGRATIONS.find((item) => item.version === 7);
+    expect(migration?.name).toBe('shift_type_pay_multipliers');
+    expect(migration?.sql).toContain('pay_multiplier_basis_points INTEGER NOT NULL DEFAULT 10000');
+    expect(migration?.sql).toContain('shift_type_name_snapshot TEXT');
+    expect(migration?.sql).toContain('shift_type_pay_multiplier_basis_points INTEGER NOT NULL DEFAULT 10000');
+    expect(migration?.sql).toContain('UPDATE recurrence_series');
+    expect(migration?.sql).toContain('shift_type_pay_multiplier_basis_points ON shifts');
+  });
 });

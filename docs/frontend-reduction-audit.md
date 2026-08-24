@@ -41,7 +41,7 @@ The table covers every user-visible route. Layout files and redirects are listed
 | Onboarding workplace | `/onboarding/workplace` | Initial workplace name/rate/currency/timezone | Save and continue | Keep; this establishes pay context required by the core loop. |
 | Onboarding finish | `/onboarding/finish` | Completion confirmation | Start using Shiftty | Keep. No secondary setup detours. |
 | Privacy | `/settings/privacy` | Local-first data and permission explanation | Return/open OS settings where applicable | Keep as trust documentation. |
-| Reports & backup | `/settings/reports-backup` | Entry points for export/backup tasks | Open exports or data management | Candidate to merge into Settings if dogfooding shows the intermediate page adds no value. |
+| Reports & backup compatibility route | `/settings/reports-backup` | Legacy/deep-link compatibility only | Redirect to Settings | The intermediate page was removed on 2026-08-23; Settings now links directly to Export and Backup/Restore. |
 | Data management | `/settings/data-management` | Backup, restore, and destructive data actions | Backup, restore, delete | Keep separate because destructive actions need context and distance from daily use. |
 | Exports | `/settings/exports` | Selected month's export formats | Change month, export PDF/CSV/ICS | Simplified to reuse the Reports model. PDF/CSV contain authoritative salary state; ICS is calendar-only. |
 | Notifications | `/settings/notifications` | Global notification preferences | Enable/disable reminders | Keep. DF-013 copy interpolation is fixed. |
@@ -144,7 +144,6 @@ ICS intentionally exports calendar facts only. It does not claim to be a financi
 | --- | --- | --- | --- |
 | P2 | Split salary profile and pay-rule list/edit states | These are the densest forms and expose many actions at once. | Preserve reorder/effective-date behavior and verify the common edit path on a phone. |
 | P2 | Fold expected-end editing into the active Home card | It could remove a navigation transition during an active shift. | Confirm that clearing and reminder explanation remain understandable. |
-| P2 | Remove the Reports & backup intermediate page | Settings already links to closely related export/data tasks. | Verify that users still distinguish portable reports from backup/restore. |
 | P2 | Move workplace secondary actions to a detail surface | The workplace list carries setup and lifecycle actions together. | Avoid slowing the common edit-rate/timezone task. |
 | P3 | Reassess Calendar's day/week/month mode count | Three modes increase control density. | Collect dogfooding or analytics evidence; do not remove a useful planning view speculatively. |
 | P3 | Normalize product naming to `Shiftty` | Existing docs/build traces also contain `Shifty`. | Coordinate bundle/display-name and release communication. |

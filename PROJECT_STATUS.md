@@ -1,8 +1,67 @@
 # Shiftty Project Status
 
-Last updated: 2026-08-14
+Last updated: 2026-08-24
 
-## Current milestone
+## Predefined shift types and pay multipliers — 2026-08-24
+
+The existing Shift Templates architecture now provides the user-facing **Shift Types / סוגי משמרת** feature without creating a parallel scheduling model.
+
+- Settings supports create, edit, archive, restore, duplicate, and confirmed permanent deletion of shift types.
+- A type defines default start/end times, break behavior, weekdays/color, and a validated 100%–1000% pay multiplier.
+- Selecting a type prefills shift hours and break while leaving each shift editable. Scheduled, completed, live fallback, duplicate, suggestion, and recurrence paths carry immutable type name/multiplier snapshots.
+- Salary engine `1.3.0` applies the type across the whole payable interval and adds a transparent default overtime policy when no worked-minute multiplier is configured: 480 net minutes at the ordinary applicable rate, 120 minutes with a stacking 25% premium, then 120 minutes with a stacking 50% premium. An explicit or disabled threshold replaces or opts out of both tiers.
+- New schedules, shift-type defaults, manual completed shifts, and manual payable ranges are capped at 12 hours. Overdue live shifts can still be clocked out truthfully; their salary remains explicitly invalid until corrected, and legacy over-limit records remain readable without allowing lengthening.
+- Shift Details and the salary summary show the type, working time, resolved base hourly rate, type multiplier, type-adjusted hourly rate, and gross compensation.
+- Migration 7 gives legacy types/shifts a neutral 100% default, backfills readable names, updates recurrence snapshots and salary-staleness triggers, and preserves finalized history if a type is deleted.
+- Backup export/replace/merge includes the new fields while old version 1 backups remain importable at 100%.
+- Hebrew/English copy, logical RTL layout, localized weekdays, accessibility states, workplace/role integrity checks, and versioned salary history remain covered.
+
+Verification:
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed with zero errors/warnings |
+| `npm test -- --runInBand` | Passed; 109 suites, 506 tests, 0 failures |
+| `npm run validate:migrations` | Passed from empty and v1–v7 databases |
+| `npx expo install --check` | Reports eight available SDK 57 patch-level dependency updates; current native development build remains operational |
+| `npx expo config --type public` | Passed; SDK 57.0.0, iOS/Android/web |
+| `npm run validate:expo` | Passed; 36 static routes |
+| `git diff --check` | Passed |
+
+The updated development client bundled and launched on the booted iPhone 17 Pro Simulator, Migration 7 completed without a startup error, and the empty Hebrew RTL Shift Types list was visually inspected. Creating disposable native salary data was intentionally left to the documented dogfooding flow; exact create/select/pay/delete behavior is covered by component, service, repository, real-SQLite integration, backup, and cross-midnight tests.
+
+The app remains single-user and local-first: there are no accounts, employees, server tenants, authentication, or RBAC administrator roles. “Administrator” means the device owner using Settings. Existing audit guarantees are timestamps, immutable shift type snapshots, and versioned salary calculation snapshots—not an actor-attributed compliance log. These boundaries and future synchronization requirements are documented in `docs/shift-types-and-pay-multipliers.md`.
+
+## Development continuation — 2026-08-23
+
+Development resumed from clean base `38bdc57` using the current simplification and dogfooding documents as the roadmap.
+
+- Settings now links directly to **Report Exports** and **Backup/Restore**. The removed intermediate route remains a compatibility redirect.
+- The fallback unscheduled clock-in screen now keeps workplace and Start prominent; role, template, expected end, title, and notes are progressively disclosed.
+- Monthly reports now enforce the documented month rule at the model boundary: a completed shift belongs to the month containing its actual clock-out instant.
+- Calendar's initial selected day and Home's reporting month now use the configured `Asia/Jerusalem` application timezone instead of UTC/device-local date shortcuts.
+- Expo SDK 57 patch dependencies were realigned with `expo install --fix`; `expo install --check` is green.
+- The updated web bundle returned HTTP 200, and the development client bundled and rendered successfully on the iPhone 17 Pro Simulator. Settings and the simplified fallback clock-in screen were visually inspected.
+
+Post-change validation is green:
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed with zero errors/warnings |
+| `npm test` | Passed; 107 suites, 476 tests, 0 failures |
+| `npm run validate:migrations` | Passed from empty, v1–v5, and current v6 databases |
+| `npx expo install --check` | Passed |
+| `npx expo config --type public` | Passed; SDK 57.0.0, iOS/Android/web |
+| `npx expo export --platform web` | Passed; 36 static routes |
+| `git diff --check` | Passed |
+
+`npm audit --omit=dev` still reports transitive Metro/Expo toolchain advisories (4 high through `image-size`, 12 moderate including `uuid`). The non-force audit repair did not remove them; the proposed forced repair would install an incompatible `expo-sharing` major and was intentionally not applied. Track these with Expo/Metro patch releases rather than breaking SDK compatibility.
+
+Android and renewed physical-iPhone signing remain external platform work.
+
+## Previous signed-candidate milestone (2026-08-14)
 
 The dogfooding UX consistency and simplification sprint is implemented on `codex/initial-shifty-foundation`. The product remains centered on the daily loop `כניסה → הפסקה → יציאה`, with Calendar for review and one authoritative monthly Reports/Export model for completed work and finalized pay.
 

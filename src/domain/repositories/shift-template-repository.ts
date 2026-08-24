@@ -4,6 +4,7 @@ export interface CreateShiftTemplateInput {
   name: string;
   defaultStartTime: string;
   defaultEndTime: string;
+  payMultiplierBasisPoints?: number;
   expectedBreakMinutes: number;
   expectedBreakType?: 'paid' | 'unpaid';
   validWeekdays?: number[];
@@ -25,5 +26,6 @@ export interface ShiftTemplateRepository {
   update(id: string, input: UpdateShiftTemplateInput): Promise<ShiftTemplate>;
   archive(id: string): Promise<void>;
   restore(id: string): Promise<void>;
+  delete(id: string): Promise<void>;
   duplicate(id: string, newName: string): Promise<ShiftTemplate>;
 }

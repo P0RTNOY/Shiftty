@@ -105,6 +105,8 @@ export class BackupOrchestrator {
     const roleIds = new Set(data.roles.map(r => r.id));
     const shiftIds = new Set(data.shifts.map(s => s.id));
     const profileIds = new Set(data.salaryProfiles.map((profile) => profile.id));
+    const roleWorkplaces = new Map(data.roles.map((role) => [role.id, role.workplaceId]));
+    const profileWorkplaces = new Map(data.salaryProfiles.map((profile) => [profile.id, profile.workplaceId]));
     const templateIds = new Set(data.shiftTemplates.map((template) => template.id));
     const seriesIds = new Set(data.recurrenceSeries.map((series) => series.id));
     const breakIds = new Set(data.breakSessions.map((session) => session.id));
@@ -127,7 +129,9 @@ export class BackupOrchestrator {
     for (const s of data.shifts) {
       if (!wpIds.has(s.workplaceId)) errors.push(`Shift ${s.id} references missing workplace ${s.workplaceId}`);
       if (s.roleId && !roleIds.has(s.roleId)) errors.push(`Shift ${s.id} references missing role ${s.roleId}`);
+      if (s.roleId && roleWorkplaces.get(s.roleId) !== s.workplaceId) errors.push(`Shift ${s.id} references a role from another workplace`);
       if (s.salaryProfileId && !profileIds.has(s.salaryProfileId)) errors.push(`Shift ${s.id} references missing salary profile ${s.salaryProfileId}`);
+      if (s.salaryProfileId && profileWorkplaces.get(s.salaryProfileId) && profileWorkplaces.get(s.salaryProfileId) !== s.workplaceId) errors.push(`Shift ${s.id} references a salary profile from another workplace`);
       if (s.shiftTemplateId && !templateIds.has(s.shiftTemplateId)) errors.push(`Shift ${s.id} references missing template ${s.shiftTemplateId}`);
       if (s.recurrenceGroupId && !seriesIds.has(s.recurrenceGroupId)) errors.push(`Shift ${s.id} references missing recurrence series ${s.recurrenceGroupId}`);
     }
@@ -143,11 +147,14 @@ export class BackupOrchestrator {
     for (const template of data.shiftTemplates) {
       if (template.workplaceId && !wpIds.has(template.workplaceId)) errors.push(`Shift template ${template.id} references missing workplace ${template.workplaceId}`);
       if (template.roleId && !roleIds.has(template.roleId)) errors.push(`Shift template ${template.id} references missing role ${template.roleId}`);
+      if (template.roleId && template.workplaceId && roleWorkplaces.get(template.roleId) !== template.workplaceId) errors.push(`Shift template ${template.id} references a role from another workplace`);
       if (template.salaryProfileId && !profileIds.has(template.salaryProfileId)) errors.push(`Shift template ${template.id} references missing salary profile ${template.salaryProfileId}`);
+      if (template.salaryProfileId && template.workplaceId && profileWorkplaces.get(template.salaryProfileId) && profileWorkplaces.get(template.salaryProfileId) !== template.workplaceId) errors.push(`Shift template ${template.id} references a salary profile from another workplace`);
     }
     for (const series of data.recurrenceSeries) {
       if (!wpIds.has(series.template.workplaceId)) errors.push(`Recurrence series ${series.id} references missing workplace ${series.template.workplaceId}`);
       if (series.template.roleId && !roleIds.has(series.template.roleId)) errors.push(`Recurrence series ${series.id} references missing role ${series.template.roleId}`);
+      if (series.template.roleId && roleWorkplaces.get(series.template.roleId) !== series.template.workplaceId) errors.push(`Recurrence series ${series.id} references a role from another workplace`);
       if (series.template.shiftTemplateId && !templateIds.has(series.template.shiftTemplateId)) errors.push(`Recurrence series ${series.id} references missing template ${series.template.shiftTemplateId}`);
     }
     for (const b of data.breakSessions) {
@@ -259,14 +266,14 @@ export class BackupOrchestrator {
           await this.db.runAsync('INSERT INTO roles (id, workplace_id, name, hourly_rate_minor, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [r.id, r.workplaceId, r.name, r.hourlyRateMinor ?? null, r.isArchived ? 1 : 0, r.createdAt, r.updatedAt]);
         }
         for (const t of data.shiftTemplates) {
-          await this.db.runAsync('INSERT INTO shift_templates (id, name, default_start_time, default_end_time, expected_break_minutes, expected_break_type, workplace_id, role_id, salary_profile_id, valid_weekdays, color_token, is_archived, expected_duration_minutes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [t.id, t.name, t.defaultStartTime, t.defaultEndTime, t.expectedBreakMinutes, t.expectedBreakType ?? null, t.workplaceId ?? null, t.roleId ?? null, t.salaryProfileId ?? null, t.validWeekdays ? JSON.stringify(t.validWeekdays) : null, t.colorToken ?? null, t.isArchived ? 1 : 0, t.expectedDurationMinutes ?? null, t.createdAt, t.updatedAt]);
+          await this.db.runAsync('INSERT INTO shift_templates (id, name, default_start_time, default_end_time, pay_multiplier_basis_points, expected_break_minutes, expected_break_type, workplace_id, role_id, salary_profile_id, valid_weekdays, color_token, is_archived, expected_duration_minutes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [t.id, t.name, t.defaultStartTime, t.defaultEndTime, t.payMultiplierBasisPoints ?? 10_000, t.expectedBreakMinutes, t.expectedBreakType ?? null, t.workplaceId ?? null, t.roleId ?? null, t.salaryProfileId ?? null, t.validWeekdays ? JSON.stringify(t.validWeekdays) : null, t.colorToken ?? null, t.isArchived ? 1 : 0, t.expectedDurationMinutes ?? null, t.createdAt, t.updatedAt]);
         }
         for (const rs of data.recurrenceSeries) {
           await this.db.runAsync('INSERT INTO recurrence_series (id, rule_json, template_json, disabled_from, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)', [rs.id, JSON.stringify(rs.rule), JSON.stringify(rs.template), rs.disabledFrom || null, rs.createdAt, rs.updatedAt]);
         }
         for (const s of data.shifts) {
-          await this.db.runAsync('INSERT INTO shifts (id, workplace_id, role_id, salary_profile_id, title, notes, scheduled_start, scheduled_end, actual_start, actual_end, payable_start, payable_end, expected_break_minutes, actual_break_minutes, payable_break_minutes, status, hourly_rate_snapshot_minor, expected_gross_pay_minor, actual_gross_pay_minor, payable_gross_pay_minor, shift_template_id, recurrence_group_id, recurrence_original_start, recurrence_exception_type, cancelled_at, expected_end, active_origin, payable_source, completed_at, timezone, hourly_rate_override_minor, fixed_bonus_override_minor, travel_reimbursement_override_minor, salary_calculation_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-            s.id, s.workplaceId, s.roleId ?? null, s.salaryProfileId ?? null, s.title ?? null, s.notes ?? null, s.scheduledStart ?? null, s.scheduledEnd ?? null, s.actualStart ?? null, s.actualEnd ?? null, s.payableStart ?? null, s.payableEnd ?? null, s.expectedBreakMinutes, s.actualBreakMinutes ?? null, s.payableBreakMinutes ?? null, s.status, s.hourlyRateSnapshotMinor, s.expectedGrossPayMinor ?? null, s.actualGrossPayMinor ?? null, s.payableGrossPayMinor ?? null, s.shiftTemplateId ?? null, s.recurrenceGroupId ?? null, s.recurrenceOriginalStart ?? null, s.recurrenceExceptionType ?? null, s.cancelledAt ?? null, s.expectedEnd ?? null, s.activeOrigin ?? null, s.payableSource ?? null, s.completedAt ?? null, s.timezone, s.hourlyRateOverrideMinor ?? null, s.fixedBonusOverrideMinor ?? null, s.travelReimbursementOverrideMinor ?? null, s.salaryCalculationStatus, s.createdAt, s.updatedAt
+          await this.db.runAsync('INSERT INTO shifts (id, workplace_id, role_id, salary_profile_id, title, notes, scheduled_start, scheduled_end, actual_start, actual_end, payable_start, payable_end, expected_break_minutes, actual_break_minutes, payable_break_minutes, status, hourly_rate_snapshot_minor, expected_gross_pay_minor, actual_gross_pay_minor, payable_gross_pay_minor, shift_template_id, shift_type_name_snapshot, shift_type_pay_multiplier_basis_points, recurrence_group_id, recurrence_original_start, recurrence_exception_type, cancelled_at, expected_end, active_origin, payable_source, completed_at, timezone, hourly_rate_override_minor, fixed_bonus_override_minor, travel_reimbursement_override_minor, salary_calculation_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+            s.id, s.workplaceId, s.roleId ?? null, s.salaryProfileId ?? null, s.title ?? null, s.notes ?? null, s.scheduledStart ?? null, s.scheduledEnd ?? null, s.actualStart ?? null, s.actualEnd ?? null, s.payableStart ?? null, s.payableEnd ?? null, s.expectedBreakMinutes, s.actualBreakMinutes ?? null, s.payableBreakMinutes ?? null, s.status, s.hourlyRateSnapshotMinor, s.expectedGrossPayMinor ?? null, s.actualGrossPayMinor ?? null, s.payableGrossPayMinor ?? null, s.shiftTemplateId ?? null, s.shiftTypeNameSnapshot ?? null, s.shiftTypePayMultiplierBasisPoints ?? 10_000, s.recurrenceGroupId ?? null, s.recurrenceOriginalStart ?? null, s.recurrenceExceptionType ?? null, s.cancelledAt ?? null, s.expectedEnd ?? null, s.activeOrigin ?? null, s.payableSource ?? null, s.completedAt ?? null, s.timezone, s.hourlyRateOverrideMinor ?? null, s.fixedBonusOverrideMinor ?? null, s.travelReimbursementOverrideMinor ?? null, s.salaryCalculationStatus, s.createdAt, s.updatedAt
           ]);
         }
         for (const re of data.recurrenceExceptions) {
@@ -378,7 +385,7 @@ export class BackupOrchestrator {
         }
         for (const t of data.shiftTemplates) {
           const { id, skip } = await remapId('shift_templates', t.id, t);
-          if (!skip) await this.db.runAsync('INSERT INTO shift_templates (id, name, default_start_time, default_end_time, expected_break_minutes, expected_break_type, workplace_id, role_id, salary_profile_id, valid_weekdays, color_token, is_archived, expected_duration_minutes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, t.name, t.defaultStartTime, t.defaultEndTime, t.expectedBreakMinutes, t.expectedBreakType ?? null, getMappedId(t.workplaceId), getMappedId(t.roleId), getMappedId(t.salaryProfileId), t.validWeekdays ? JSON.stringify(t.validWeekdays) : null, t.colorToken ?? null, t.isArchived ? 1 : 0, t.expectedDurationMinutes ?? null, t.createdAt, t.updatedAt]);
+          if (!skip) await this.db.runAsync('INSERT INTO shift_templates (id, name, default_start_time, default_end_time, pay_multiplier_basis_points, expected_break_minutes, expected_break_type, workplace_id, role_id, salary_profile_id, valid_weekdays, color_token, is_archived, expected_duration_minutes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, t.name, t.defaultStartTime, t.defaultEndTime, t.payMultiplierBasisPoints ?? 10_000, t.expectedBreakMinutes, t.expectedBreakType ?? null, getMappedId(t.workplaceId), getMappedId(t.roleId), getMappedId(t.salaryProfileId), t.validWeekdays ? JSON.stringify(t.validWeekdays) : null, t.colorToken ?? null, t.isArchived ? 1 : 0, t.expectedDurationMinutes ?? null, t.createdAt, t.updatedAt]);
         }
         for (const rs of data.recurrenceSeries) {
           const { id, skip } = await remapId('recurrence_series', rs.id, rs);
@@ -403,8 +410,8 @@ export class BackupOrchestrator {
               idMap.set(s.id, String((semanticMatch as { id: string }).id));
             }
           }
-          if (!skip) await this.db.runAsync('INSERT INTO shifts (id, workplace_id, role_id, salary_profile_id, title, notes, scheduled_start, scheduled_end, actual_start, actual_end, payable_start, payable_end, expected_break_minutes, actual_break_minutes, payable_break_minutes, status, hourly_rate_snapshot_minor, expected_gross_pay_minor, actual_gross_pay_minor, payable_gross_pay_minor, shift_template_id, recurrence_group_id, recurrence_original_start, recurrence_exception_type, cancelled_at, expected_end, active_origin, payable_source, completed_at, timezone, hourly_rate_override_minor, fixed_bonus_override_minor, travel_reimbursement_override_minor, salary_calculation_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-            id, getMappedId(s.workplaceId), getMappedId(s.roleId), getMappedId(s.salaryProfileId), s.title ?? null, s.notes ?? null, s.scheduledStart ?? null, s.scheduledEnd ?? null, s.actualStart ?? null, s.actualEnd ?? null, s.payableStart ?? null, s.payableEnd ?? null, s.expectedBreakMinutes, s.actualBreakMinutes ?? null, s.payableBreakMinutes ?? null, s.status, s.hourlyRateSnapshotMinor, s.expectedGrossPayMinor ?? null, s.actualGrossPayMinor ?? null, s.payableGrossPayMinor ?? null, getMappedId(s.shiftTemplateId), getMappedId(s.recurrenceGroupId), s.recurrenceOriginalStart ?? null, s.recurrenceExceptionType ?? null, s.cancelledAt ?? null, s.expectedEnd ?? null, s.activeOrigin ?? null, s.payableSource ?? null, s.completedAt ?? null, s.timezone, s.hourlyRateOverrideMinor ?? null, s.fixedBonusOverrideMinor ?? null, s.travelReimbursementOverrideMinor ?? null, s.salaryCalculationStatus, s.createdAt, s.updatedAt
+          if (!skip) await this.db.runAsync('INSERT INTO shifts (id, workplace_id, role_id, salary_profile_id, title, notes, scheduled_start, scheduled_end, actual_start, actual_end, payable_start, payable_end, expected_break_minutes, actual_break_minutes, payable_break_minutes, status, hourly_rate_snapshot_minor, expected_gross_pay_minor, actual_gross_pay_minor, payable_gross_pay_minor, shift_template_id, shift_type_name_snapshot, shift_type_pay_multiplier_basis_points, recurrence_group_id, recurrence_original_start, recurrence_exception_type, cancelled_at, expected_end, active_origin, payable_source, completed_at, timezone, hourly_rate_override_minor, fixed_bonus_override_minor, travel_reimbursement_override_minor, salary_calculation_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+            id, getMappedId(s.workplaceId), getMappedId(s.roleId), getMappedId(s.salaryProfileId), s.title ?? null, s.notes ?? null, s.scheduledStart ?? null, s.scheduledEnd ?? null, s.actualStart ?? null, s.actualEnd ?? null, s.payableStart ?? null, s.payableEnd ?? null, s.expectedBreakMinutes, s.actualBreakMinutes ?? null, s.payableBreakMinutes ?? null, s.status, s.hourlyRateSnapshotMinor, s.expectedGrossPayMinor ?? null, s.actualGrossPayMinor ?? null, s.payableGrossPayMinor ?? null, getMappedId(s.shiftTemplateId), s.shiftTypeNameSnapshot ?? null, s.shiftTypePayMultiplierBasisPoints ?? 10_000, getMappedId(s.recurrenceGroupId), s.recurrenceOriginalStart ?? null, s.recurrenceExceptionType ?? null, s.cancelledAt ?? null, s.expectedEnd ?? null, s.activeOrigin ?? null, s.payableSource ?? null, s.completedAt ?? null, s.timezone, s.hourlyRateOverrideMinor ?? null, s.fixedBonusOverrideMinor ?? null, s.travelReimbursementOverrideMinor ?? null, s.salaryCalculationStatus, s.createdAt, s.updatedAt
           ]);
         }
         for (const re of data.recurrenceExceptions) {
@@ -586,6 +593,7 @@ export class BackupOrchestrator {
 
   private mapShiftTemplate = (row: any) => ({
     id: row.id, name: row.name, defaultStartTime: row.default_start_time, defaultEndTime: row.default_end_time,
+    payMultiplierBasisPoints: row.pay_multiplier_basis_points,
     expectedBreakMinutes: row.expected_break_minutes, expectedBreakType: row.expected_break_type,
     workplaceId: row.workplace_id, roleId: row.role_id, salaryProfileId: row.salary_profile_id,
     validWeekdays: row.valid_weekdays ? JSON.parse(row.valid_weekdays) : undefined, colorToken: row.color_token,
@@ -600,6 +608,7 @@ export class BackupOrchestrator {
     expectedBreakMinutes: row.expected_break_minutes, actualBreakMinutes: row.actual_break_minutes, payableBreakMinutes: row.payable_break_minutes,
     status: row.status, hourlyRateSnapshotMinor: row.hourly_rate_snapshot_minor, expectedGrossPayMinor: row.expected_gross_pay_minor,
     actualGrossPayMinor: row.actual_gross_pay_minor, payableGrossPayMinor: row.payable_gross_pay_minor, shiftTemplateId: row.shift_template_id,
+    shiftTypeNameSnapshot: row.shift_type_name_snapshot, shiftTypePayMultiplierBasisPoints: row.shift_type_pay_multiplier_basis_points,
     recurrenceGroupId: row.recurrence_group_id, recurrenceOriginalStart: row.recurrence_original_start, recurrenceExceptionType: row.recurrence_exception_type,
     cancelledAt: row.cancelled_at, expectedEnd: row.expected_end, activeOrigin: row.active_origin, payableSource: row.payable_source,
     completedAt: row.completed_at, timezone: row.timezone, hourlyRateOverrideMinor: row.hourly_rate_override_minor,

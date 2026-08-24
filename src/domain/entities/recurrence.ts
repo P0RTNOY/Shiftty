@@ -30,6 +30,8 @@ export const recurringShiftTemplateSchema = z.object({
   workplaceId: z.string().min(1),
   roleId: z.string().min(1).optional(),
   shiftTemplateId: z.string().min(1).optional(),
+  shiftTypeNameSnapshot: z.string().trim().min(1).max(120).optional(),
+  shiftTypePayMultiplierBasisPoints: z.number().int().min(10_000).max(100_000).optional(),
   title: z.string().trim().max(120).optional(),
   notes: z.string().trim().max(4_000).optional(),
   startTime: localTimeSchema,

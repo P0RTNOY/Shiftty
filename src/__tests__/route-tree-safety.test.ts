@@ -66,6 +66,16 @@ describe('Expo Router route tree', () => {
     expect(compatibilityRoute).toContain('<Redirect href="/shifts/new" />');
   });
 
+  it('keeps the removed Reports and Backup hub as a safe compatibility redirect', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('fs');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const p = require('path');
+    const source = fs.readFileSync(p.join(p.resolve('.'), 'src', 'app', 'settings', 'reports-backup.tsx'), 'utf8');
+
+    expect(source).toContain('<Redirect href="/settings" />');
+  });
+
   it('does not expose caught native or database messages from hardened routes', () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const fs = require('fs');

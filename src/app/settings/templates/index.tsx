@@ -14,7 +14,7 @@ export default function TemplatesListScreen() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const [showArchived, setShowArchived] = useState(false);
-  const { templates, loading, refresh, archive, restore, duplicate } = useTemplates(showArchived);
+  const { templates, loading, refresh, archive, restore, remove, duplicate } = useTemplates(showArchived);
 
   function handlePress(template: ShiftTemplate) {
     router.push({ pathname: '/settings/templates/[id]', params: { id: template.id } });
@@ -58,6 +58,7 @@ export default function TemplatesListScreen() {
             onPress={handlePress}
             onArchive={archive}
             onRestore={restore}
+            onDelete={remove}
             onDuplicate={async (id, newName) => {
               await duplicate(id, newName);
             }}

@@ -15,6 +15,7 @@ export function ShiftCard({ shift, workplaceName, roleName, templateName, onPres
   const range = getEffectiveShiftRange(shift);
   const direction = isRtl ? 'row-reverse' : 'row';
   const textAlign = isRtl ? 'right' : 'left';
+  const resolvedTypeName = shift.shiftTypeNameSnapshot ?? templateName;
   const crossesDate = formatLocalDateKey(range.start, shift.timezone) !== formatLocalDateKey(range.end, shift.timezone);
   return (
     <Pressable
@@ -24,8 +25,8 @@ export function ShiftCard({ shift, workplaceName, roleName, templateName, onPres
     >
       <View style={[styles.header, { flexDirection: direction }]}>
         <View style={styles.titleBlock}>
-          <Text style={[styles.title, { color: colors.text, textAlign }]}>{shift.title || templateName || workplaceName}</Text>
-          {shift.title || templateName ? <Text style={[styles.meta, { color: colors.textMuted, textAlign }]}>{workplaceName}{roleName ? ` · ${roleName}` : ''}</Text> : null}
+          <Text style={[styles.title, { color: colors.text, textAlign }]}>{shift.title || resolvedTypeName || workplaceName}</Text>
+          {shift.title || resolvedTypeName ? <Text style={[styles.meta, { color: colors.textMuted, textAlign }]}>{workplaceName}{roleName ? ` · ${roleName}` : ''}</Text> : null}
         </View>
         <StatusBadge status={shift.status} />
       </View>

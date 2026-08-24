@@ -53,6 +53,20 @@ export default function TemplateEditScreen() {
     }
   }
 
+  function handleDelete() {
+    if (!template) return;
+    Alert.alert(t('templates.deleteTitle'), t('templates.deleteBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('templates.delete'), style: 'destructive', onPress: () => {
+        setSaving(true);
+        void repo.delete(template.id)
+          .then(() => router.back())
+          .catch(() => Alert.alert(t('common.error')))
+          .finally(() => setSaving(false));
+      } },
+    ]);
+  }
+
   const title = isNew ? t('templates.create') : t('templates.edit');
 
   if (loading) {
@@ -79,6 +93,7 @@ export default function TemplateEditScreen() {
     name: template.name,
     defaultStartTime: template.defaultStartTime,
     defaultEndTime: template.defaultEndTime,
+    payMultiplierPercent: String((template.payMultiplierBasisPoints ?? 10_000) / 100),
     expectedBreakMinutes: String(template.expectedBreakMinutes),
     expectedBreakType: template.expectedBreakType,
     validWeekdays: Array(7).fill(false).map((_, i) => template.validWeekdays?.includes(i) ?? false),
@@ -89,7 +104,7 @@ export default function TemplateEditScreen() {
       <AppScreen title={title}>
         <Stack.Screen options={{ title }} />
       <SettingsBackButton />
-      <TemplateForm initial={initial} loading={saving} onSubmit={handleSubmit} submitLabel={title} />
+      <TemplateForm initial={initial} loading={saving} onDelete={isNew ? undefined : handleDelete} onSubmit={handleSubmit} submitLabel={title} />
     </AppScreen>
   );
 }

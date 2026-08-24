@@ -74,6 +74,8 @@ export default function ApplySuggestionScreen() {
         workplaceId: selectedWorkplaceId,
         roleId: acceptWorkplace ? candidate.suggestedRoleId : undefined,
         shiftTemplateId: acceptWorkplace ? candidate.suggestedTemplateId : undefined,
+        shiftTypeNameSnapshot: acceptWorkplace ? template?.name : undefined,
+        shiftTypePayMultiplierBasisPoints: acceptWorkplace ? template?.payMultiplierBasisPoints : undefined,
         hourlyRateSnapshotMinor: selectedWorkplace?.defaultHourlyRateMinor ?? 0,
         date: candidate.suggestedScheduledStart ? formatLocalDateKey(candidate.suggestedScheduledStart, DEFAULT_TIMEZONE) : formatLocalDateKey(new Date(), DEFAULT_TIMEZONE),
         startTime: acceptTime && candidate.suggestedScheduledStart ? formatLocalTime(candidate.suggestedScheduledStart, DEFAULT_TIMEZONE) : template?.defaultStartTime ?? '08:00',

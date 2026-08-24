@@ -87,6 +87,35 @@ describe('SqliteActiveShiftRepository', () => {
     expect(database.runAsync.mock.calls.map((call) => call[0]).join('\n')).toContain("status = 'completed'");
   });
 
+  it('persists a truthful overdue clock-out beyond 12 hours for recovery', async () => {
+    const overdueActive = { ...activeRow, actual_start: '2026-07-15T08:00:00+03:00' };
+    const database = databaseMock();
+    database.getFirstAsync.mockResolvedValueOnce(overdueActive).mockResolvedValue({
+      ...overdueActive,
+      status: 'completed',
+      actual_end: '2026-07-15T20:01:00+03:00',
+      payable_start: overdueActive.actual_start,
+      payable_end: '2026-07-15T20:01:00+03:00',
+      payable_break_minutes: 0,
+      actual_break_minutes: 0,
+      payable_source: 'actual',
+      completed_at: '2026-07-15T20:01:00+03:00',
+    });
+    const repository = new SqliteActiveShiftRepository(database as unknown as SQLiteDatabase);
+
+    await expect(repository.completeShift({
+      shiftId: 'shift-1',
+      actualEnd: '2026-07-15T20:01:00+03:00',
+      payableStart: overdueActive.actual_start,
+      payableEnd: '2026-07-15T20:01:00+03:00',
+      actualBreakMinutes: 0,
+      payableBreakMinutes: 0,
+      payableSource: 'actual',
+      closeOpenBreak: true,
+    })).resolves.toMatchObject({ actualEnd: '2026-07-15T20:01:00+03:00' });
+    expect(database.withTransactionAsync).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects an invalid completion before opening a write transaction', async () => {
     const database = databaseMock();
     const repository = new SqliteActiveShiftRepository(database as unknown as SQLiteDatabase);

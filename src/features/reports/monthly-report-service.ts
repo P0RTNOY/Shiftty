@@ -75,8 +75,9 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
     const start = shift.payableStart ?? shift.actualStart;
     const end = shift.payableEnd ?? shift.actualEnd;
     if (!start || !end) { invalidShiftCount += 1; continue; }
-    const startTime = Date.parse(start);
-    if (!Number.isFinite(startTime) || startTime < rangeStart || startTime >= rangeEnd) continue;
+    const actualEndTime = shift.actualEnd ? Date.parse(shift.actualEnd) : Number.NaN;
+    if (!Number.isFinite(actualEndTime)) { invalidShiftCount += 1; continue; }
+    if (actualEndTime < rangeStart || actualEndTime >= rangeEnd) continue;
 
     let paidMinutes: number;
     try {
@@ -140,11 +141,12 @@ export class MonthlyReportService {
 
   async load(month: string, timezone: string, generatedAt = new Date().toISOString()): Promise<MonthlyReport> {
     const range = createMonthlyReportRange(month, timezone);
+    const instantBeforeRange = new Date(Date.parse(range.start) - 1).toISOString();
     const shifts = await this.repositories.shifts.list({
       startsBefore: range.end,
-      endsAfter: range.start,
+      endsAfter: instantBeforeRange,
       statuses: ['completed'],
-      rangeSource: 'salary',
+      rangeSource: 'display',
     });
     const [snapshots, workplaces] = await Promise.all([
       this.repositories.salaryCalculations.listCurrentForShifts(shifts.map((shift) => shift.id)),

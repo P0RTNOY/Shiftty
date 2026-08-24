@@ -55,24 +55,31 @@ export const useAppStore = create<AppState>((set) => ({
       for (const [seriesId, result] of windowResults.entries()) {
         if (result.needsExtension && result.occurrencesToCreate.length > 0) {
           const series = allSeries.find((s: RecurrenceSeries) => s.id === seriesId)!;
-          const occurrences = result.occurrencesToCreate.map((occurrence) => {
-            const shift = createScheduledShift({
-              workplaceId: series.template.workplaceId,
-              roleId: series.template.roleId,
-              shiftTemplateId: series.template.shiftTemplateId,
-              title: series.template.title,
-              notes: series.template.notes,
-              hourlyRateSnapshotMinor: series.template.hourlyRateSnapshotMinor,
-              date: occurrence.localDate,
-              startTime: series.template.startTime,
-              endTime: series.template.endTime,
-              expectedBreakMinutes: series.template.expectedBreakMinutes,
-            }, {
-              id: occurrence.id,
-              now: nowString,
-              timezone: series.rule.timezone,
-            });
-            return { ...shift, recurrenceGroupId: series.id, recurrenceOriginalStart: occurrence.scheduledStart };
+          const occurrences = result.occurrencesToCreate.flatMap((occurrence) => {
+            try {
+              const shift = createScheduledShift({
+                workplaceId: series.template.workplaceId,
+                roleId: series.template.roleId,
+                shiftTemplateId: series.template.shiftTemplateId,
+                shiftTypeNameSnapshot: series.template.shiftTypeNameSnapshot,
+                shiftTypePayMultiplierBasisPoints: series.template.shiftTypePayMultiplierBasisPoints,
+                title: series.template.title,
+                notes: series.template.notes,
+                hourlyRateSnapshotMinor: series.template.hourlyRateSnapshotMinor,
+                date: occurrence.localDate,
+                startTime: series.template.startTime,
+                endTime: series.template.endTime,
+                expectedBreakMinutes: series.template.expectedBreakMinutes,
+              }, {
+                id: occurrence.id,
+                now: nowString,
+                timezone: series.rule.timezone,
+              });
+              return [{ ...shift, recurrenceGroupId: series.id, recurrenceOriginalStart: occurrence.scheduledStart }];
+            } catch (caught) {
+              if (caught instanceof Error && caught.message.includes('cannot exceed 12 hours')) return [];
+              throw caught;
+            }
           });
           await repos.recurrence.materializeOccurrences(series, occurrences);
         }

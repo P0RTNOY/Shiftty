@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 
+import { DEFAULT_TIMEZONE } from '@/shared/constants/app';
+import { formatLocalDateKey } from '@/shared/utils/zoned-time';
+
 type CalendarMode = 'month' | 'week' | 'agenda';
 
 interface CalendarState {
@@ -9,10 +12,12 @@ interface CalendarState {
   setMode: (mode: CalendarMode) => void;
 }
 
-const today = new Date().toISOString().slice(0, 10);
+export function getCalendarToday(now = new Date()): string {
+  return formatLocalDateKey(now, DEFAULT_TIMEZONE);
+}
 
 export const useCalendarStore = create<CalendarState>((set) => ({
-  selectedDate: today,
+  selectedDate: getCalendarToday(),
   mode: 'month',
   setSelectedDate: (selectedDate) => set({ selectedDate }),
   setMode: (mode) => set({ mode }),

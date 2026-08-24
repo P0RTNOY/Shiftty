@@ -46,6 +46,52 @@ describe('ShiftForm', () => {
     expect(onSave.mock.calls[0][0].scheduledEnd).toContain('2026-08-11');
   });
 
+  it('rejects a newly scheduled shift over 12 hours with a Hebrew validation message', async () => {
+    const onSave = jest.fn();
+    renderApp(<ShiftForm initialDate="2026-08-10" mode="scheduled" workplaces={[workplace]} onSave={onSave} />);
+
+    fireEvent.press(screen.getByRole('radio', { name: 'בית קפה' }));
+    fireEvent.changeText(screen.getByLabelText('התחלה'), '08:00');
+    fireEvent.changeText(screen.getByLabelText('סיום'), '20:01');
+    fireEvent.press(screen.getByRole('button', { name: 'שמירה' }));
+
+    expect(await screen.findByText('משמרת לא יכולה להיות ארוכה מ־12 שעות.')).toBeTruthy();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('prevents an over-12-hour auto range from bypassing validation as a current shift', async () => {
+    const onCurrentShift = jest.fn();
+    renderApp(<ShiftForm initialDate="2026-08-10" mode="auto" now={inferenceNow} onCurrentShift={onCurrentShift} onSave={jest.fn()} workplaces={[workplace]} />);
+
+    fireEvent.press(screen.getByRole('radio', { name: 'בית קפה' }));
+    fireEvent.changeText(screen.getByLabelText('התחלה'), '00:00');
+    fireEvent.changeText(screen.getByLabelText('סיום'), '13:00');
+    fireEvent.press(screen.getByRole('button', { name: 'שמירה' }));
+
+    expect(await screen.findByText('משמרת לא יכולה להיות ארוכה מ־12 שעות.')).toBeTruthy();
+    expect(onCurrentShift).not.toHaveBeenCalled();
+  });
+
+  it('allows unrelated edits to a grandfathered over-12-hour shift without lengthening it', async () => {
+    const onSave = jest.fn();
+    const legacy = createShift({
+      status: 'scheduled',
+      workplaceId: 'work-1',
+      scheduledStart: '2026-08-10T08:00:00+03:00',
+      scheduledEnd: '2026-08-10T21:00:00+03:00',
+      expectedBreakMinutes: 0,
+    });
+    renderApp(<ShiftForm initialShift={legacy} mode="scheduled" workplaces={[workplace]} onSave={onSave} />);
+
+    fireEvent.press(screen.getByRole('button', { name: 'שמירה' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(onSave.mock.calls[0][0]).toMatchObject({
+      scheduledStart: expect.stringContaining('2026-08-10T08:00:00'),
+      scheduledEnd: expect.stringContaining('2026-08-10T21:00:00'),
+    });
+  });
+
   it('keeps recurrence controls behind advanced options', () => {
     renderApp(<ShiftForm initialDate="2026-08-10" mode="scheduled" workplaces={[workplace]} onSave={jest.fn()} />);
 
@@ -119,13 +165,23 @@ describe('ShiftForm', () => {
     expect(screen.getByLabelText('הפסקה לדיווח בדקות')).toHaveProp('value', '20');
   });
 
-  it('applies an existing shift template without coupling it to salary logic', () => {
-    renderApp(<ShiftForm initialDate="2026-08-10" mode="scheduled" onSave={jest.fn()} templates={[{ id: 'night', name: 'לילה', defaultStartTime: '22:00', defaultEndTime: '06:00', expectedBreakMinutes: 45, isArchived: false, workplaceId: 'work-1', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }]} workplaces={[workplace]} />);
+  it('applies and snapshots a shift type while keeping individual times editable', async () => {
+    const onSave = jest.fn();
+    renderApp(<ShiftForm initialDate="2026-08-10" mode="scheduled" onSave={onSave} templates={[{ id: 'night', name: 'לילה', defaultStartTime: '22:00', defaultEndTime: '06:00', payMultiplierBasisPoints: 15_000, expectedBreakMinutes: 45, isArchived: false, workplaceId: 'work-1', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }]} workplaces={[workplace]} />);
     fireEvent.press(screen.getByRole('button', { name: 'אפשרויות נוספות' }));
-    fireEvent.press(screen.getByRole('radio', { name: 'לילה' }));
+    fireEvent.press(screen.getByRole('radio', { name: 'לילה · 150%' }));
     expect(screen.getByLabelText('התחלה')).toHaveProp('value', '22:00');
     expect(screen.getByLabelText('סיום')).toHaveProp('value', '06:00');
     expect(screen.getByLabelText('הפסקה מתוכננת בדקות')).toHaveProp('value', '45');
+    fireEvent.changeText(screen.getByLabelText('סיום'), '07:00');
+    fireEvent.press(screen.getByRole('radio', { name: 'בית קפה' }));
+    fireEvent.press(screen.getByRole('button', { name: 'שמירה' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      shiftTemplateId: 'night',
+      shiftTypeNameSnapshot: 'לילה',
+      shiftTypePayMultiplierBasisPoints: 15_000,
+      scheduledEnd: expect.stringContaining('07:00'),
+    }), undefined));
   });
 
   it('infers a past ordinary shift as completed with actual/payable values and no automatic break', async () => {
@@ -182,7 +238,7 @@ describe('ShiftForm', () => {
     const futureSave = jest.fn();
     const future = renderApp(<ShiftForm initialDate="2026-08-11" mode="auto" now={inferenceNow} onSave={futureSave} templates={[template]} workplaces={[workplace]} />);
     fireEvent.press(screen.getByRole('button', { name: 'אפשרויות נוספות' }));
-    fireEvent.press(screen.getByRole('radio', { name: 'לילה' }));
+    fireEvent.press(screen.getByRole('radio', { name: 'לילה · 100%' }));
     fireEvent.press(screen.getByRole('button', { name: 'שמירה' }));
     await waitFor(() => expect(futureSave).toHaveBeenCalledTimes(1));
     expect(futureSave.mock.calls[0][0]).toMatchObject({ status: 'scheduled', expectedBreakMinutes: 45 });
@@ -192,7 +248,7 @@ describe('ShiftForm', () => {
     const pastSave = jest.fn();
     renderApp(<ShiftForm initialDate="2026-08-08" mode="auto" now={inferenceNow} onSave={pastSave} templates={[template]} workplaces={[workplace]} />);
     fireEvent.press(screen.getByRole('button', { name: 'אפשרויות נוספות' }));
-    fireEvent.press(screen.getByRole('radio', { name: 'לילה' }));
+    fireEvent.press(screen.getByRole('radio', { name: 'לילה · 100%' }));
     fireEvent.press(screen.getByRole('button', { name: 'שמירה' }));
     await waitFor(() => expect(pastSave).toHaveBeenCalledTimes(1));
     expect(pastSave.mock.calls[0][0]).toMatchObject({ status: 'completed', expectedBreakMinutes: 0, actualBreakMinutes: 0, payableBreakMinutes: 0 });

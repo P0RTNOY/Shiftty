@@ -39,6 +39,23 @@ Fixed bonuses and reimbursements apply once per rule per shift. Explicit shift v
 
 Salary-profile bonus and travel defaults take precedence while a profile exists. Workplace defaults are the fallback when there is no applicable profile. Multipliers below 100% are rejected because Phase 4 models premiums, not deductions.
 
+When no explicit worked-minute multiplier rule exists, engine `1.3.0` applies a visible, deterministic default overtime schedule: the first 480 net working minutes use the otherwise applicable rate, minutes 481–600 receive a stacking 25% premium (125% on a neutral shift type), and minutes 601–720 receive a stacking 50% premium (150% on a neutral shift type). The thresholds remain continuous across midnight because their scope is the shift, and unpaid breaks do not consume them. Any persisted worked-minute multiplier rule—including a disabled rule—replaces or opts out of both defaults. This is an editable product default, not a claim that one schedule represents every employment agreement or legal circumstance.
+
+New schedules, manual completed shifts, manual payable ranges, and shift-type default ranges may be at most 720 elapsed minutes. Exactly 12 hours is accepted; one minute more is rejected. An already-running shift can always be clocked out with its truthful timestamp even after the limit so recovery and open-break closure cannot be blocked. Such an over-limit range is retained as history, receives an error issue, and has no payable gross total until corrected. Existing over-limit records remain readable and can receive unrelated edits or be shortened, but they cannot be lengthened.
+
+### Predefined shift type multiplier
+
+The existing shift-template entity is the canonical predefined shift type. A type stores a whole-shift multiplier in integer basis points, with `10000 = 100%` and a supported range of 100%–1000%. Selecting a type copies its identifier, name, and multiplier onto the shift. The copied values are calculation inputs; later rename, repricing, archive, or deletion of the type does not rewrite an already-created shift.
+
+The type multiplier participates as a whole-shift non-stacking candidate. The stronger of the type multiplier and the winning configured non-stacking rule applies, then explicitly stacking rules add only their premium above 100%. For example:
+
+```text
+60.00 base hourly rate × 150% night type = 90.00 per hour
+150% night type + stacking 125% overtime = 175% total
+```
+
+The same multiplier applies to all payable intervals on both sides of local midnight and to a configured minimum-duration adjustment. Bonuses and reimbursements remain fixed components and are not multiplied. Calculation result JSON records the snapshotted type name and multiplier in addition to segment multipliers and rule identifiers. Salary engine version `1.3.0` identifies the shift-type semantics together with the two-tier default overtime and 12-hour validation policy.
+
 ## Time, breaks, and segmentation
 
 - Completed shifts use the finalized payable range and payable break deduction.
@@ -50,7 +67,7 @@ The engine builds boundaries rather than iterating minute by minute. Boundaries 
 
 Per-shift and per-local-day thresholds are supported with independently configurable gross or net accumulation. Cross-midnight ranges are split at local midnight. Monthly orchestration sorts shifts chronologically and reallocates every prior work interval into the current calculation timezone before applying a daily threshold. Worked intervals remain available even when an earlier shift has no resolvable rate, so missing salary configuration does not erase time from a later overtime threshold. Finalizing a completed shift includes earlier completed shifts from that calculation-local day. When an earlier completed shift or its break sessions change, Migration 4 conservatively marks its finalized snapshot and later completed shifts in the possible affected daily window stale so frozen overtime results cannot remain silently obsolete. Weekly accumulated thresholds are intentionally deferred; the condition model can be extended with another accumulation scope later.
 
-The engine accepts holiday intervals through an injected `HolidayProvider` and never performs network access. The Phase 4 forms support user-defined full local dates, while an offline provider can supply named intervals. No mandatory Israeli legal rule or bundled authoritative holiday calendar is applied automatically.
+The engine accepts holiday intervals through an injected `HolidayProvider` and never performs network access. The Phase 4 forms support user-defined full local dates, while an offline provider can supply named intervals. Apart from the documented editable two-tier overtime default and 12-hour product cap, no mandatory Israeli legal rule or bundled authoritative holiday calendar is applied automatically.
 
 Financial period queries use status-aware ranges: completed shifts use payable time, scheduled shifts use scheduled time, and active shifts use actual time. Hourly segments are allocated to the reporting period containing their local segment date. A per-shift bonus, reimbursement, or minimum-duration adjustment belongs to the local date on which the salary source range begins. This prevents cross-month shifts from being counted in full in both months. Active provisional results remain available by shift ID but are excluded from finalized dashboard/report aggregates.
 
@@ -58,12 +75,14 @@ Profile effective dates, segment dates, and fixed-component report dates all use
 
 ## Snapshots and recalculation
 
-Migration 4 uses a hybrid snapshot:
+Migration 4 uses a hybrid snapshot, extended compatibly by Migration 7:
 
 - Indexed summary columns support reports.
 - Validated result JSON preserves segments, explanations, issues, rule IDs, calculation time, and engine version.
 - One partial unique index permits one current snapshot per shift.
 - Older versions remain as history.
+
+Migration 7 also snapshots the selected type name and multiplier directly on the shift. Old shifts and old backup payloads resolve to a neutral 100% multiplier. Deleting a type clears only its live foreign-key/recurrence reference; existing shift and recurrence snapshots remain readable, and a finalized salary snapshot is not made stale solely by deletion. Changing the selected type or multiplier on a completed shift is salary-sensitive and produces the normal stale/recalculation flow while retaining the prior calculation version.
 
 Completed snapshots are reused by dashboards even after profile changes. Salary-sensitive shift edits mark a finalized calculation `stale` through both the domain/UI flow and a database trigger. A stale shift continues to use its frozen result and is counted explicitly as stale in Home and Reports; it is never silently recomputed with a hybrid of old and current settings. Explicit recalculation previews old and new totals, ignores the old rate snapshot for the target shift, archives the old current snapshot, and saves a new version.
 

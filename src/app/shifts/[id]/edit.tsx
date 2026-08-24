@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { Alert, Text } from 'react-native';
 
 import type { RecurrenceException, RecurrenceScope, RecurrenceSeries, Shift } from '@/domain/entities';
-import { generateRecurrenceOccurrences, getEffectiveShiftRange, planRecurrenceEdit, selectRecurrenceScopeOccurrences } from '@/domain/services';
+import { assertShiftDurationWithinLimit, generateRecurrenceOccurrences, getEffectiveShiftRange, getShiftRangeDurationMinutes, planRecurrenceEdit, selectRecurrenceScopeOccurrences } from '@/domain/services';
 import { RecurrenceScopeChooser } from '@/features/shifts/components/recurrence-scope-chooser';
 import { ShiftForm } from '@/features/shifts/components/shift-form';
 import { useRepositories } from '@/features/shifts/hooks/use-repositories';
@@ -63,7 +63,7 @@ export default function EditShiftScreen() {
           exceptionsToSave: [{ id: createId('exception'), seriesId: series.id, localDate, type: 'modified', shiftId: shift.id, createdAt: new Date().toISOString() }],
         });
       } else {
-        const template = { ...series.template, workplaceId: draft.workplaceId, roleId: draft.roleId, title: draft.title, notes: draft.notes, startTime: formatLocalTime(draft.scheduledStart!, draft.timezone), endTime: formatLocalTime(draft.scheduledEnd!, draft.timezone), expectedBreakMinutes: draft.expectedBreakMinutes, hourlyRateSnapshotMinor: draft.hourlyRateSnapshotMinor };
+        const template = { ...series.template, workplaceId: draft.workplaceId, roleId: draft.roleId, shiftTemplateId: draft.shiftTemplateId, shiftTypeNameSnapshot: draft.shiftTypeNameSnapshot, shiftTypePayMultiplierBasisPoints: draft.shiftTypePayMultiplierBasisPoints, title: draft.title, notes: draft.notes, startTime: formatLocalTime(draft.scheduledStart!, draft.timezone), endTime: formatLocalTime(draft.scheduledEnd!, draft.timezone), expectedBreakMinutes: draft.expectedBreakMinutes, hourlyRateSnapshotMinor: draft.hourlyRateSnapshotMinor };
         let targetSeries: RecurrenceSeries = { ...series, template, updatedAt: new Date().toISOString() };
         const seriesToSave: RecurrenceSeries[] = [];
         const exceptionsToSave: RecurrenceException[] = [];
@@ -83,7 +83,12 @@ export default function EditShiftScreen() {
         const updates = selected.map((item) => {
           const occurrenceDate = formatLocalDateKey(item.recurrenceOriginalStart ?? item.scheduledStart!, item.timezone);
           const range = resolveLocalShiftRange(occurrenceDate, template.startTime, template.endTime, item.timezone);
-          return { ...item, workplaceId: template.workplaceId, roleId: template.roleId, title: template.title, notes: template.notes, scheduledStart: range.start, scheduledEnd: range.end, expectedBreakMinutes: template.expectedBreakMinutes, hourlyRateSnapshotMinor: template.hourlyRateSnapshotMinor, recurrenceGroupId: targetSeries.id, recurrenceOriginalStart: range.start, updatedAt: new Date().toISOString() };
+          assertShiftDurationWithinLimit(
+            range.start,
+            range.end,
+            item.scheduledStart && item.scheduledEnd ? getShiftRangeDurationMinutes(item.scheduledStart, item.scheduledEnd) : 0,
+          );
+          return { ...item, workplaceId: template.workplaceId, roleId: template.roleId, shiftTemplateId: template.shiftTemplateId, shiftTypeNameSnapshot: template.shiftTypeNameSnapshot, shiftTypePayMultiplierBasisPoints: template.shiftTypePayMultiplierBasisPoints, title: template.title, notes: template.notes, scheduledStart: range.start, scheduledEnd: range.end, expectedBreakMinutes: template.expectedBreakMinutes, hourlyRateSnapshotMinor: template.hourlyRateSnapshotMinor, recurrenceGroupId: targetSeries.id, recurrenceOriginalStart: range.start, updatedAt: new Date().toISOString() };
         });
         await repositories.recurrence.applyMutation({ seriesToSave, shiftsToSave: updates, exceptionsToSave });
       }

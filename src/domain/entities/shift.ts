@@ -48,6 +48,9 @@ export const shiftSchema = z
     actualGrossPayMinor: minorUnitsSchema.optional(),
     payableGrossPayMinor: minorUnitsSchema.optional(),
     shiftTemplateId: z.string().min(1).optional(),
+    /** Immutable display/pay snapshots retained if the selected shift type is renamed or deleted. */
+    shiftTypeNameSnapshot: z.string().trim().min(1).max(120).optional(),
+    shiftTypePayMultiplierBasisPoints: z.number().int().min(10_000).max(100_000).optional(),
     recurrenceGroupId: z.string().min(1).optional(),
     recurrenceOriginalStart: isoTimestampSchema.optional(),
     recurrenceExceptionType: z.enum(['modified']).optional(),

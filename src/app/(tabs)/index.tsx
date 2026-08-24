@@ -1,4 +1,4 @@
-import { addHours, addMonths, format, subHours } from 'date-fns';
+import { addHours, subHours } from 'date-fns';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
@@ -18,20 +18,18 @@ import { DEFAULT_TIMEZONE } from '@/shared/constants/app';
 import { useTranslation } from '@/shared/i18n';
 import { spacing, typography, useAppTheme } from '@/shared/theme';
 import { useLiveNow } from '@/shared/hooks';
-import { resolveLocalDateTime } from '@/shared/utils/zoned-time';
+import { formatLocalDateKey } from '@/shared/utils/zoned-time';
 import { formatDurationLong } from '@/shared/utils/duration-format';
 import { createId } from '@/shared/utils/id';
 import { systemClock } from '@/shared/utils/clock';
 import { resolveActiveCalculationEnd } from '@/features/pay-rules/services/active-calculation-time';
+import { createMonthlyReportRange } from '@/features/reports/monthly-report-service';
 
 export default function HomeScreen() {
   const { colors } = useAppTheme();
   const { t, isRtl, formatCurrency, locale } = useTranslation();
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const monthStart = `${today.slice(0, 7)}-01`;
-  const nextMonthStart = format(addMonths(new Date(`${monthStart}T12:00:00`), 1), 'yyyy-MM-dd');
-  const start = resolveLocalDateTime(monthStart, '00:00');
-  const end = resolveLocalDateTime(nextMonthStart, '00:00');
+  const currentMonth = formatLocalDateKey(new Date(), DEFAULT_TIMEZONE).slice(0, 7);
+  const { start, end } = createMonthlyReportRange(currentMonth, DEFAULT_TIMEZONE);
   const { shifts, loading, error, refresh: refreshShifts } = useShifts({ endsAfter: start, startsBefore: end, rangeSource: 'salary' });
   const { workplaces, roles } = useWorkplaces();
   const { templates } = useShiftTemplates();

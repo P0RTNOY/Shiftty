@@ -7,6 +7,8 @@ export const shiftTemplateSchema = z.object({
   name: z.string().trim().min(1).max(120),
   defaultStartTime: localTimeSchema,
   defaultEndTime: localTimeSchema,
+  /** Whole-shift premium. 10,000 basis points = 100%. */
+  payMultiplierBasisPoints: z.number().int().min(10_000).max(100_000).optional(),
   expectedBreakMinutes: z.number().int().min(0),
   expectedBreakType: z.enum(['paid', 'unpaid']).optional(),
   /** ISO weekday numbers 0=Sun…6=Sat. Absent means all weekdays valid. */

@@ -1,4 +1,8 @@
-import { calculateSalary } from '@/domain/services/salary-calculation-service';
+import {
+  calculateSalary,
+  DEFAULT_OVERTIME_TIER_ONE_RULE_ID,
+  DEFAULT_OVERTIME_TIER_TWO_RULE_ID,
+} from '@/domain/services/salary-calculation-service';
 import type { PayRule } from '@/domain/entities';
 import { createBreak, createPayRule, createSalaryProfile, createShift } from '@/test/fixtures';
 
@@ -11,6 +15,175 @@ describe('salary calculation engine', () => {
   it('calculates one regular future segment using minute/basis-point arithmetic', () => {
     const result = calculate();
     expect(result).toMatchObject({ context: 'scheduled', grossMinutes: 480, payableMinutes: 480, regularMinutes: 480, specialRateMinutes: 0, basePayMinor: 48000, premiumPayMinor: 0, totalGrossPayMinor: 48000, issues: [] });
+    expect(result.segments).toHaveLength(1);
+  });
+
+  it('applies the default overtime rule after eight net working hours', () => {
+    const shift = createShift({
+      status: 'completed',
+      actualStart: '2026-07-15T08:00:00+03:00',
+      actualEnd: '2026-07-15T16:30:00+03:00',
+      payableStart: '2026-07-15T08:00:00+03:00',
+      payableEnd: '2026-07-15T16:30:00+03:00',
+      payableBreakMinutes: 0,
+      payableSource: 'actual',
+      completedAt: '2026-07-15T16:30:00+03:00',
+      expectedBreakMinutes: 0,
+      hourlyRateSnapshotMinor: 6000,
+    });
+
+    const result = calculate(shift);
+
+    expect(result).toMatchObject({
+      payableMinutes: 510,
+      regularMinutes: 480,
+      specialRateMinutes: 30,
+      basePayMinor: 51_000,
+      premiumPayMinor: 750,
+      totalGrossPayMinor: 51_750,
+    });
+    expect(result.segments.map((segment) => [segment.minutes, segment.multiplierBasisPoints])).toEqual([
+      [480, 10_000],
+      [30, 12_500],
+    ]);
+    expect(result.segments[1]?.appliedRuleIds).toContain(DEFAULT_OVERTIME_TIER_ONE_RULE_ID);
+  });
+
+  it('pays 8 regular hours, 2 hours at 125%, and 2 hours at 150%', () => {
+    const shift = createShift({
+      scheduledStart: '2026-07-15T08:00:00+03:00',
+      scheduledEnd: '2026-07-15T20:00:00+03:00',
+      expectedBreakMinutes: 0,
+      hourlyRateSnapshotMinor: 0,
+    });
+
+    const result = calculate(shift);
+
+    expect(result).toMatchObject({
+      payableMinutes: 720,
+      regularMinutes: 480,
+      specialRateMinutes: 240,
+      basePayMinor: 72_000,
+      premiumPayMinor: 9_000,
+      totalGrossPayMinor: 81_000,
+      engineVersion: '1.3.0',
+    });
+    expect(result.segments.map((segment) => [segment.minutes, segment.multiplierBasisPoints])).toEqual([
+      [480, 10_000],
+      [120, 12_500],
+      [120, 15_000],
+    ]);
+    expect(result.segments[1]?.appliedRuleIds).toEqual([DEFAULT_OVERTIME_TIER_ONE_RULE_ID]);
+    expect(result.segments[2]?.appliedRuleIds).toEqual([DEFAULT_OVERTIME_TIER_TWO_RULE_ID]);
+  });
+
+  it('keeps both overtime tiers across midnight', () => {
+    const shift = createShift({
+      scheduledStart: '2026-07-15T22:00:00+03:00',
+      scheduledEnd: '2026-07-16T10:00:00+03:00',
+      expectedBreakMinutes: 0,
+      hourlyRateSnapshotMinor: 0,
+    });
+
+    const result = calculate(shift);
+
+    expect(result.segments.map((segment) => [segment.localDate, segment.minutes, segment.multiplierBasisPoints])).toEqual([
+      ['2026-07-15', 120, 10_000],
+      ['2026-07-16', 360, 10_000],
+      ['2026-07-16', 120, 12_500],
+      ['2026-07-16', 120, 15_000],
+    ]);
+    expect(result.totalGrossPayMinor).toBe(81_000);
+  });
+
+  it('stacks the two overtime premiums additively onto a 150% shift type', () => {
+    const shift = createShift({
+      scheduledStart: '2026-07-15T08:00:00+03:00',
+      scheduledEnd: '2026-07-15T20:00:00+03:00',
+      expectedBreakMinutes: 0,
+      hourlyRateSnapshotMinor: 0,
+      shiftTypeNameSnapshot: 'Night',
+      shiftTypePayMultiplierBasisPoints: 15_000,
+    });
+
+    const result = calculate(shift);
+
+    expect(result.segments.map((segment) => [segment.minutes, segment.multiplierBasisPoints])).toEqual([
+      [480, 15_000],
+      [120, 17_500],
+      [120, 20_000],
+    ]);
+    expect(result).toMatchObject({ basePayMinor: 72_000, premiumPayMinor: 45_000, totalGrossPayMinor: 117_000 });
+  });
+
+  it('marks shifts over 12 hours invalid without reverting their overtime segment', () => {
+    const shift = createShift({
+      scheduledStart: '2026-07-15T08:00:00+03:00',
+      scheduledEnd: '2026-07-15T20:01:00+03:00',
+      expectedBreakMinutes: 0,
+      hourlyRateSnapshotMinor: 0,
+    });
+
+    const result = calculate(shift);
+
+    expect(result.segments.at(-1)).toMatchObject({ minutes: 121, multiplierBasisPoints: 15_000 });
+    expect(result.issues).toContainEqual(expect.objectContaining({ code: 'shift_duration_exceeds_maximum', severity: 'error' }));
+    expect(result.totalGrossPayMinor).toBeUndefined();
+  });
+
+  it('keeps the default overtime threshold across midnight and stacks it onto a shift type', () => {
+    const shift = createShift({
+      scheduledStart: '2026-07-15T22:00:00+03:00',
+      scheduledEnd: '2026-07-16T06:30:00+03:00',
+      expectedBreakMinutes: 0,
+      hourlyRateSnapshotMinor: 0,
+      shiftTypeNameSnapshot: 'Night',
+      shiftTypePayMultiplierBasisPoints: 15_000,
+    });
+
+    const result = calculate(shift);
+
+    expect(result.segments.map((segment) => [segment.localDate, segment.minutes, segment.multiplierBasisPoints])).toEqual([
+      ['2026-07-15', 120, 15_000],
+      ['2026-07-16', 360, 15_000],
+      ['2026-07-16', 30, 17_500],
+    ]);
+    expect(result).toMatchObject({ basePayMinor: 51_000, premiumPayMinor: 26_250, totalGrossPayMinor: 77_250 });
+  });
+
+  it('uses an explicitly configured overtime threshold instead of the default', () => {
+    const shift = createShift({ scheduledStart: '2026-07-15T08:00:00+03:00', scheduledEnd: '2026-07-15T16:30:00+03:00', expectedBreakMinutes: 0, hourlyRateSnapshotMinor: 0 });
+    const configured = createPayRule({
+      id: 'custom-overtime',
+      conditions: [{ type: 'workedMinutes', afterMinutes: 420, scope: 'shift', basis: 'net' }],
+      effect: { type: 'multiplier', basisPoints: 15000 },
+      canStack: true,
+    });
+
+    const result = calculate(shift, [configured]);
+
+    expect(result.segments.map((segment) => [segment.minutes, segment.multiplierBasisPoints])).toEqual([
+      [420, 10_000],
+      [90, 15_000],
+    ]);
+    expect(result.appliedRuleIds).toContain('custom-overtime');
+    expect(result.appliedRuleIds).not.toContain(DEFAULT_OVERTIME_TIER_ONE_RULE_ID);
+    expect(result.appliedRuleIds).not.toContain(DEFAULT_OVERTIME_TIER_TWO_RULE_ID);
+  });
+
+  it('treats a disabled configured overtime threshold as an explicit opt-out', () => {
+    const shift = createShift({ scheduledStart: '2026-07-15T08:00:00+03:00', scheduledEnd: '2026-07-15T16:30:00+03:00', expectedBreakMinutes: 0, hourlyRateSnapshotMinor: 0 });
+    const disabled = createPayRule({
+      id: 'disabled-overtime',
+      isEnabled: false,
+      conditions: [{ type: 'workedMinutes', afterMinutes: 480, scope: 'shift', basis: 'net' }],
+      effect: { type: 'multiplier', basisPoints: 12500 },
+      canStack: true,
+    });
+
+    const result = calculate(shift, [disabled]);
+
+    expect(result).toMatchObject({ regularMinutes: 510, specialRateMinutes: 0, premiumPayMinor: 0, totalGrossPayMinor: 51_000 });
     expect(result.segments).toHaveLength(1);
   });
 
@@ -71,6 +244,43 @@ describe('salary calculation engine', () => {
     ]);
     expect(result.segments[0]?.multiplierBasisPoints).toBe(17500);
     expect(result.segments[0]?.labels).toEqual(expect.arrayContaining(['Weekend', 'Night']));
+  });
+
+  it('applies a 150% shift type to the resolved hourly wage across midnight', () => {
+    const nightShift = createShift({
+      scheduledStart: '2026-07-15T22:00:00+03:00',
+      scheduledEnd: '2026-07-16T06:00:00+03:00',
+      expectedBreakMinutes: 0,
+      hourlyRateSnapshotMinor: 0,
+      shiftTemplateId: 'night',
+      shiftTypeNameSnapshot: 'Night',
+      shiftTypePayMultiplierBasisPoints: 15_000,
+    });
+    const result = calculate(nightShift);
+
+    expect(result).toMatchObject({
+      payableMinutes: 480,
+      basePayMinor: 48_000,
+      premiumPayMinor: 24_000,
+      totalGrossPayMinor: 72_000,
+      resolvedBaseHourlyRateMinor: 6_000,
+      shiftTypeName: 'Night',
+      shiftTypeMultiplierBasisPoints: 15_000,
+    });
+    expect(result.segments.map((segment) => [segment.localDate, segment.minutes, segment.multiplierBasisPoints])).toEqual([
+      ['2026-07-15', 120, 15_000],
+      ['2026-07-16', 360, 15_000],
+    ]);
+  });
+
+  it('treats the shift type as non-stacking and adds only explicit stacking premiums', () => {
+    const nightShift = createShift({ ...regularShift, shiftTypeNameSnapshot: 'Night', shiftTypePayMultiplierBasisPoints: 15_000 });
+    const result = calculate(nightShift, [
+      createPayRule({ id: 'weaker', priority: 20, effect: { type: 'multiplier', basisPoints: 12_500 } }),
+      createPayRule({ id: 'overtime', priority: 10, canStack: true, effect: { type: 'multiplier', basisPoints: 12_500 } }),
+    ]);
+    expect(result.segments[0]?.multiplierBasisPoints).toBe(17_500);
+    expect(result.totalGrossPayMinor).toBe(84_000);
   });
 
   it('applies fixed bonuses, travel, minimum duration, and explicit overrides once', () => {

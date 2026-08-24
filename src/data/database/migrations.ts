@@ -635,4 +635,66 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       ON CONFLICT(key) DO NOTHING;
     `,
   },
+  {
+    version: 7,
+    name: 'shift_type_pay_multipliers',
+    sql: `
+      -- Existing shift templates become the canonical predefined shift types.
+      -- Neutral defaults preserve all previously stored compensation behavior.
+      ALTER TABLE shift_templates ADD COLUMN pay_multiplier_basis_points INTEGER NOT NULL DEFAULT 10000
+        CHECK (pay_multiplier_basis_points >= 10000 AND pay_multiplier_basis_points <= 100000);
+
+      -- Shifts snapshot the human label and multiplier so type edits/deletes never rewrite history.
+      ALTER TABLE shifts ADD COLUMN shift_type_name_snapshot TEXT;
+      ALTER TABLE shifts ADD COLUMN shift_type_pay_multiplier_basis_points INTEGER NOT NULL DEFAULT 10000
+        CHECK (shift_type_pay_multiplier_basis_points >= 10000 AND shift_type_pay_multiplier_basis_points <= 100000);
+
+      UPDATE shifts
+      SET shift_type_name_snapshot = (
+        SELECT name FROM shift_templates WHERE shift_templates.id = shifts.shift_template_id
+      )
+      WHERE shift_template_id IS NOT NULL;
+
+      UPDATE recurrence_series
+      SET template_json = json_set(
+        template_json,
+        '$.shiftTypeNameSnapshot', (
+          SELECT name FROM shift_templates
+          WHERE shift_templates.id = json_extract(recurrence_series.template_json, '$.shiftTemplateId')
+        ),
+        '$.shiftTypePayMultiplierBasisPoints', 10000
+      )
+      WHERE json_extract(template_json, '$.shiftTemplateId') IS NOT NULL
+        AND EXISTS (
+          SELECT 1 FROM shift_templates
+          WHERE shift_templates.id = json_extract(recurrence_series.template_json, '$.shiftTemplateId')
+        );
+
+      -- Selecting/changing a type on a completed shift is salary-sensitive.
+      DROP TRIGGER mark_salary_calculation_stale;
+      CREATE TRIGGER mark_salary_calculation_stale
+      AFTER UPDATE OF workplace_id, role_id, salary_profile_id, status, scheduled_start, scheduled_end,
+        actual_start, actual_end, payable_start, payable_end, payable_break_minutes,
+        hourly_rate_override_minor, fixed_bonus_override_minor, travel_reimbursement_override_minor,
+        shift_type_pay_multiplier_basis_points ON shifts
+      WHEN OLD.salary_calculation_status = 'finalized'
+      BEGIN
+        UPDATE shifts SET salary_calculation_status = 'stale' WHERE id = NEW.id;
+      END;
+
+      DROP TRIGGER mark_later_daily_salary_dependencies_stale;
+      CREATE TRIGGER mark_later_daily_salary_dependencies_stale
+      AFTER UPDATE OF workplace_id, role_id, salary_profile_id, status, scheduled_start, scheduled_end,
+        actual_start, actual_end, payable_start, payable_end, payable_break_minutes,
+        hourly_rate_override_minor, fixed_bonus_override_minor, travel_reimbursement_override_minor,
+        shift_type_pay_multiplier_basis_points ON shifts
+      WHEN OLD.status = 'completed'
+      BEGIN
+        UPDATE shifts SET salary_calculation_status = 'stale'
+        WHERE id != NEW.id AND status = 'completed' AND salary_calculation_status = 'finalized'
+          AND julianday(payable_start) >= MIN(julianday(COALESCE(OLD.payable_start, OLD.actual_start, OLD.scheduled_start)), julianday(COALESCE(NEW.payable_start, NEW.actual_start, NEW.scheduled_start)))
+          AND julianday(payable_start) < MAX(julianday(COALESCE(OLD.payable_end, OLD.actual_end, OLD.scheduled_end)), julianday(COALESCE(NEW.payable_end, NEW.actual_end, NEW.scheduled_end))) + (27.0 / 24.0);
+      END;
+    `,
+  },
 ];

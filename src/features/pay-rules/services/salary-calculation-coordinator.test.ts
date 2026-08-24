@@ -166,17 +166,17 @@ describe('SalaryCalculationCoordinator', () => {
     const shift = createShift({ expectedBreakMinutes: 0, hourlyRateSnapshotMinor: 0 });
     const deps = repositories({ workplaces: { list: jest.fn().mockResolvedValue([{ id: 'workplace-1', name: 'Cafe', defaultHourlyRateMinor: 6000, defaultBreakMinutes: 0, defaultShiftBonusMinor: 300, defaultTravelReimbursementMinor: 500, createdAt: '2026-01-01T00:00:00+02:00', updatedAt: '2026-01-01T00:00:00+02:00' }]), listRoles: jest.fn().mockResolvedValue([]) } as unknown as SalaryCoordinatorRepositories['workplaces'] });
     const result = await new SalaryCalculationCoordinator(deps).previewShift(shift, '2026-07-15T08:00:00+03:00');
-    expect(result).toMatchObject({ fixedBonusesMinor: 300, reimbursementsMinor: 500, totalGrossPayMinor: 51800 });
+    expect(result).toMatchObject({ fixedBonusesMinor: 300, reimbursementsMinor: 500, totalGrossPayMinor: 52550 });
   });
 
-  it('marks a base-only calculation when the selected salary profile has no configured pay rules', async () => {
+  it('applies and explains the default overtime policy when no custom overtime rule exists', async () => {
     const profile = createSalaryProfile({ baseHourlyRateMinor: 6000 });
     const deps = repositories({ salaryProfiles: { listByWorkplace: jest.fn().mockResolvedValue([profile]), getById: jest.fn() } as unknown as SalaryCoordinatorRepositories['salaryProfiles'] });
 
     const result = await new SalaryCalculationCoordinator(deps).previewShift(createShift({ expectedBreakMinutes: 0, hourlyRateSnapshotMinor: 0 }), '2026-08-10T12:00:00+03:00');
 
-    expect(result.totalGrossPayMinor).toBeDefined();
-    expect(result.issues).toContainEqual(expect.objectContaining({ code: 'no_pay_rules_configured', severity: 'warning' }));
+    expect(result).toMatchObject({ regularMinutes: 480, specialRateMinutes: 30, totalGrossPayMinor: 51750 });
+    expect(result.issues).toContainEqual(expect.objectContaining({ code: 'default_overtime_applied', severity: 'warning' }));
   });
 
   it('injects offline holiday intervals into normal orchestration', async () => {

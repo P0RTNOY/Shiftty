@@ -7,12 +7,12 @@ const { join } = require('node:path');
 const source = readFileSync(join(__dirname, '..', 'src', 'data', 'database', 'migrations.ts'), 'utf8');
 const migrations = [...source.matchAll(/version:\s*(\d+),\s*name:\s*'([^']+)',\s*sql:\s*`([\s\S]*?)`/g)]
   .map((match) => ({ version: Number(match[1]), name: match[2], sql: match[3] }));
-if (migrations.length !== 6) throw new Error(`Expected six migrations, found ${migrations.length}.`);
+if (migrations.length !== 7) throw new Error(`Expected seven migrations, found ${migrations.length}.`);
 
 const directory = mkdtempSync(join(tmpdir(), 'shifty-migrations-'));
 try {
-  for (const startingVersion of [0, 1, 2, 3, 4, 5, 6]) validateUpgrade(startingVersion);
-  process.stdout.write('Migration 6 smoke tests passed for empty, v1, v2, v3, v4, v5, and current v6 databases.\n');
+  for (const startingVersion of [0, 1, 2, 3, 4, 5, 6, 7]) validateUpgrade(startingVersion);
+  process.stdout.write('Migration 7 smoke tests passed for empty, v1, v2, v3, v4, v5, v6, and current v7 databases.\n');
 } finally {
   rmSync(directory, { recursive: true, force: true });
 }
@@ -34,6 +34,14 @@ function validateUpgrade(startingVersion) {
   if (integrity !== 'ok') throw new Error(`Integrity failure upgrading v${startingVersion}: ${integrity}`);
   const snapshotTable = sqlite(database, "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='salary_calculation_snapshots';");
   if (snapshotTable !== '1') throw new Error(`Snapshot table missing after v${startingVersion} upgrade.`);
+  const shiftTypeColumns = sqlite(database, "SELECT count(*) FROM pragma_table_info('shifts') WHERE name IN ('shift_type_name_snapshot', 'shift_type_pay_multiplier_basis_points');");
+  if (shiftTypeColumns !== '2') throw new Error(`Shift type snapshot columns missing after v${startingVersion} upgrade.`);
+  if (startingVersion > 0) {
+    const neutralMultiplier = sqlite(database, "SELECT shift_type_pay_multiplier_basis_points FROM shifts WHERE id='seed-shift';");
+    if (neutralMultiplier !== '10000') throw new Error(`Legacy shift multiplier was not neutral after v${startingVersion}: ${neutralMultiplier}`);
+    const templateMultiplier = sqlite(database, "SELECT pay_multiplier_basis_points FROM shift_templates WHERE id='seed-template';");
+    if (templateMultiplier !== '10000') throw new Error(`Legacy shift type multiplier was not neutral after v${startingVersion}: ${templateMultiplier}`);
+  }
   if (startingVersion > 0 && startingVersion < 4) {
     const state = sqlite(database, "SELECT status || '|' || salary_calculation_status FROM shifts WHERE id='seed-shift';");
     if (state !== 'active|not_calculated') throw new Error(`Seed shift changed unexpectedly after v${startingVersion} upgrade: ${state}`);
@@ -66,6 +74,11 @@ function validateUpgrade(startingVersion) {
     const recurrence = sqlite(database, "SELECT count(*) FROM recurrence_series WHERE id='seed-series';");
     if (recurrence !== '1') throw new Error(`Recurrence data was not preserved from v${startingVersion}.`);
   }
+  if (startingVersion > 0) {
+    sqlite(database, "PRAGMA foreign_keys=ON; UPDATE shifts SET shift_template_id='seed-template', shift_type_name_snapshot='Night', shift_type_pay_multiplier_basis_points=15000 WHERE id='seed-shift'; DELETE FROM shift_templates WHERE id='seed-template';");
+    const preservedSnapshot = sqlite(database, "SELECT (shift_template_id IS NULL) || '|' || shift_type_name_snapshot || '|' || shift_type_pay_multiplier_basis_points FROM shifts WHERE id='seed-shift';");
+    if (preservedSnapshot !== '1|Night|15000') throw new Error(`Deleting a shift type did not preserve shift history after v${startingVersion}: ${preservedSnapshot}`);
+  }
 }
 
 function apply(database, migration) {
@@ -87,6 +100,8 @@ function seed(database, version) {
     VALUES ('shared-workplace', 'Shared', 0, 0, 'seed-profile', '2026-07-01T00:00:00Z', '2026-07-01T00:00:00Z');
     INSERT INTO pay_rules (id, salary_profile_id, name, priority, conditions_json, effect_json, can_stack, created_at, updated_at)
     VALUES ('seed-rule', 'seed-profile', 'Legacy rule', 1, '[]', '{"type":"multiplier","basisPoints":12500}', 0, '2026-07-01T00:00:00Z', '2026-07-01T00:00:00Z');
+    INSERT INTO shift_templates (id, name, default_start_time, default_end_time, expected_break_minutes, workplace_id, created_at, updated_at)
+    VALUES ('seed-template', 'Legacy morning', '05:30', '14:00', 0, 'seed-workplace', '2026-07-01T00:00:00Z', '2026-07-01T00:00:00Z');
     INSERT INTO shifts (id, workplace_id, salary_profile_id, scheduled_start, scheduled_end, actual_start, expected_break_minutes, status,
       hourly_rate_snapshot_minor, timezone, created_at, updated_at${activeFields})
     VALUES ('seed-shift', 'seed-workplace', 'seed-profile', '2026-07-01T08:00:00Z', '2026-07-01T16:00:00Z', '2026-07-01T08:00:00Z', 0,
@@ -94,6 +109,7 @@ function seed(database, version) {
     INSERT INTO break_sessions (id, shift_id, start_at, is_paid, source, created_at, updated_at)
     VALUES ('seed-break', 'seed-shift', '2026-07-01T12:00:00Z', 0, 'tracked', '2026-07-01T12:00:00Z', '2026-07-01T12:00:00Z');
   `);
-  if (version >= 2) sqlite(database, `INSERT INTO recurrence_series (id, rule_json, template_json, created_at, updated_at)
+  if (version >= 2) sqlite(database, `UPDATE shifts SET shift_template_id='seed-template' WHERE id='seed-shift';
+    INSERT INTO recurrence_series (id, rule_json, template_json, created_at, updated_at)
     VALUES ('seed-series', '{}', '{}', '2026-07-01T00:00:00Z', '2026-07-01T00:00:00Z');`);
 }

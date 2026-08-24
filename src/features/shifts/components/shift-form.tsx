@@ -10,7 +10,13 @@ import {
 import { Pressable, StyleSheet, Switch, Text, View, type TextInputProps } from 'react-native';
 
 import { shiftSchema, type RecurrenceFrequency, type Role, type Shift, type ShiftTemplate, type Workplace } from '@/domain/entities';
-import { classifyManualShiftRange, createCompletedShift, createScheduledShift } from '@/domain/services';
+import {
+  assertShiftDurationWithinLimit,
+  classifyManualShiftRange,
+  createCompletedShift,
+  createScheduledShift,
+  getShiftRangeDurationMinutes,
+} from '@/domain/services';
 import { DateField, FormField, PrimaryButton, SecondaryButton, TimeField as NativeTimeField } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { radius, spacing, typography, useAppTheme } from '@/shared/theme';
@@ -64,6 +70,8 @@ export function ShiftForm({ mode, workplaces, roles = [], templates = [], initia
   const recurring = useWatch({ control, name: 'recurring' });
   const weekdays = useWatch({ control, name: 'weekdays' });
   const workplaceId = useWatch({ control, name: 'workplaceId' });
+  const roleId = useWatch({ control, name: 'roleId' });
+  const shiftTemplateId = useWatch({ control, name: 'shiftTemplateId' });
   const scheduledStart = useWatch({ control, name: 'scheduledStart' });
   const scheduledEnd = useWatch({ control, name: 'scheduledEnd' });
   const shiftDate = useWatch({ control, name: 'date' });
@@ -76,6 +84,17 @@ export function ShiftForm({ mode, workplaces, roles = [], templates = [], initia
     if (dirtyFields.actualStart && !dirtyFields.payableStart && defaults.actualStart === defaults.payableStart) setValue('payableStart', actualStart);
     if (dirtyFields.actualEnd && !dirtyFields.payableEnd && defaults.actualEnd === defaults.payableEnd) setValue('payableEnd', actualEnd);
   }, [actualEnd, actualStart, defaults.actualEnd, defaults.actualStart, defaults.payableEnd, defaults.payableStart, dirtyFields.actualEnd, dirtyFields.actualStart, dirtyFields.payableEnd, dirtyFields.payableStart, mode, setValue]);
+
+  useEffect(() => {
+    const selectedRole = roles.find((role) => role.id === roleId);
+    if (selectedRole && (selectedRole.workplaceId !== workplaceId || selectedRole.isArchived)) {
+      setValue('roleId', '', { shouldDirty: true });
+    }
+    const selectedType = templates.find((template) => template.id === shiftTemplateId);
+    if (selectedType?.workplaceId && selectedType.workplaceId !== workplaceId) {
+      setValue('shiftTemplateId', '', { shouldDirty: true });
+    }
+  }, [roleId, roles, setValue, shiftTemplateId, templates, workplaceId]);
 
   useEffect(() => {
     if (mode === 'completed' && dirtyFields.actualBreak && !dirtyFields.payableBreak && defaults.actualBreak === defaults.payableBreak) setValue('payableBreak', actualBreak);
@@ -93,10 +112,34 @@ export function ShiftForm({ mode, workplaces, roles = [], templates = [], initia
         setError('workplaceId', { message: t('form.required') });
         return;
       }
-      const base = { workplaceId: workplace.id, roleId: clean(values.roleId), shiftTemplateId: clean(values.shiftTemplateId), title: clean(values.title), notes: clean(values.notes), hourlyRateSnapshotMinor: initialShift?.hourlyRateSnapshotMinor ?? workplace.defaultHourlyRateMinor };
+      const role = values.roleId ? roles.find((item) => item.id === values.roleId) : undefined;
+      if (values.roleId && (!role || role.workplaceId !== workplace.id || role.isArchived)) {
+        setError('roleId', { message: t('form.invalidRoleForWorkplace') });
+        return;
+      }
+      const selectedType = templates.find((item) => item.id === values.shiftTemplateId);
+      if (selectedType?.workplaceId && selectedType.workplaceId !== workplace.id) {
+        setError('shiftTemplateId', { message: t('form.invalidTypeForWorkplace') });
+        return;
+      }
+      const preservesHistoricalType = Boolean(values.shiftTemplateId && initialShift?.shiftTemplateId === values.shiftTemplateId && !selectedType);
+      const base = {
+        workplaceId: workplace.id,
+        roleId: clean(values.roleId),
+        shiftTemplateId: clean(values.shiftTemplateId),
+        shiftTypeNameSnapshot: selectedType?.name ?? (preservesHistoricalType ? initialShift?.shiftTypeNameSnapshot : undefined),
+        shiftTypePayMultiplierBasisPoints: selectedType?.payMultiplierBasisPoints ?? (preservesHistoricalType ? initialShift?.shiftTypePayMultiplierBasisPoints : 10_000),
+        title: clean(values.title), notes: clean(values.notes),
+        hourlyRateSnapshotMinor: initialShift?.hourlyRateSnapshotMinor ?? workplace.defaultHourlyRateMinor,
+      };
       let created: Shift;
       if (mode === 'auto') {
         const classification = classifyManualShiftRange({ date: values.date, startTime: values.scheduledStart, endTime: values.scheduledEnd, now: currentNow, timezone: context.timezone });
+        assertShiftDurationWithinLimit(
+          classification.range.start,
+          classification.range.end,
+          existingDuration(initialShift?.scheduledStart, initialShift?.scheduledEnd),
+        );
         if (classification.kind === 'overlapsNow') {
           const active = shiftSchema.parse({
             ...base,
@@ -117,7 +160,7 @@ export function ShiftForm({ mode, workplaces, roles = [], templates = [], initia
           return;
         }
         created = classification.kind === 'scheduled'
-          ? createScheduledShift({ ...base, date: values.date, startTime: values.scheduledStart, endTime: values.scheduledEnd, expectedBreakMinutes: Number(dirtyFields.actualBreak ? values.actualBreak : values.expectedBreak || 0) }, context)
+          ? createScheduledShift({ ...base, date: values.date, startTime: values.scheduledStart, endTime: values.scheduledEnd, expectedBreakMinutes: Number(dirtyFields.actualBreak ? values.actualBreak : values.expectedBreak || 0), maximumExistingDurationMinutes: existingDuration(initialShift?.scheduledStart, initialShift?.scheduledEnd) }, context)
           : createCompletedShift({
             ...base,
             date: values.date,
@@ -127,14 +170,19 @@ export function ShiftForm({ mode, workplaces, roles = [], templates = [], initia
             payableEndTime: values.scheduledEnd,
             actualBreakMinutes: Number(values.actualBreak || 0),
             payableBreakMinutes: Number(values.actualBreak || 0),
+            maximumExistingActualDurationMinutes: existingDuration(initialShift?.actualStart, initialShift?.actualEnd),
+            maximumExistingPayableDurationMinutes: existingDuration(initialShift?.payableStart, initialShift?.payableEnd),
           }, context);
       } else if (mode === 'scheduled') {
-        created = createScheduledShift({ ...base, date: values.date, startTime: values.scheduledStart, endTime: values.scheduledEnd, expectedBreakMinutes: Number(values.expectedBreak || 0) }, context);
+        created = createScheduledShift({ ...base, date: values.date, startTime: values.scheduledStart, endTime: values.scheduledEnd, expectedBreakMinutes: Number(values.expectedBreak || 0), maximumExistingDurationMinutes: existingDuration(initialShift?.scheduledStart, initialShift?.scheduledEnd) }, context);
       } else {
         created = createCompletedShift({
             ...base, date: values.date, scheduledStartTime: clean(values.scheduledStart), scheduledEndTime: clean(values.scheduledEnd),
             actualStartTime: values.actualStart, actualEndTime: values.actualEnd, payableStartTime: values.payableStart,
             payableEndTime: values.payableEnd, actualBreakMinutes: Number(values.actualBreak || 0), payableBreakMinutes: Number(values.payableBreak || 0),
+            maximumExistingScheduledDurationMinutes: existingDuration(initialShift?.scheduledStart, initialShift?.scheduledEnd),
+            maximumExistingActualDurationMinutes: existingDuration(initialShift?.actualStart, initialShift?.actualEnd),
+            maximumExistingPayableDurationMinutes: existingDuration(initialShift?.payableStart, initialShift?.payableEnd),
           }, context);
       }
       if (created.status === 'scheduled' && values.recurring && values.weekdays.length === 0) {
@@ -156,6 +204,25 @@ export function ShiftForm({ mode, workplaces, roles = [], templates = [], initia
   return (
     <View style={styles.form}>
       <ControlledDateField control={control} name="date" label={t('form.date')} error={errors.date?.message} rules={{ required: t('form.required'), pattern: { value: datePattern, message: t('form.invalidDate') }, validate: (value) => isValidLocalDate(value) || t('form.invalidDate') }} />
+
+      {templates.length || (initialShift?.shiftTemplateId && initialShift.shiftTypeNameSnapshot) ? <>
+        <Text style={[styles.label, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}>{t('form.template')}</Text>
+        <Controller control={control} name="shiftTemplateId" render={({ field }) => <View style={[styles.choices, { flexDirection: direction }]}>
+          <Choice checked={!field.value} label={t('form.noTemplate')} onPress={() => field.onChange('')} />
+          {initialShift?.shiftTemplateId && initialShift.shiftTypeNameSnapshot && !templates.some((template) => template.id === initialShift.shiftTemplateId)
+            ? <Choice checked={field.value === initialShift.shiftTemplateId} label={`${initialShift.shiftTypeNameSnapshot} · ${(initialShift.shiftTypePayMultiplierBasisPoints ?? 10_000) / 100}%`} onPress={() => field.onChange(initialShift.shiftTemplateId!)} />
+            : null}
+          {templates.map((template) => <Choice key={template.id} checked={field.value === template.id} label={`${template.name} · ${(template.payMultiplierBasisPoints ?? 10_000) / 100}%`} onPress={() => {
+            if (template.workplaceId) setValue('workplaceId', template.workplaceId, { shouldDirty: true });
+            if (template.roleId && roles.some((role) => role.id === template.roleId && !role.isArchived && role.workplaceId === (template.workplaceId ?? workplaceId))) setValue('roleId', template.roleId, { shouldDirty: true });
+            field.onChange(template.id);
+            setValue('scheduledStart', template.defaultStartTime, { shouldDirty: true });
+            setValue('scheduledEnd', template.defaultEndTime, { shouldDirty: true });
+            setValue('expectedBreak', String(template.expectedBreakMinutes), { shouldDirty: true });
+          }} />)}
+        </View>} />
+        {errors.shiftTemplateId?.message ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.danger }]}>{errors.shiftTemplateId.message}</Text> : null}
+      </> : null}
       
       {mode !== 'completed' ? (
         <>
@@ -204,14 +271,6 @@ export function ShiftForm({ mode, workplaces, roles = [], templates = [], initia
             <Controller control={control} name="roleId" render={({ field }) => <View style={[styles.choices, { flexDirection: direction }]}>
               <Choice checked={!field.value} label={t('form.noRole')} onPress={() => field.onChange('')} />
               {roles.filter((role) => role.workplaceId === workplaceId).map((role) => <Choice key={role.id} checked={field.value === role.id} label={role.name} onPress={() => field.onChange(role.id)} />)}
-            </View>} />
-          </> : null}
-
-          {templates.length ? <>
-            <Text style={[styles.label, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}>{t('form.template')}</Text>
-            <Controller control={control} name="shiftTemplateId" render={({ field }) => <View style={[styles.choices, { flexDirection: direction }]}>
-              <Choice checked={!field.value} label={t('form.noTemplate')} onPress={() => field.onChange('')} />
-              {templates.map((template) => <Choice key={template.id} checked={field.value === template.id} label={template.name} onPress={() => { field.onChange(template.id); setValue('scheduledStart', template.defaultStartTime, { shouldDirty: true }); setValue('scheduledEnd', template.defaultEndTime, { shouldDirty: true }); setValue('expectedBreak', String(template.expectedBreakMinutes), { shouldDirty: true }); if (template.workplaceId) setValue('workplaceId', template.workplaceId, { shouldDirty: true }); if (template.roleId) setValue('roleId', template.roleId, { shouldDirty: true }); }} />)}
             </View>} />
           </> : null}
 
@@ -296,6 +355,10 @@ function inferRangeKind(mode: Props['mode'], date: string, startTime: string, en
 
 function clean(value: string): string | undefined { const trimmed = value.trim(); return trimmed || undefined; }
 
+function existingDuration(start?: string, end?: string): number {
+  return start && end ? getShiftRangeDurationMinutes(start, end) : 0;
+}
+
 function minuteRules(t: ReturnType<typeof useTranslation>['t']): RegisterOptions<ShiftFormValues, StringFieldName> {
   return { required: t('form.required'), validate: (value) => /^\d+$/.test(value) || t('form.invalidMinutes') };
 }
@@ -312,6 +375,7 @@ function mapFormError(error: unknown, t: ReturnType<typeof useTranslation>['t'])
   const message = error instanceof Error ? error.message : '';
   if (message.includes('both be provided')) return t('form.schedulePair');
   if (message.includes('break cannot exceed')) return t('form.breakTooLong');
+  if (message.includes('cannot exceed 12 hours')) return t('form.shiftTooLong');
   if (message.includes('identical')) return t('form.invalidRange');
   return t('form.repositoryError');
 }

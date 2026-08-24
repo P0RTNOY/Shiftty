@@ -1,16 +1,15 @@
 /**
- * Regression test: Home and Reports dashboard data preparation must not
- * route monthly reporting bounds through resolveLocalShiftRange (which
- * enforces single-shift duration constraints and throws when start == end
- * or the interval exceeds 24 hours).
+ * Regression test: Home and Reports dashboard data preparation must share
+ * the same application-timezone month-range helper. That helper must not
+ * route reporting bounds through resolveLocalShiftRange (which enforces
+ * single-shift duration constraints and rejects month-long intervals).
  *
  * This test must live OUTSIDE src/app/ because Expo Router treats every
  * file inside src/app/ as a route module.
  */
-import { format, addMonths } from 'date-fns';
-import { resolveLocalDateTime } from '@/shared/utils/zoned-time';
 import { summarizeShifts } from '@/domain/services';
 import type { Shift } from '@/domain/entities';
+import { createMonthlyReportRange } from '@/features/reports/monthly-report-service';
 import { createShift } from '@/test/fixtures';
 
 describe('Home reporting-bounds preparation', () => {
@@ -25,31 +24,33 @@ describe('Home reporting-bounds preparation', () => {
     expect(source).toMatch(/await active\.completeShift\([\s\S]{0,700}await refreshShifts\(\)/);
   });
 
-  it('uses resolveLocalDateTime (not resolveLocalShiftRange) for month bounds', () => {
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const monthStart = `${today.slice(0, 7)}-01`;
-    const nextMonthStart = format(addMonths(new Date(`${monthStart}T12:00:00`), 1), 'yyyy-MM-dd');
+  it('uses the shared application-timezone month range on Home', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('fs');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require('path');
+    const source = fs.readFileSync(path.join(path.resolve('.'), 'src', 'app', '(tabs)', 'index.tsx'), 'utf8');
 
-    // This is the exact code path used by src/app/(tabs)/index.tsx lines 29-30.
-    const start = resolveLocalDateTime(monthStart, '00:00');
-    const end = resolveLocalDateTime(nextMonthStart, '00:00');
+    expect(source).toContain('formatLocalDateKey(new Date(), DEFAULT_TIMEZONE)');
+    expect(source).toContain('createMonthlyReportRange(currentMonth, DEFAULT_TIMEZONE)');
+    expect(source).not.toContain('resolveLocalDateTime');
 
-    expect(start).toBeDefined();
-    expect(end).toBeDefined();
-    expect(new Date(end).getTime()).toBeGreaterThan(new Date(start).getTime());
+    expect(createMonthlyReportRange('2026-09', 'Asia/Jerusalem')).toEqual({
+      start: '2026-09-01T00:00:00.000+03:00',
+      end: '2026-10-01T00:00:00.000+03:00',
+    });
   });
 
   const testCases = [
-    { name: 'February (28 days)', monthStart: '2026-02-01', nextMonthStart: '2026-03-01' },
-    { name: 'April (30 days)', monthStart: '2026-04-01', nextMonthStart: '2026-05-01' },
-    { name: 'August (31 days)', monthStart: '2026-08-01', nextMonthStart: '2026-09-01' },
-    { name: 'December -> January', monthStart: '2026-12-01', nextMonthStart: '2027-01-01' },
+    { name: 'February (28 days)', month: '2026-02' },
+    { name: 'April (30 days)', month: '2026-04' },
+    { name: 'August (31 days)', month: '2026-08' },
+    { name: 'December -> January', month: '2026-12' },
   ];
 
   for (const tc of testCases) {
     it(`handles ${tc.name} in Asia/Jerusalem without throwing`, () => {
-      const start = resolveLocalDateTime(tc.monthStart, '00:00', 'Asia/Jerusalem');
-      const end = resolveLocalDateTime(tc.nextMonthStart, '00:00', 'Asia/Jerusalem');
+      const { start, end } = createMonthlyReportRange(tc.month, 'Asia/Jerusalem');
 
       expect(start).toBeDefined();
       expect(end).toBeDefined();

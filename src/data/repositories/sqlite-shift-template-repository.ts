@@ -7,6 +7,7 @@ import type {
   UpdateShiftTemplateInput,
 } from '@/domain/repositories';
 import { createId } from '@/shared/utils/id';
+import { assertDefaultShiftDurationWithinLimit } from '@/domain/services/shift-duration-policy';
 
 function mapRow(row: Record<string, string | number | null>): ShiftTemplate {
   return shiftTemplateSchema.parse({
@@ -14,6 +15,7 @@ function mapRow(row: Record<string, string | number | null>): ShiftTemplate {
     name: row.name,
     defaultStartTime: row.default_start_time,
     defaultEndTime: row.default_end_time,
+    payMultiplierBasisPoints: row.pay_multiplier_basis_points,
     expectedBreakMinutes: row.expected_break_minutes,
     expectedBreakType: row.expected_break_type ?? undefined,
     validWeekdays: row.valid_weekdays
@@ -60,18 +62,20 @@ export class SqliteShiftTemplateRepository implements ShiftTemplateRepository {
   }
 
   async create(input: CreateShiftTemplateInput): Promise<ShiftTemplate> {
+    assertDefaultShiftDurationWithinLimit(input.defaultStartTime, input.defaultEndTime);
     const id = createId('template');
     const now = new Date().toISOString();
     await this.database.runAsync(
-      `INSERT INTO shift_templates (id, name, default_start_time, default_end_time, expected_break_minutes,
+      `INSERT INTO shift_templates (id, name, default_start_time, default_end_time, pay_multiplier_basis_points, expected_break_minutes,
         expected_break_type, valid_weekdays, expected_duration_minutes, color_token,
         workplace_id, role_id, salary_profile_id, is_archived, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?);`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?);`,
       [
         id,
         input.name,
         input.defaultStartTime,
         input.defaultEndTime,
+        input.payMultiplierBasisPoints ?? 10_000,
         input.expectedBreakMinutes,
         input.expectedBreakType ?? null,
         input.validWeekdays ? JSON.stringify(input.validWeekdays) : null,
@@ -88,6 +92,14 @@ export class SqliteShiftTemplateRepository implements ShiftTemplateRepository {
   }
 
   async update(id: string, input: UpdateShiftTemplateInput): Promise<ShiftTemplate> {
+    if (input.defaultStartTime !== undefined || input.defaultEndTime !== undefined) {
+      const current = await this.getById(id);
+      if (!current) throw new Error(`Template ${id} not found.`);
+      assertDefaultShiftDurationWithinLimit(
+        input.defaultStartTime ?? current.defaultStartTime,
+        input.defaultEndTime ?? current.defaultEndTime,
+      );
+    }
     const now = new Date().toISOString();
     const fields: string[] = ['updated_at = ?'];
     const values: (string | number | null)[] = [now];
@@ -95,6 +107,7 @@ export class SqliteShiftTemplateRepository implements ShiftTemplateRepository {
     if (input.name !== undefined) { fields.push('name = ?'); values.push(input.name); }
     if (input.defaultStartTime !== undefined) { fields.push('default_start_time = ?'); values.push(input.defaultStartTime); }
     if (input.defaultEndTime !== undefined) { fields.push('default_end_time = ?'); values.push(input.defaultEndTime); }
+    if (input.payMultiplierBasisPoints !== undefined) { fields.push('pay_multiplier_basis_points = ?'); values.push(input.payMultiplierBasisPoints); }
     if (input.expectedBreakMinutes !== undefined) { fields.push('expected_break_minutes = ?'); values.push(input.expectedBreakMinutes); }
     if ('expectedBreakType' in input) { fields.push('expected_break_type = ?'); values.push(input.expectedBreakType ?? null); }
     if ('validWeekdays' in input) { fields.push('valid_weekdays = ?'); values.push(input.validWeekdays ? JSON.stringify(input.validWeekdays) : null); }
@@ -123,6 +136,20 @@ export class SqliteShiftTemplateRepository implements ShiftTemplateRepository {
     );
   }
 
+  async delete(id: string): Promise<void> {
+    await this.database.withTransactionAsync(async () => {
+      // Recurrence definitions are JSON snapshots and therefore are not covered by the SQL foreign key.
+      // Remove only the live reference; the snapshotted type name and multiplier remain historical facts.
+      await this.database.runAsync(
+        `UPDATE recurrence_series
+         SET template_json = json_remove(template_json, '$.shiftTemplateId'), updated_at = ?
+         WHERE json_extract(template_json, '$.shiftTemplateId') = ?;`,
+        [new Date().toISOString(), id],
+      );
+      await this.database.runAsync('DELETE FROM shift_templates WHERE id = ?;', [id]);
+    });
+  }
+
   async duplicate(id: string, newName: string): Promise<ShiftTemplate> {
     const source = await this.getById(id);
     if (!source) throw new Error(`Template ${id} not found.`);
@@ -130,6 +157,7 @@ export class SqliteShiftTemplateRepository implements ShiftTemplateRepository {
       name: newName,
       defaultStartTime: source.defaultStartTime,
       defaultEndTime: source.defaultEndTime,
+      payMultiplierBasisPoints: source.payMultiplierBasisPoints ?? 10_000,
       expectedBreakMinutes: source.expectedBreakMinutes,
       expectedBreakType: source.expectedBreakType,
       validWeekdays: source.validWeekdays,

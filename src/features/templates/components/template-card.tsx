@@ -10,13 +10,14 @@ interface TemplateCardProps {
   onPress: (template: ShiftTemplate) => void;
   onArchive?: (id: string) => void;
   onRestore?: (id: string) => void;
+  onDelete?: (id: string) => void;
   onDuplicate?: (id: string, newName: string) => void;
 }
 
-const WEEKDAY_LABELS_HE = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
+const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 
-export function TemplateCard({ template, onPress, onArchive, onRestore, onDuplicate }: TemplateCardProps) {
-  const { t } = useTranslation();
+export function TemplateCard({ template, onPress, onArchive, onRestore, onDelete, onDuplicate }: TemplateCardProps) {
+  const { t, isRtl } = useTranslation();
   const { colors } = useAppTheme();
   const crossesMidnight = template.defaultEndTime < template.defaultStartTime;
 
@@ -31,8 +32,18 @@ export function TemplateCard({ template, onPress, onArchive, onRestore, onDuplic
     if (onDuplicate) {
       options.push({ text: t('templates.duplicate'), onPress: () => promptDuplicate() });
     }
+    if (onDelete) {
+      options.push({ text: t('templates.delete'), style: 'destructive' as const, onPress: () => confirmDelete() });
+    }
     options.push({ text: t('common.cancel'), style: 'cancel' as const, onPress: () => undefined });
     Alert.alert(template.name, undefined, options);
+  }
+
+  function confirmDelete() {
+    Alert.alert(t('templates.deleteTitle'), t('templates.deleteBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('templates.delete'), style: 'destructive', onPress: () => onDelete?.(template.id) },
+    ]);
   }
 
   function promptDuplicate() {
@@ -64,12 +75,12 @@ export function TemplateCard({ template, onPress, onArchive, onRestore, onDuplic
         {
           backgroundColor: colors.surface,
           borderColor,
-          borderLeftWidth: 4,
+          borderStartWidth: 4,
           opacity: template.isArchived ? 0.55 : 1,
         },
       ]}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}>
         <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
           {template.name}
         </Text>
@@ -83,13 +94,14 @@ export function TemplateCard({ template, onPress, onArchive, onRestore, onDuplic
         {template.defaultStartTime} – {template.defaultEndTime}
         {crossesMidnight ? ` (${t('templates.crossMidnight')})` : ''}
       </Text>
+      <Text style={[styles.time, { color: colors.textMuted }]}>{t('templates.payMultiplier')}: {(template.payMultiplierBasisPoints ?? 10_000) / 100}%</Text>
       {template.validWeekdays && template.validWeekdays.length > 0 && (
-        <View style={styles.weekdays}>
-          {WEEKDAY_LABELS_HE.map((label, idx) => {
+        <View style={[styles.weekdays, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}>
+          {WEEKDAY_KEYS.map((key, idx) => {
             const active = template.validWeekdays!.includes(idx);
             return (
               <View
-                key={idx}
+                key={key}
                 style={[
                   styles.weekdayBubble,
                   {
@@ -98,7 +110,7 @@ export function TemplateCard({ template, onPress, onArchive, onRestore, onDuplic
                 ]}
               >
                 <Text style={[styles.weekdayLabel, { color: active ? colors.onPrimary : colors.textMuted }]}>
-                  {label}
+                  {t(`calendar.day.${key}`)}
                 </Text>
               </View>
             );
@@ -117,12 +129,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     padding: spacing.md,
   },
-  header: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.xxs },
+  header: { alignItems: 'center', gap: spacing.xs, marginBottom: spacing.xxs },
   name: { flex: 1, fontSize: typography.body, fontWeight: '600' },
   badge: { borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 2 },
   badgeText: { fontSize: typography.caption },
   time: { fontSize: typography.caption },
-  weekdays: { flexDirection: 'row', gap: 4, marginTop: spacing.xs },
+  weekdays: { gap: 4, marginTop: spacing.xs },
   weekdayBubble: { alignItems: 'center', borderRadius: radius.pill, height: 24, justifyContent: 'center', width: 24 },
   weekdayLabel: { fontSize: 10, fontWeight: '700' },
 });

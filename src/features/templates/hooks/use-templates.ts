@@ -42,11 +42,17 @@ export function useTemplates(includeArchived = false) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh]);
 
+  const remove = useCallback(async (id: string) => {
+    await repo.delete(id);
+    await refresh();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refresh]);
+
   const duplicate = useCallback(async (id: string, newName: string) => {
     await repo.duplicate(id, newName);
     await refresh();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh]);
 
-  return { templates, loading, error, refresh, archive, restore, duplicate };
+  return { templates, loading, error, refresh, archive, restore, remove, duplicate };
 }

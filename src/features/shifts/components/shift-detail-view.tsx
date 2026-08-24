@@ -46,7 +46,8 @@ export function ShiftDetailView({ shift, workplaceName, roleName, templateName, 
       ? shift.expectedBreakMinutes
       : shift.payableBreakMinutes ?? 0;
   const reportingDiffers = hasReportingDifference(shift);
-  const displayTitle = shift.title || templateName || workplaceName;
+  const resolvedTypeName = shift.shiftTypeNameSnapshot ?? templateName;
+  const displayTitle = shift.title || resolvedTypeName || workplaceName;
   const showWorkplaceMeta = displayTitle !== workplaceName || Boolean(roleName);
   const confirmDelete = () => Alert.alert(t('shift.deleteTitle'), t('shift.deleteBody'), [
     { text: t('common.cancel'), style: 'cancel' },
@@ -66,6 +67,7 @@ export function ShiftDetailView({ shift, workplaceName, roleName, templateName, 
       <SummaryRow label={primaryKind === 'actual' ? t('form.actualEnd') : t('form.scheduledEnd')} value={formatTime(primaryEnd, shift, formatDate)} />
       <SummaryRow label={t('shift.total')} value={primaryDuration ? formatDurationLong(primaryDuration.paidMinutes, locale) : '—'} />
       <SummaryRow label={t('shift.break')} value={formatDurationLong(primaryBreakMinutes, locale)} />
+      {resolvedTypeName ? <SummaryRow label={t('salary.shiftType')} value={`${resolvedTypeName} · ${(shift.shiftTypePayMultiplierBasisPoints ?? 10_000) / 100}%`} /> : null}
       {reportingDiffers ? <RangeRow label={t('shift.reportingHours')} shift={shift} kind="payable" /> : null}
 
       <SecondaryButton label={showMore ? t('shift.hideDetails') : t('shift.moreDetails')} onPress={() => setShowMore((value) => !value)} />

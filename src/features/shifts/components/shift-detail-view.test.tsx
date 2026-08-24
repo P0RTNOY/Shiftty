@@ -17,6 +17,8 @@ describe('ShiftDetailView', () => {
       payableBreakMinutes: 30,
       payableSource: 'actual',
       completedAt: '2026-07-15T21:30:00+03:00',
+      shiftTypeNameSnapshot: 'לילה',
+      shiftTypePayMultiplierBasisPoints: 15_000,
     });
     renderApp(<ShiftDetailView onCancel={jest.fn()} onDelete={jest.fn()} onDuplicate={jest.fn()} onEdit={jest.fn()} onMarkMissed={jest.fn()} onRestore={jest.fn()} shift={shift} workplaceName="בית קפה" />);
 
@@ -25,6 +27,8 @@ describe('ShiftDetailView', () => {
     expect(screen.getByText('סה״כ')).toBeTruthy();
     expect(screen.getByText('הפסקה')).toBeTruthy();
     expect(screen.getByText('בית קפה')).toBeTruthy();
+    expect(screen.getByText('סוג משמרת')).toBeTruthy();
+    expect(screen.getByText('לילה · 150%')).toBeTruthy();
     expect(screen.queryByText('מתוכנן')).toBeNull();
     expect(screen.queryByText('לדיווח')).toBeNull();
     expect(screen.queryByText(/^נוצרה:/)).toBeNull();

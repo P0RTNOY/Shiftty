@@ -110,7 +110,7 @@ describe('SqliteShiftRepository', () => {
     expect(parameters).toContain(shift.scheduledStart);
     expect(parameters).toContain(shift.actualStart);
     expect(parameters).toContain(shift.payableStart);
-    expect(parameters).toHaveLength(36);
+    expect(parameters).toHaveLength(38);
   });
 
   it('queries the next scheduled shift and upcoming shifts', async () => {

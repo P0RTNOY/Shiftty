@@ -23,7 +23,8 @@ export default function SettingsScreen() {
         <SettingsRow icon="cash-outline" label={t('settings.salary')} onPress={() => router.push('/settings/salary')} />
         <SettingsRow icon="time-outline" label={t('settings.templates')} onPress={() => router.push('/settings/templates')} />
         <SettingsRow icon="notifications-outline" label={t('settings.notifications')} onPress={() => router.push('/settings/notifications')} />
-        <SettingsRow icon="documents-outline" label={t('settings.reportsBackup')} onPress={() => router.push('/settings/reports-backup')} />
+        <SettingsRow icon="download-outline" label={t('settings.exports')} onPress={() => router.push('/settings/exports')} />
+        <SettingsRow icon="save-outline" label={t('settings.backupRestore')} onPress={() => router.push('/settings/data-management')} />
       </View>
 
       <View style={styles.section}>

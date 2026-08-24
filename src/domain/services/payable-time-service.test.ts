@@ -31,4 +31,26 @@ describe('payable time selection and rounding', () => {
     expect(selectPayableTime({ shift, actualEnd, unpaidBreakMinutes: 32, source: 'rounded', rounding: { incrementMinutes: 15, mode: 'nearest' } })).toMatchObject({ payableStart: '2026-07-15T10:30:00.000Z', payableEnd: '2026-07-15T19:00:00.000Z', payableSource: 'rounded' });
     expect(() => roundTimestamp(actualEnd, 7, 'nearest')).toThrow('increment');
   });
+
+  it('allows overdue live clock-out recovery but rejects a new manual range over 12 hours', () => {
+    const overdueShift = createShift({
+      status: 'active',
+      actualStart: '2026-07-15T08:00:00+03:00',
+      activeOrigin: 'unscheduled',
+      scheduledStart: undefined,
+      scheduledEnd: undefined,
+    });
+    const overdueEnd = '2026-07-15T20:01:00+03:00';
+
+    expect(selectPayableTime({
+      shift: overdueShift, actualEnd: overdueEnd, unpaidBreakMinutes: 0, source: 'actual',
+    })).toMatchObject({ payableEnd: overdueEnd, payableSource: 'actual' });
+    expect(() => selectPayableTime({
+      shift: overdueShift,
+      actualEnd: overdueEnd,
+      unpaidBreakMinutes: 0,
+      source: 'manual',
+      manual: { start: overdueShift.actualStart!, end: overdueEnd, breakMinutes: 0 },
+    })).toThrow('cannot exceed 12 hours');
+  });
 });

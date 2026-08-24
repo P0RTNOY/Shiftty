@@ -12,7 +12,7 @@ const mockStartScheduled = jest.fn();
 const mockStartUnscheduled = jest.fn();
 const mockCompleteShift = jest.fn();
 jest.mock('@/features/shifts/hooks/use-active-shift', () => ({ useActiveShift: () => mockActiveHook() }));
-jest.mock('@/features/shifts/hooks/use-shifts', () => ({ useShifts: (query: { statuses?: string[] }) => query.statuses ? mockNearbyShiftsHook() : mockShiftsHook() }));
+jest.mock('@/features/shifts/hooks/use-shifts', () => ({ useShifts: (query: { statuses?: string[] }) => query.statuses ? mockNearbyShiftsHook() : mockShiftsHook(query) }));
 jest.mock('@/features/shifts/hooks/use-shift-templates', () => ({ useShiftTemplates: () => ({ templates: [] }) }));
 jest.mock('@/features/workplaces/hooks/use-workplaces', () => ({ useWorkplaces: () => mockWorkplacesHook() }));
 jest.mock('@/features/pay-rules', () => ({
@@ -203,5 +203,21 @@ describe('Home live tracking state', () => {
     expect(screen.queryByText('צפוי ממשמרות עתידיות')).toBeNull();
     expect(screen.queryByText('תחזית חודשית')).toBeNull();
     expect(screen.queryByText('שעות מיוחדות')).toBeNull();
+  });
+
+  it('loads the current reporting month in the application timezone', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-08-31T21:30:00.000Z'));
+    try {
+      mockActiveHook.mockReturnValue(emptyActive);
+      renderApp(<HomeScreen />);
+
+      expect(mockShiftsHook).toHaveBeenCalledWith(expect.objectContaining({
+        startsBefore: '2026-10-01T00:00:00.000+03:00',
+        endsAfter: '2026-09-01T00:00:00.000+03:00',
+        rangeSource: 'salary',
+      }));
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

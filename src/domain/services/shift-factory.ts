@@ -2,6 +2,7 @@ import { differenceInMinutes } from 'date-fns';
 
 import { shiftSchema, type Shift, type Workplace } from '@/domain/entities';
 import { resolveLocalShiftRange } from '@/shared/utils/zoned-time';
+import { assertShiftDurationWithinLimit } from './shift-duration-policy';
 
 interface ShiftFactoryContext {
   id: string;
@@ -13,6 +14,8 @@ interface BaseShiftInput {
   workplaceId: string;
   roleId?: string;
   shiftTemplateId?: string;
+  shiftTypeNameSnapshot?: string;
+  shiftTypePayMultiplierBasisPoints?: number;
   title?: string;
   notes?: string;
   hourlyRateSnapshotMinor: number;
@@ -22,6 +25,8 @@ export interface ActiveShiftInput {
   workplace: Workplace;
   roleId?: string;
   shiftTemplateId?: string;
+  shiftTypeNameSnapshot?: string;
+  shiftTypePayMultiplierBasisPoints?: number;
   expectedBreakMinutes?: number;
 }
 
@@ -30,6 +35,7 @@ export interface ScheduledShiftInput extends BaseShiftInput {
   startTime: string;
   endTime: string;
   expectedBreakMinutes: number;
+  maximumExistingDurationMinutes?: number;
 }
 
 export interface CompletedShiftInput extends BaseShiftInput {
@@ -42,10 +48,14 @@ export interface CompletedShiftInput extends BaseShiftInput {
   payableEndTime?: string;
   actualBreakMinutes: number;
   payableBreakMinutes: number;
+  maximumExistingScheduledDurationMinutes?: number;
+  maximumExistingActualDurationMinutes?: number;
+  maximumExistingPayableDurationMinutes?: number;
 }
 
 export function createScheduledShift(input: ScheduledShiftInput, context: ShiftFactoryContext): Shift {
   const scheduled = resolveLocalShiftRange(input.date, input.startTime, input.endTime, context.timezone);
+  assertShiftDurationWithinLimit(scheduled.start, scheduled.end, input.maximumExistingDurationMinutes);
   return shiftSchema.parse({
     ...baseFields(input, context),
     scheduledStart: scheduled.start,
@@ -61,6 +71,8 @@ export function createActiveShift(input: ActiveShiftInput, context: ShiftFactory
     workplaceId: input.workplace.id,
     roleId: input.roleId,
     shiftTemplateId: input.shiftTemplateId,
+    shiftTypeNameSnapshot: input.shiftTypeNameSnapshot,
+    shiftTypePayMultiplierBasisPoints: input.shiftTypePayMultiplierBasisPoints,
     actualStart: context.now,
     expectedBreakMinutes: input.expectedBreakMinutes ?? input.workplace.defaultBreakMinutes,
     status: 'active',
@@ -87,6 +99,10 @@ export function createCompletedShift(input: CompletedShiftInput, context: ShiftF
     input.payableEndTime ?? input.actualEndTime,
     context.timezone,
   );
+
+  if (scheduled) assertShiftDurationWithinLimit(scheduled.start, scheduled.end, input.maximumExistingScheduledDurationMinutes);
+  assertShiftDurationWithinLimit(actual.start, actual.end, input.maximumExistingActualDurationMinutes);
+  assertShiftDurationWithinLimit(payable.start, payable.end, input.maximumExistingPayableDurationMinutes);
 
   if (input.actualBreakMinutes > differenceInMinutes(actual.end, actual.start)) {
     throw new Error('Actual break cannot exceed actual shift duration.');
@@ -122,6 +138,8 @@ function baseFields(input: BaseShiftInput, context: ShiftFactoryContext) {
     workplaceId: input.workplaceId,
     roleId: input.roleId,
     shiftTemplateId: input.shiftTemplateId,
+    shiftTypeNameSnapshot: input.shiftTypeNameSnapshot,
+    shiftTypePayMultiplierBasisPoints: input.shiftTypePayMultiplierBasisPoints,
     title: input.title,
     notes: input.notes,
     hourlyRateSnapshotMinor: input.hourlyRateSnapshotMinor,

@@ -64,7 +64,7 @@ Counts describe the normal visible state dogfooded on the phone-sized Simulator.
 | Templates `/settings/templates` | 1 add | Archive toggle and row actions | 3 plus rows | None | **SECONDARY/AUTO.** Nested scroll warning fixed; footer remains stable. |
 | Template editor `/settings/templates/[id]` | 1 save | Back, weekday choices | 6 | None | **SECONDARY.** Reasonable for reusable setup. |
 | Notifications `/settings/notifications` | 1 permission action when needed | Switches and offset choices | 6+ grouped | Expected-end concept in advanced settings | **ADVANCED.** 0/1/N copy fixed. The no-permission state exposed a clear explanation and one **אפשר התראות** action. |
-| Reports & Backup `/settings/reports-backup` | 0 | 2 rows | 2 | None | **MERGE candidate.** Intermediate navigation may add little value. |
+| Reports & Backup `/settings/reports-backup` | 0 | 0 | 0 | None | **COMPATIBILITY REDIRECT.** Removed from normal navigation on 2026-08-23; Settings exposes Export and Backup/Restore directly. |
 | Exports `/settings/exports` | 3 export actions | Back and 2 month controls | 4 format groups | CSV/ICS/PDF file types are appropriate | **SECONDARY.** Formats have distinct jobs; no merge. |
 | Data Management `/settings/data-management` | 3 | Back; restore strategy confirmation | 3 groups | Previously Merge/Replace | **ADVANCED/destructive.** Plain Hebrew choices implemented. |
 | Privacy `/settings/privacy` | 0 | Back | 4 text sections | None | **INFORMATION.** Clear but text-heavy. |
@@ -73,7 +73,7 @@ Counts describe the normal visible state dogfooded on the phone-sized Simulator.
 | Edit Shift `/shifts/[id]/edit` | 1 save | Back, Advanced | 5 normal fields | Reporting/salary overrides only in Advanced | **CORE correction.** Hidden values now preserve intent and recalc money. |
 | Breaks `/shifts/[id]/breaks` | 1 add/manual action | 2 actions per break | 3 summary/list groups | Paid/unpaid distinction | **ADVANCED.** Per-row actions are overflow candidates. |
 | Start selector `/shifts/start` | 1 unscheduled start or scheduled rows | Back | 2 | None | **CORE fallback.** One-workplace normal case bypasses it. |
-| Unscheduled start `/shifts/start/unscheduled` | 1 start | Back | 4 | Optional `HH:mm` hint | **SECONDARY fallback.** Title/notes/expected end can move under Advanced. |
+| Unscheduled start `/shifts/start/unscheduled` | 1 start | Back, Advanced | Workplace plus one disclosed optional group | None in normal state | **SECONDARY fallback.** Role/template/expected end/title/notes moved under Advanced on 2026-08-23. |
 | Clock Out `/shifts/active/end` | 1 complete | Back plus reporting choices | 6+ | Reporting time when advanced route is chosen | **CORE/ADVANCED.** Normal Home quick review remains minimal. |
 | Cancel Tracking `/shifts/active/cancel` | 0–1 recovery | Back plus destructive alternatives | 2 | Tracking consequences in user language | **RECOVERY.** Now inaccessible without an active shift. |
 | Expected End `/shifts/active/expected-end` | 1 save | Back | 2 fields | Expected end | **ADVANCED.** Inline-sheet candidate; now guarded when stale. |

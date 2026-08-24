@@ -15,8 +15,15 @@ import type {
 import { calculateMinutePay, roundRationalToMinor } from '@/shared/utils/money';
 import { formatLocalDateKey, resolveLocalDateTime } from '@/shared/utils/zoned-time';
 import { resolveHourlyRate } from './rate-resolution-service';
+import { MAX_SHIFT_DURATION_MINUTES } from './shift-duration-policy';
 
-export const SALARY_ENGINE_VERSION = '1.0.0';
+export const SALARY_ENGINE_VERSION = '1.3.0';
+export const DEFAULT_OVERTIME_TIER_ONE_RULE_ID = 'system-default-overtime-8-to-10-hours';
+export const DEFAULT_OVERTIME_TIER_TWO_RULE_ID = 'system-default-overtime-10-to-12-hours';
+export const DEFAULT_OVERTIME_TIER_ONE_RULE_NAME = 'salary.defaultOvertimeTierOneName';
+export const DEFAULT_OVERTIME_TIER_TWO_RULE_NAME = 'salary.defaultOvertimeTierTwoName';
+export const DEFAULT_OVERTIME_THRESHOLD_MINUTES = 8 * 60;
+export const DEFAULT_SECOND_OVERTIME_THRESHOLD_MINUTES = 10 * 60;
 
 export interface SalaryCalculationInput {
   shift: Shift;
@@ -44,7 +51,10 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
   const timezone = input.profile?.timezone ?? input.shift.timezone;
   const grossMinutes = differenceInMinutes(range.end, range.start);
   const breakSummary = resolveBreaks(input, range, context);
-  const enabledRules = input.rules.filter((rule) => isRuleEnabledForRange(rule, range, timezone));
+  const rulesWithDefaultOvertime = hasConfiguredOvertimeRule(input.rules)
+    ? input.rules
+    : [...input.rules, ...createDefaultOvertimeRules(input)];
+  const enabledRules = rulesWithDefaultOvertime.filter((rule) => isRuleEnabledForRange(rule, range, timezone));
   const boundaries = collectBoundaries(range, timezone, enabledRules, input.holidayIntervals, breakSummary.unpaidIntervals);
   const workIntervals = createWorkIntervals(boundaries, breakSummary.unpaidIntervals);
   const issues: PayCalculationIssue[] = [];
@@ -66,6 +76,7 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
   const dailyGross = { ...(input.priorGrossMinutesByLocalDate ?? {}) };
   const segments = [] as PayCalculationResult['segments'];
   const mode: MoneyRoundingMode = input.profile?.calculationRoundingMode ?? 'half_up';
+  const shiftTypeMultiplier = input.shift.shiftTypePayMultiplierBasisPoints ?? 10_000;
   let cumulativeBaseNumerator = 0n;
   let cumulativePremiumNumerator = 0n;
   let roundedBaseMinor = 0;
@@ -111,7 +122,12 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
       });
       const rateMinor = rateResolution.rateMinor ?? baseResolution.rateMinor;
       const multiplierRules = matching.filter((rule) => rule.effect.type === 'multiplier');
-      const multiplier = resolveMultiplier(multiplierRules, issues);
+      const multiplier = resolveMultiplier(
+        multiplierRules,
+        issues,
+        shiftTypeMultiplier,
+        input.shift.shiftTypeNameSnapshot,
+      );
       if (rateMinor) {
         cumulativeBaseNumerator += BigInt(rateMinor) * BigInt(segmentMinutes) * 10_000n;
         cumulativePremiumNumerator += BigInt(rateMinor) * BigInt(segmentMinutes) * BigInt(multiplier.basisPoints - 10_000);
@@ -127,7 +143,7 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
           baseHourlyRateMinor: rateMinor, multiplierBasisPoints: multiplier.basisPoints, basePayMinor,
           premiumPayMinor, totalPayMinor,
           appliedRuleIds: [...(rateOverride ? [rateOverride.id] : []), ...multiplier.rules.map((rule) => rule.id)],
-          labels: multiplier.rules.map((rule) => rule.name),
+          labels: [...(input.shift.shiftTypeNameSnapshot ? [input.shift.shiftTypeNameSnapshot] : []), ...multiplier.rules.map((rule) => rule.name)],
         });
       } else missingRateForInterval = true;
       shiftWorkedMinutes += segmentMinutes;
@@ -138,6 +154,14 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
   }
 
   const payableMinutes = workIntervals.reduce((total, item) => total + item.minutes, 0);
+  if (grossMinutes > MAX_SHIFT_DURATION_MINUTES) {
+    issues.push({
+      code: 'shift_duration_exceeds_maximum',
+      severity: 'error',
+      messageKey: 'salary.issues.shiftDurationExceedsMaximum',
+      metadata: { maximumMinutes: MAX_SHIFT_DURATION_MINUTES, grossMinutes },
+    });
+  }
   if ((missingRateForInterval || (payableMinutes > 0 && segments.length === 0)) && baseResolution.issue) issues.push(baseResolution.issue);
   const componentContext = {
     shift: input.shift, timezone, holidayIntervals: input.holidayIntervals, grossMinutes,
@@ -155,7 +179,7 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
   const minimumDurationAdjustmentMinutes = Math.max(0, minimumMinutes - payableMinutes);
   const resolvedBaseRate = segments[0]?.baseHourlyRateMinor ?? baseResolution.rateMinor;
   const minimumDurationAdjustmentMinor = resolvedBaseRate
-    ? calculateMinutePay(resolvedBaseRate, minimumDurationAdjustmentMinutes, 10_000, mode)
+    ? calculateMinutePay(resolvedBaseRate, minimumDurationAdjustmentMinutes, shiftTypeMultiplier, mode)
     : 0;
   const basePayMinor = segments.reduce((sum, item) => sum + item.basePayMinor, 0);
   const premiumPayMinor = segments.reduce((sum, item) => sum + item.premiumPayMinor, 0);
@@ -170,8 +194,53 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
     specialRateMinutes: segments.filter((item) => item.multiplierBasisPoints !== 10_000).reduce((sum, item) => sum + item.minutes, 0),
     segments, basePayMinor, premiumPayMinor, minimumDurationAdjustmentMinutes, minimumDurationAdjustmentMinor,
     fixedBonusesMinor, reimbursementsMinor, totalGrossPayMinor, resolvedBaseHourlyRateMinor: resolvedBaseRate,
+    shiftTypeName: input.shift.shiftTypeNameSnapshot,
+    shiftTypeMultiplierBasisPoints: shiftTypeMultiplier,
     appliedRuleIds: allAppliedRules, issues, explanations, calculatedAt: input.calculatedAt, engineVersion: SALARY_ENGINE_VERSION,
   };
+}
+
+export function hasConfiguredOvertimeRule(rules: readonly PayRule[]): boolean {
+  return rules.some((rule) => rule.effect.type === 'multiplier'
+    && rule.conditions.some((condition) => condition.type === 'workedMinutes'));
+}
+
+function createDefaultOvertimeRules(input: SalaryCalculationInput): PayRule[] {
+  const common = {
+    salaryProfileId: input.profile?.id ?? `workplace:${input.shift.workplaceId}`,
+    priority: 0,
+    isEnabled: true,
+    canStack: true,
+    createdAt: input.calculatedAt,
+    updatedAt: input.calculatedAt,
+  };
+  return [
+    {
+      ...common,
+      id: DEFAULT_OVERTIME_TIER_ONE_RULE_ID,
+      name: DEFAULT_OVERTIME_TIER_ONE_RULE_NAME,
+      conditions: [{
+        type: 'workedMinutes',
+        afterMinutes: DEFAULT_OVERTIME_THRESHOLD_MINUTES,
+        beforeMinutes: DEFAULT_SECOND_OVERTIME_THRESHOLD_MINUTES,
+        scope: 'shift',
+        basis: 'net',
+      }],
+      effect: { type: 'multiplier', basisPoints: 12_500 },
+    },
+    {
+      ...common,
+      id: DEFAULT_OVERTIME_TIER_TWO_RULE_ID,
+      name: DEFAULT_OVERTIME_TIER_TWO_RULE_NAME,
+      conditions: [{
+        type: 'workedMinutes',
+        afterMinutes: DEFAULT_SECOND_OVERTIME_THRESHOLD_MINUTES,
+        scope: 'shift',
+        basis: 'net',
+      }],
+      effect: { type: 'multiplier', basisPoints: 15_000 },
+    },
+  ];
 }
 
 function resolveSourceRange(shift: Shift, context: PayCalculationResult['context'], activeEnd?: string): TimeRange {
@@ -295,8 +364,13 @@ function isRuleEffectiveAt(rule: PayRule, instant: Date, timezone: string): bool
 }
 function compareRules(left: PayRule, right: PayRule): number { return right.priority - left.priority || specificity(right) - specificity(left) || left.id.localeCompare(right.id); }
 function specificity(rule: PayRule): number { return rule.conditions.reduce((score, condition) => score + ({ date: 100, role: 60, workplace: 50, holiday: 40, weekend: 30, timeWindow: 20, weekday: 10, workedMinutes: 10, minimumDuration: 5 }[condition.type]), 0); }
-function resolveMultiplier(rules: PayRule[], issues: PayCalculationIssue[]) {
-  if (!rules.length) return { basisPoints: 10_000, rules: [] as PayRule[] };
+function resolveMultiplier(
+  rules: PayRule[],
+  issues: PayCalculationIssue[],
+  shiftTypeBasisPoints: number,
+  _shiftTypeName?: string,
+) {
+  if (!rules.length) return { basisPoints: shiftTypeBasisPoints, rules: [] as PayRule[] };
   const nonStacking = rules.filter((rule) => !rule.canStack);
   const winner = nonStacking[0];
   if (winner && nonStacking[1] && winner.priority === nonStacking[1].priority && specificity(winner) === specificity(nonStacking[1])) {
@@ -304,7 +378,8 @@ function resolveMultiplier(rules: PayRule[], issues: PayCalculationIssue[]) {
   }
   const stacking = rules.filter((rule) => rule.canStack);
   const applied = [...(winner ? [winner] : []), ...stacking];
-  const initial = winner?.effect.type === 'multiplier' ? winner.effect.basisPoints : 10_000;
+  const winningRuleBasisPoints = winner?.effect.type === 'multiplier' ? winner.effect.basisPoints : 10_000;
+  const initial = Math.max(shiftTypeBasisPoints, winningRuleBasisPoints);
   return { basisPoints: stacking.reduce((value, rule) => value + (rule.effect.type === 'multiplier' ? Math.max(0, rule.effect.basisPoints - 10_000) : 0), initial), rules: applied };
 }
 function nextThresholdDistance(rules: readonly PayRule[], worked: { shiftNet: number; dayNet: number; shiftGross: number; dayGross: number }): number | undefined {
