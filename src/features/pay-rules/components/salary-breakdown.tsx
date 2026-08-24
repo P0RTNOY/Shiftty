@@ -5,6 +5,7 @@ import type { PayCalculationResult, SalaryCalculationStatus } from '@/domain/ent
 import {
   DEFAULT_OVERTIME_TIER_ONE_RULE_NAME,
   DEFAULT_OVERTIME_TIER_TWO_RULE_NAME,
+  PROFILE_WEEKLY_OVERTIME_RULE_NAME,
   deriveSalaryTrustState,
 } from '@/domain/services';
 import { SalaryTrustDisclosure } from '@/features/pay-rules/components/salary-trust-disclosure';
@@ -33,6 +34,7 @@ export function SalaryBreakdown({ result, status, onRecalculate, onOpenSalarySet
   const summaryStatus = t('salary.estimatedPay');
   const hasLegacyBaseOnlyCalculation = result.issues.some((issue) => issue.code === 'no_pay_rules_configured');
   const shiftTypeMultiplier = result.shiftTypeMultiplierBasisPoints ?? 10_000;
+  const weeklyRuleLabel = resolveWeeklyRuleLabel(result, locale, t);
   const effectiveShiftTypeRate = result.resolvedBaseHourlyRateMinor === undefined
     ? undefined
     : Math.round(result.resolvedBaseHourlyRateMinor * shiftTypeMultiplier / 10_000);
@@ -60,7 +62,7 @@ export function SalaryBreakdown({ result, status, onRecalculate, onOpenSalarySet
       <Row strong label={t('salary.totalGross')} value={formatCurrency(result.totalGrossPayMinor)} />
       <Row label={t('salary.regularHours')} value={formatDurationLong(result.regularMinutes, locale)} />
       <Row label={t('salary.specialHours')} value={formatDurationLong(result.specialRateMinutes, locale)} />
-      {result.segments.map((segment) => <View key={`${segment.start}-${segment.end}`} style={[styles.segment, { borderTopColor: colors.border }]}><Text style={{ color: colors.text, textAlign: align }}>{formatDurationLong(segment.minutes, locale)} · {segment.multiplierBasisPoints / 100}%</Text><Text style={{ color: colors.textMuted, textAlign: align }}>{segment.labels.map((label) => label === DEFAULT_OVERTIME_TIER_ONE_RULE_NAME ? t('salary.defaultOvertimeTierOneName') : label === DEFAULT_OVERTIME_TIER_TWO_RULE_NAME ? t('salary.defaultOvertimeTierTwoName') : label).join(' + ') || t('salary.regularHours')} · {formatCurrency(segment.totalPayMinor)}</Text></View>)}
+      {result.segments.map((segment) => <View key={`${segment.start}-${segment.end}`} style={[styles.segment, { borderTopColor: colors.border }]}><Text style={{ color: colors.text, textAlign: align }}>{formatDurationLong(segment.minutes, locale)} · {segment.multiplierBasisPoints / 100}%</Text><Text style={{ color: colors.textMuted, textAlign: align }}>{segment.labels.map((label) => label === DEFAULT_OVERTIME_TIER_ONE_RULE_NAME ? t('salary.defaultOvertimeTierOneName') : label === DEFAULT_OVERTIME_TIER_TWO_RULE_NAME ? t('salary.defaultOvertimeTierTwoName') : label === PROFILE_WEEKLY_OVERTIME_RULE_NAME ? weeklyRuleLabel : label).join(' + ') || t('salary.regularHours')} · {formatCurrency(segment.totalPayMinor)}</Text></View>)}
       {onRecalculate ? <PrimaryButton label={t('salary.recalculate')} onPress={onRecalculate} /> : null}
     </View> : null}
   </View>;
@@ -70,6 +72,23 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
   const { colors } = useAppTheme();
   const { isRtl } = useTranslation();
   return <View style={[styles.row, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}><Text style={{ color: colors.textMuted }}>{label}</Text><Text style={{ color: colors.text, fontWeight: strong ? '800' : '600' }}>{value}</Text></View>;
+}
+
+function resolveWeeklyRuleLabel(
+  result: PayCalculationResult,
+  locale: 'he' | 'en',
+  t: ReturnType<typeof useTranslation>['t'],
+): string {
+  const explanation = result.explanations.find((item) => item.startsWith('salary.explanations.weekly_overtime:'));
+  if (!explanation) return t('salary.weeklyOvertimeRuleName');
+  const parts = explanation.split(':');
+  const regularMinutes = Number(parts.at(-3));
+  const multiplierBasisPoints = Number(parts.at(-2));
+  if (!Number.isFinite(regularMinutes) || !Number.isFinite(multiplierBasisPoints)) return t('salary.weeklyOvertimeRuleName');
+  return t('salary.weeklyOvertimeSegment', {
+    threshold: formatDurationLong(regularMinutes, locale),
+    multiplier: multiplierBasisPoints / 100,
+  });
 }
 
 const styles = StyleSheet.create({

@@ -50,4 +50,20 @@ describe('SalaryTrustDisclosure', () => {
     fireEvent.press(screen.getByRole('button', { name: 'פתיחת הגדרות שכר' }));
     expect(onOpenSalarySettings).toHaveBeenCalledTimes(1);
   });
+
+  it('moves successfully evaluated weekly overtime into the included assumptions', () => {
+    const weeklyResult = {
+      ...defaultResult,
+      explanations: [
+        ...defaultResult.explanations,
+        'salary.explanations.weekly_overtime:system-weekly-overtime:profile-1:2520:12500:net',
+      ],
+    };
+    renderApp(<SalaryTrustDisclosure result={weeklyResult} status="estimated" />);
+
+    expect(screen.getByText('הערכת שכר לפי ההגדרות שלך')).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: 'איך חושב הסכום?' }));
+    expect(screen.getByText('סף השעות הנוספות השבועי שהוגדר')).toBeTruthy();
+    expect(screen.queryByText('ספי שעות נוספות שבועיים')).toBeNull();
+  });
 });

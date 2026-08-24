@@ -2,6 +2,39 @@
 
 Last updated: 2026-08-24
 
+## Workweek-Aware Salary Engine — 2026-08-24
+
+Salary engine `1.4.0` adds deterministic, opt-in weekly overtime while preserving existing behavior until a user explicitly enables or creates a weekly rule.
+
+- Salary profiles now support a local workweek start, optional weekly regular-minute threshold, post-threshold multiplier, and net/gross basis. The Hebrew-first display defaults are Sunday, 42 hours, 125%, and net minutes, but Migration 8 leaves weekly overtime disabled for all existing data.
+- Advanced Salary Settings keeps the hourly rate first and places the weekly controls behind an accessible disclosure. Weekdays are localized names, and Hebrew RTL/English LTR copy explains configuration, estimate, compliance, and frozen-history boundaries.
+- The pure rule schema supports `workedMinutes.scope = 'week'`. Profile configuration becomes a deterministic in-memory rule; persisted generic weekly rules use the same engine path.
+- Weekly accumulation uses the salary profile timezone and configured local weekday boundary. Context is chronological and isolated to the same workplace and resolved salary-profile version, including when the workweek begins in the previous report month.
+- A payable minute receives only the strongest matching shift/day/week overtime premium. Shift-type and ordinary stacking premiums retain their documented behavior; fixed bonuses, reimbursements, and minimum adjustments remain single-application components.
+- Engine results record applied weekly rule IDs, localized labels, exact threshold/multiplier explanations, and optional local `workweekAllocations` for dependency tracking. Explicit weekly provenance contributes to `configured_estimate`; absence of weekly configuration does not make an estimate unavailable.
+- Context-only predecessor shifts affect accumulation but are excluded from requested results, aggregates, monthly report rows, PDF, and CSV. The authoritative `MonthlyReport` model and missing/stale/finalized-zero semantics are unchanged; ICS remains calendar-only.
+- Migration 8 adds only salary-profile configuration and weekly dependency triggers. Frozen weekly provenance—not mutable live rule state—drives invalidation. Editing, deleting, changing breaks, or persisting a newly completed historical snapshot can mark only later compatible same-workweek finalized calculations stale. If an edit changes cohort, the destination is evaluated when explicit recalculation writes its new snapshot. Snapshot rows and result JSON are retained; recalculation remains explicit and creates a new version.
+- Backup envelope version 1 remains supported. New fields round-trip through export, replace, and merge; older version 1 backups restore with Sunday/net defaults and weekly overtime disabled.
+
+Implementation details, exact money examples, compatibility guarantees, and limitations are documented in `docs/workweek-aware-salary.md` and `docs/phase4-salary-engine.md`.
+
+Fresh repository verification:
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed with zero errors/warnings |
+| `npm test -- --runInBand` | Passed; 116 suites, 566 tests, 0 failures |
+| `npm run validate:migrations` | Passed for empty and every supported v1–v8 database |
+| `npm run validate:expo` | Passed; web export produced 36 static routes |
+| `npx expo install --check` | Reports the accepted baseline of eight SDK 57 patch-level dependency updates; dependencies were intentionally left unchanged |
+| `npx expo config --type public` | Passed; SDK 57.0.0 with iOS, Android, and web targets |
+| `git diff --check` | Passed |
+
+No native Simulator or physical-device verification was performed for this milestone. Automated coverage includes exact money, Sunday and alternate boundaries, month crossings, overnight allocation, multiple shifts, net/gross breaks, daily/weekly non-duplication, shift-type stacking, workplace/profile/timezone isolation, snapshot versioning and staleness, migration, backup, report/export, calendar-only ICS, Hebrew/English layout, and accessibility.
+
+This is not an Israeli labor-law compliance engine. It does not infer the applicable threshold or agreement and does not add automatic holidays, weekly-rest/Sabbath classification, night-work legal presets, deductions, tax, pension, or net pay. The recommended Milestone 3 is an evidence-aware holiday and rest-day rules foundation with offline user-confirmed calendar inputs, agreement-specific presets, and explicit provenance—without automatic entitlement or compliance claims.
+
 ## Salary Trust Foundation — 2026-08-24
 
 Salary-bearing screens and exports now identify Shiftty's figures as transparent gross estimates without changing the underlying salary arithmetic.

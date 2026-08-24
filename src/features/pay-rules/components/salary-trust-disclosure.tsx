@@ -25,8 +25,18 @@ export function SalaryTrustDisclosure({
   const [expanded, setExpanded] = useState(false);
   const trustState = mode === 'calculation' ? deriveSalaryTrustState(result, status) : undefined;
   const usesDefaultOvertime = result?.issues?.some((issue) => issue.code === 'default_overtime_applied') ?? false;
+  const usesConfiguredWeeklyOvertime = result?.explanations?.some((explanation) => (
+    explanation === 'salary.explanations.configured_weekly_overtime'
+    || explanation.startsWith('salary.explanations.weekly_overtime:')
+  )) ?? false;
   const align = isRtl ? 'right' : 'left';
-  const includedKeys = resolveIncludedKeys(result, mode, usesDefaultOvertime, trustState);
+  const includedKeys = resolveIncludedKeys(result, mode, usesDefaultOvertime, usesConfiguredWeeklyOvertime, trustState);
+  const notModeledKeys: TranslationKey[] = [
+    ...(usesConfiguredWeeklyOvertime ? [] : ['salary.assumptionWeeklyOvertime'] as const),
+    'salary.assumptionAutomaticHolidays',
+    'salary.assumptionEmployerAgreements',
+    'salary.assumptionNetPay',
+  ];
 
   return <View
     testID="salary-trust-disclosure"
@@ -53,12 +63,7 @@ export function SalaryTrustDisclosure({
 
     {expanded ? <View style={styles.details}>
       <AssumptionList title={t('salary.assumptionsIncluded')} translationKeys={includedKeys} />
-      <AssumptionList title={t('salary.assumptionsNotModeled')} translationKeys={[
-        'salary.assumptionWeeklyOvertime',
-        'salary.assumptionAutomaticHolidays',
-        'salary.assumptionEmployerAgreements',
-        'salary.assumptionNetPay',
-      ]} />
+      <AssumptionList title={t('salary.assumptionsNotModeled')} translationKeys={notModeledKeys} />
     </View> : null}
   </View>;
 }
@@ -67,6 +72,7 @@ function resolveIncludedKeys(
   result: PayCalculationResult | undefined,
   mode: 'calculation' | 'generic',
   usesDefaultOvertime: boolean,
+  usesConfiguredWeeklyOvertime: boolean,
   trustState: SalaryTrustState | undefined,
 ): TranslationKey[] {
   if (mode === 'generic' || !result) return [
@@ -87,6 +93,7 @@ function resolveIncludedKeys(
     : trustState === 'configured_estimate'
       ? 'salary.assumptionConfiguredOvertime'
       : 'salary.assumptionOvertime');
+  if (usesConfiguredWeeklyOvertime) keys.push('salary.assumptionConfiguredWeeklyOvertime');
   if (result.fixedBonusesMinor > 0 || result.reimbursementsMinor > 0) keys.push('salary.assumptionExtras');
   return keys;
 }

@@ -76,6 +76,23 @@ it('labels the 125% and 150% overtime tiers in the Hebrew breakdown', () => {
   expect(screen.getByText(/שעות נוספות 150%/)).toBeTruthy();
 });
 
+it('labels weekly overtime segments with their configured threshold and multiplier', () => {
+  const weeklyResult = {
+    ...tieredResult,
+    explanations: [
+      ...tieredResult.explanations,
+      'salary.explanations.weekly_overtime:system-weekly-overtime:profile-1:2520:12500:net',
+    ],
+    segments: tieredResult.segments.map((segment, index) => index === tieredResult.segments.length - 1
+      ? { ...segment, labels: ['salary.weeklyOvertimeRuleName'] }
+      : segment),
+  };
+  renderApp(<SalaryBreakdown result={weeklyResult} status="estimated" />);
+  fireEvent.press(screen.getByRole('button', { name: 'פירוט סכומים' }));
+
+  expect(screen.getByText(/שעות נוספות שבועיות אחרי 42 שעות · 125%/)).toBeTruthy();
+});
+
 it('explains why compensation is unavailable for an over-limit recovery record', () => {
   renderApp(<SalaryBreakdown result={overLimitResult} status="estimated" />);
 

@@ -12,7 +12,7 @@ Every salary presentation derives one of three states at read time:
 | `basic_estimate` | הערכת שכר בסיסית | Basic pay estimate | A numeric gross estimate exists, but it uses the visible product default or lacks explicit configured-overtime provenance. |
 | `configured_estimate` | הערכת שכר לפי ההגדרות שלך | Pay estimate using your settings | A numeric gross estimate exists and explicitly records configured-overtime provenance. |
 
-`deriveSalaryTrustState` is a pure, deterministic classifier. It returns `unavailable` when the calculation result or gross total is missing, the result contains an error, or the shift status is `not_calculated`, `incomplete`, or `stale`. A usable result is `basic_estimate` when it records the default-overtime or no-pay-rules assumption, uses either built-in default-overtime rule identifier, or lacks the newer configured-overtime explanation. Only a usable result with explicit `salary.explanations.configured_overtime` provenance is `configured_estimate`.
+`deriveSalaryTrustState` is a pure, deterministic classifier. It returns `unavailable` when the calculation result or gross total is missing, the result contains an error, or the shift status is `not_calculated`, `incomplete`, or `stale`. A usable result is `basic_estimate` when it records the default-overtime or no-pay-rules assumption, uses either built-in default-overtime rule identifier, or lacks newer configured-rule provenance. A usable result with explicit configured daily overtime or evaluated weekly-overtime provenance is `configured_estimate`.
 
 This conservative fallback matters for historical results: older calculation JSON that predates the provenance explanation is never silently promoted to `configured_estimate`.
 
@@ -33,7 +33,7 @@ The included list is driven by the calculation result where one is available. De
 
 The disclosure also says what is **not fully modeled**:
 
-- weekly overtime thresholds;
+- weekly overtime thresholds when no workweek-aware rule is explicitly configured;
 - automatic Israeli holiday determination;
 - employer-specific agreements; and
 - deductions, tax, pension, National Insurance, and other net-pay components.
@@ -42,9 +42,9 @@ Holiday intervals can be supplied to the pure engine and specific-date rules can
 
 ## Default overtime assumption
 
-When a salary profile has no persisted worked-minute multiplier rule, salary engine `1.3.0` applies the existing visible product default: the first 8 net hours at the otherwise applicable rate, hours 9–10 with a stacking 25% premium, and hours 11–12 with a stacking 50% premium. The calculation records `default_overtime_applied`, and the disclosure calls out the assumption with a direct route to Salary Settings.
+When a salary profile has no persisted shift- or day-scoped worked-minute multiplier rule, salary engine `1.4.0` applies the existing visible product default: the first 8 net hours at the otherwise applicable rate, hours 9–10 with a stacking 25% premium, and hours 11–12 with a stacking 50% premium. The calculation records `default_overtime_applied`, and the disclosure calls out the assumption with a direct route to Salary Settings. An explicitly configured weekly rule complements these per-shift defaults and records its own provenance.
 
-Any persisted worked-minute multiplier rule, including a disabled one, replaces or opts out of both default tiers. This default is an editable product assumption. It is not represented as a universal employment term or a legal rule.
+Any persisted shift- or day-scoped worked-minute multiplier rule, including a disabled one, replaces or opts out of both default tiers. This default is an editable product assumption. It is not represented as a universal employment term or a legal rule.
 
 ## Screens, reports, and exports
 
@@ -73,4 +73,4 @@ The Salary Trust Foundation adds no database migration, table, column, or trigge
 
 The feature does not claim Israeli labor-law compliance. Correct pay can depend on facts the application does not know, including the applicable legal classification, collective or personal agreement, workweek structure, holidays, deductions, benefits, pension arrangements, and employer payroll policy. The disclosure makes those boundaries visible instead of converting them into implied guarantees.
 
-The recommended next milestone is an opt-in, workweek-aware salary engine: configurable workweek start and weekly regular-hour threshold, deterministic interaction with existing daily overtime, cross-month context, snapshot-aware staleness, additive migration and backup compatibility, and the same explicit estimate/compliance boundaries.
+Milestone 2 implements the previously recommended opt-in workweek-aware engine. The next recommended milestone is an evidence-aware holiday and rest-day rules foundation: offline, user-confirmed calendar inputs and agreement-specific presets with explicit provenance, without claiming that Shiftty can infer legal entitlement or replace payroll review.
