@@ -21,7 +21,7 @@ export const payRuleConditionSchema = z.discriminatedUnion('type', [
     type: z.literal('workedMinutes'),
     afterMinutes: z.number().int().min(0),
     beforeMinutes: z.number().int().positive().optional(),
-    scope: z.enum(['shift', 'day']),
+    scope: z.enum(['shift', 'day', 'week']),
     basis: z.enum(['gross', 'net']).optional(),
   }).refine((value) => value.beforeMinutes === undefined || value.beforeMinutes > value.afterMinutes, { message: 'Worked-minute upper bound must exceed its lower bound.' }),
 ]);

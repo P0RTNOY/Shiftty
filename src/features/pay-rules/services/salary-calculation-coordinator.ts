@@ -1,5 +1,5 @@
 import type { ActiveShiftRepository, PayRuleRepository, SalaryCalculationRepository, SalaryProfileRepository, ShiftRepository, WorkplaceRepository } from '@/domain/repositories';
-import type { BreakSession, PayCalculationResult, Role, SalaryCalculationSnapshot, SalaryProfile, Shift, Workplace } from '@/domain/entities';
+import type { BreakSession, PayCalculationResult, PayRule, Role, SalaryCalculationSnapshot, SalaryProfile, Shift, Workplace } from '@/domain/entities';
 import { calculateSalary, NO_HOLIDAYS, type HolidayProvider } from '@/domain/services';
 import { createId } from '@/shared/utils/id';
 import { formatLocalDateKey, resolveLocalDateTime } from '@/shared/utils/zoned-time';
@@ -38,31 +38,52 @@ export interface SalaryBatchOptions {
   reportingRange?: { start: string; end: string };
 }
 
+interface PriorCalculation {
+  result: PayCalculationResult;
+  workplaceId: string;
+  salaryProfileId?: string;
+  status: Shift['status'];
+  isRequested: boolean;
+}
+
 export class SalaryCalculationCoordinator {
   constructor(private readonly repositories: SalaryCoordinatorRepositories, private readonly holidayProvider: HolidayProvider = NO_HOLIDAYS) {}
 
   async calculateMany(shifts: readonly Shift[], calculatedAt: string, activeEnd?: string, options: SalaryBatchOptions = {}): Promise<SalaryBatchResult> {
-    const relevant = shifts.filter((shift) => ['scheduled', 'completed', 'active'].includes(shift.status));
-    const context = await this.loadContext(relevant);
+    const requested = shifts.filter((shift) => ['scheduled', 'completed', 'active'].includes(shift.status));
+    const requestedIds = new Set(requested.map((shift) => shift.id));
+    const context = await this.loadContext(requested);
+    const weeklyContext = await this.loadWeeklyContext(requested, context, activeEnd);
+    const relevant = uniqueShifts([...weeklyContext, ...requested]);
     const currentSnapshots = await this.repositories.salaryCalculations.listCurrentForShifts(relevant.map((shift) => shift.id));
     const snapshots = new Map(currentSnapshots.map((snapshot) => [snapshot.shiftId, snapshot]));
     const breaks = await this.repositories.activeShifts.listBreaksForShifts(relevant.filter((shift) => shift.status !== 'scheduled' && !snapshots.has(shift.id)).map((shift) => shift.id));
     const breaksByShift = groupBy(breaks, (item) => item.shiftId);
-    const priorResults: PayCalculationResult[] = [];
+    const priorCalculations: PriorCalculation[] = [];
     const output: SalaryBatchResult = { earnedMinor: 0, futureMinor: 0, forecastMinor: 0, incompleteShiftCount: 0, staleShiftCount: 0, regularMinutes: 0, specialRateMinutes: 0, basePayMinor: 0, premiumPayMinor: 0, bonusesMinor: 0, reimbursementsMinor: 0, minimumAdjustmentsMinor: 0, resultsByShiftId: {}, byWorkplace: {}, byRole: {}, byMultiplier: {}, byDate: {} };
     const results: Record<string, PayCalculationResult> = {};
 
-    for (const shift of [...relevant].sort((left, right) => sourceStart(left).localeCompare(sourceStart(right)))) {
+    for (const shift of [...relevant].sort((left, right) => sourceStart(left).localeCompare(sourceStart(right)) || left.id.localeCompare(right.id))) {
       const frozen = snapshots.get(shift.id);
       const ignoreHistoricalSnapshot = options.ignoreHistoricalSnapshotShiftIds?.has(shift.id) ?? false;
       const useFrozen = !ignoreHistoricalSnapshot && shift.status === 'completed' && (
         (['finalized', 'stale'].includes(shift.salaryCalculationStatus) && frozen?.status === 'finalized')
         || (shift.salaryCalculationStatus === 'incomplete' && frozen?.status === 'incomplete')
       );
-      const calculated = useFrozen ? frozen.result : await this.calculatePrepared(shift, context, calculatedAt, priorResults, activeEnd, ignoreHistoricalSnapshot, breaksByShift[shift.id] ?? []);
+      const calculated = useFrozen ? frozen.result : await this.calculatePrepared(shift, context, calculatedAt, priorCalculations, activeEnd, ignoreHistoricalSnapshot, breaksByShift[shift.id] ?? []);
       const result = !ignoreHistoricalSnapshot && shift.status === 'completed' && shift.salaryCalculationStatus === 'incomplete' && calculated.totalGrossPayMinor !== undefined
         ? { ...calculated, totalGrossPayMinor: undefined }
         : calculated;
+      const resolvedProfile = resolveShiftProfile(shift, context);
+      priorCalculations.push({
+        result,
+        workplaceId: shift.workplaceId,
+        salaryProfileId: useFrozen ? frozen.salaryProfileId : resolvedProfile?.id,
+        status: shift.status,
+        isRequested: requestedIds.has(shift.id),
+      });
+      if (!requestedIds.has(shift.id)) continue;
+
       results[shift.id] = result;
       if (shift.salaryCalculationStatus === 'stale') output.staleShiftCount += 1;
       const includedSegments = result.segments.filter((segment) => isInReportingRange(segment.start, options.reportingRange));
@@ -93,7 +114,6 @@ export class SalaryCalculationCoordinator {
         addBreakdown(output.byDate as Record<string, SalaryBreakdownTotal>, segment.localDate, segment.minutes, segment.totalPayMinor);
       }
       if (isCompleteAggregate && fixedComponentsIncluded) addBreakdown(output.byDate as Record<string, SalaryBreakdownTotal>, formatLocalDateKey(result.sourceRange.start, result.calculationTimezone), 0, includedBonus + includedReimbursement + includedMinimum);
-      priorResults.push(result);
     }
     output.forecastMinor = output.earnedMinor + output.futureMinor;
     output.resultsByShiftId = results;
@@ -129,8 +149,46 @@ export class SalaryCalculationCoordinator {
   }
 
   async previewShift(shift: Shift, calculatedAt: string, activeEnd?: string, forceCurrentSettings = false): Promise<PayCalculationResult> {
-    const context = await this.loadContext([shift]);
-    return this.calculatePrepared(shift, context, calculatedAt, [], activeEnd, forceCurrentSettings);
+    const options = forceCurrentSettings
+      ? { ignoreHistoricalSnapshotShiftIds: new Set([shift.id]) }
+      : {};
+    const batch = await this.calculateMany([shift], calculatedAt, activeEnd, options);
+    const result = batch.resultsByShiftId[shift.id];
+    if (!result) throw new Error('The selected shift could not be previewed.');
+    return result;
+  }
+
+  private async loadWeeklyContext(
+    requested: readonly Shift[],
+    context: Awaited<ReturnType<SalaryCalculationCoordinator['loadContext']>>,
+    activeEnd?: string,
+  ): Promise<Shift[]> {
+    const queries = new Map<string, { workplaceId: string; salaryProfileId: string; start: string; end: string }>();
+    for (const shift of requested) {
+      const profile = resolveShiftProfile(shift, context);
+      if (!profile || !hasWeeklyOvertimeConfiguration(profile, context.rulesByProfile[profile.id] ?? [])) continue;
+      const source = salarySourceRange(shift, activeEnd);
+      const localDate = formatLocalDateKey(source.start, profile.timezone);
+      const startLocalDate = workweekStartLocalDate(localDate, profile.workweekStartWeekday);
+      const start = resolveLocalDateTime(startLocalDate, '00:00', profile.timezone);
+      const key = `${shift.workplaceId}\u0000${profile.id}\u0000${start}`;
+      const existing = queries.get(key);
+      if (!existing || Date.parse(source.end) > Date.parse(existing.end)) {
+        queries.set(key, { workplaceId: shift.workplaceId, salaryProfileId: profile.id, start, end: source.end });
+      }
+    }
+
+    const loaded = (await Promise.all([...queries.values()].map(async (query) => {
+      const candidates = await this.repositories.shifts.list({
+        endsAfter: query.start,
+        startsBefore: query.end,
+        statuses: ['completed'],
+        workplaceId: query.workplaceId,
+        rangeSource: 'salary',
+      });
+      return candidates.filter((candidate) => resolveShiftProfile(candidate, context)?.id === query.salaryProfileId);
+    }))).flat();
+    return uniqueShifts(loaded);
   }
 
   private async loadContext(shifts: readonly Shift[]) {
@@ -151,7 +209,7 @@ export class SalaryCalculationCoordinator {
     };
   }
 
-  private async calculatePrepared(shift: Shift, context: Awaited<ReturnType<SalaryCalculationCoordinator['loadContext']>>, calculatedAt: string, priorResults: readonly PayCalculationResult[], activeEnd?: string, ignoreHistoricalSnapshot = false, preparedBreaks?: readonly BreakSession[]): Promise<PayCalculationResult> {
+  private async calculatePrepared(shift: Shift, context: Awaited<ReturnType<SalaryCalculationCoordinator['loadContext']>>, calculatedAt: string, priorCalculations: readonly PriorCalculation[], activeEnd?: string, ignoreHistoricalSnapshot = false, preparedBreaks?: readonly BreakSession[]): Promise<PayCalculationResult> {
     const workplace = context.workplacesById[shift.workplaceId];
     const explicitProfile = shift.salaryProfileId ? context.profilesById[shift.salaryProfileId] : undefined;
     const explicitProfileValid = explicitProfile?.workplaceId === shift.workplaceId && profileAppliesAt(explicitProfile, sourceStart(shift));
@@ -163,14 +221,25 @@ export class SalaryCalculationCoordinator {
     const breaks = shift.status === 'scheduled' ? [] : preparedBreaks ?? await this.repositories.activeShifts.listBreaks(shift.id);
     const source = salarySourceRange(shift, activeEnd);
     const calculationTimezone = profile?.timezone ?? shift.timezone;
+    // Hidden predecessors are loaded only to complete weekly context. Keeping them
+    // out of the legacy day/shift accumulators prevents a profile-specific weekly
+    // lookup from changing an unrelated requested shift's daily thresholds.
+    const priorResults = priorCalculations.filter((item) => item.isRequested).map((item) => item.result);
+    const compatibleWeeklyResults = profile ? priorCalculations
+      .filter((item) => item.status === 'completed' && item.workplaceId === shift.workplaceId && item.salaryProfileId === profile.id)
+      .map((item) => item.result) : [];
     const prior = accumulatePriorMinutes(priorResults, calculationTimezone, 'net');
     const priorGross = accumulatePriorMinutes(priorResults, calculationTimezone, 'gross');
+    const priorWeekly = accumulatePriorWorkweekMinutes(compatibleWeeklyResults, calculationTimezone, profile?.workweekStartWeekday ?? 0, 'net');
+    const priorWeeklyGross = accumulatePriorWorkweekMinutes(compatibleWeeklyResults, calculationTimezone, profile?.workweekStartWeekday ?? 0, 'gross');
     const result = calculateSalary({ shift, profile, rules, breaks,
       holidayIntervals: this.holidayProvider.getHolidayIntervals(source.start, source.end, profile?.timezone ?? shift.timezone), calculatedAt, activeEnd, roleHourlyRateMinor: roleValid ? role?.hourlyRateMinor : undefined,
       workplaceHourlyRateMinor: workplace?.defaultHourlyRateMinor,
       workplaceDefaultShiftBonusMinor: workplace?.defaultShiftBonusMinor,
       workplaceDefaultTravelReimbursementMinor: workplace?.defaultTravelReimbursementMinor,
-      priorWorkedMinutesByLocalDate: prior, priorGrossMinutesByLocalDate: priorGross, ignoreHistoricalSnapshot });
+      priorWorkedMinutesByLocalDate: prior, priorGrossMinutesByLocalDate: priorGross,
+      priorWorkedMinutesByWorkweek: priorWeekly, priorGrossMinutesByWorkweek: priorWeeklyGross,
+      ignoreHistoricalSnapshot });
     const conflicts = profileConflicts(shift, context.profilesByWorkplace[shift.workplaceId] ?? []);
     const runtimeIssues: PayCalculationResult['issues'] = [
       ...(conflicts ? [conflicts] : []),
@@ -207,6 +276,20 @@ function accumulatePriorMinutes(results: readonly PayCalculationResult[], timezo
   }
   return output;
 }
+function accumulatePriorWorkweekMinutes(
+  results: readonly PayCalculationResult[],
+  timezone: string,
+  workweekStartWeekday: number,
+  basis: 'net' | 'gross',
+): Record<string, number> {
+  const byDate = accumulatePriorMinutes(results, timezone, basis);
+  const output: Record<string, number> = {};
+  for (const [localDate, minutes] of Object.entries(byDate)) {
+    const key = workweekStartLocalDate(localDate, workweekStartWeekday);
+    output[key] = (output[key] ?? 0) + minutes;
+  }
+  return output;
+}
 function allocateIntervalMinutes(output: Record<string, number>, interval: { start: string; end: string; minutes: number }, timezone: string): void {
   let cursor = Date.parse(interval.start); const end = Date.parse(interval.end); const totalMilliseconds = end - cursor;
   let elapsedMilliseconds = 0; let assignedMinutes = 0;
@@ -219,6 +302,37 @@ function allocateIntervalMinutes(output: Record<string, number>, interval: { sta
     output[localDate] = (output[localDate] ?? 0) + cumulativeMinutes - assignedMinutes;
     assignedMinutes = cumulativeMinutes; cursor = segmentEnd;
   }
+}
+function workweekStartLocalDate(localDate: string, startWeekday: number): string {
+  const [year, month, day] = localDate.split('-').map(Number);
+  const date = new Date(Date.UTC(year!, month! - 1, day!));
+  const daysSinceStart = (date.getUTCDay() - startWeekday + 7) % 7;
+  date.setUTCDate(date.getUTCDate() - daysSinceStart);
+  return date.toISOString().slice(0, 10);
+}
+function resolveShiftProfile(
+  shift: Shift,
+  context: {
+    workplacesById: Record<string, Workplace>;
+    profilesById: Record<string, SalaryProfile>;
+    profilesByWorkplace: Record<string, SalaryProfile[]>;
+  },
+): SalaryProfile | undefined {
+  const workplace = context.workplacesById[shift.workplaceId];
+  const explicitProfile = shift.salaryProfileId ? context.profilesById[shift.salaryProfileId] : undefined;
+  if (explicitProfile?.workplaceId === shift.workplaceId && profileAppliesAt(explicitProfile, sourceStart(shift))) return explicitProfile;
+  const resolved = resolveProfile(shift, context.profilesByWorkplace[shift.workplaceId] ?? []);
+  if (resolved) return resolved;
+  const workplaceProfile = workplace?.salaryProfileId ? context.profilesById[workplace.salaryProfileId] : undefined;
+  return workplaceProfile?.workplaceId === shift.workplaceId && profileAppliesAt(workplaceProfile, sourceStart(shift)) ? workplaceProfile : undefined;
+}
+function hasWeeklyOvertimeConfiguration(profile: SalaryProfile, rules: readonly PayRule[]): boolean {
+  if (profile.weeklyOvertimeEnabled
+    && profile.weeklyRegularMinutes !== undefined
+    && profile.weeklyOvertimeMultiplierBasisPoints !== undefined) return true;
+  return rules.some((rule) => rule.isEnabled
+    && rule.effect.type === 'multiplier'
+    && rule.conditions.some((condition) => condition.type === 'workedMinutes' && condition.scope === 'week'));
 }
 function resolveProfile(shift: Shift, profiles: readonly SalaryProfile[]): SalaryProfile | undefined {
   return [...profiles].filter((item) => profileAppliesAt(item, sourceStart(shift)))
@@ -233,4 +347,5 @@ function profileAppliesAt(profile: SalaryProfile, instant: string): boolean {
   return profile.isActive && !profile.isArchived && (!profile.effectiveFrom || profile.effectiveFrom <= date) && (!profile.effectiveTo || profile.effectiveTo >= date);
 }
 function groupBy<T>(items: readonly T[], key: (item: T) => string): Record<string, T[]> { const output: Record<string, T[]> = {}; for (const item of items) (output[key(item)] ??= []).push(item); return output; }
+function uniqueShifts(shifts: readonly Shift[]): Shift[] { return [...new Map(shifts.map((shift) => [shift.id, shift])).values()]; }
 function addBreakdown(output: Record<string, SalaryBreakdownTotal>, key: string, minutes: number, totalMinor: number) { const item = output[key] ?? { minutes: 0, totalMinor: 0 }; item.minutes += minutes; item.totalMinor += totalMinor; output[key] = item; }

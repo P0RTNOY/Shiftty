@@ -48,6 +48,14 @@ describe('salary trust state', () => {
     expect(deriveSalaryTrustState(calculate(), 'finalized')).toBe('configured_estimate');
   });
 
+  it('classifies successfully evaluated weekly overtime as configured even alongside default shift tiers', () => {
+    const result = calculate([]);
+    result.explanations.push('salary.explanations.weekly_overtime:system-weekly-overtime:profile-1:2520:12500:net');
+
+    expect(result.issues).toContainEqual(expect.objectContaining({ code: 'default_overtime_applied' }));
+    expect(deriveSalaryTrustState(result, 'estimated')).toBe('configured_estimate');
+  });
+
   it('keeps a finalized zero numeric and classifies it as an estimate', () => {
     const result = { ...calculate(), totalGrossPayMinor: 0 };
 

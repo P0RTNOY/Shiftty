@@ -42,11 +42,20 @@ export function deriveSalaryTrustState(
       || ruleId === DEFAULT_OVERTIME_TIER_TWO_RULE_ID
     ));
 
-  if (usesDefaultAssumption) return 'basic_estimate';
+  const usesConfiguredWeeklyOvertime = result.explanations?.some((explanation) => (
+    explanation.startsWith('salary.explanations.weekly_overtime:')
+    || explanation === 'salary.explanations.configured_weekly_overtime'
+  ));
+
+  if (usesDefaultAssumption && !usesConfiguredWeeklyOvertime) return 'basic_estimate';
 
   // Only new results that explicitly record configured-overtime provenance are
   // promoted. Historical results without provenance remain conservative.
-  return result.explanations?.includes('salary.explanations.configured_overtime')
+  return result.explanations?.some((explanation) => (
+    explanation === 'salary.explanations.configured_overtime'
+    || explanation === 'salary.explanations.configured_weekly_overtime'
+    || explanation.startsWith('salary.explanations.weekly_overtime:')
+  ))
     ? 'configured_estimate'
     : 'basic_estimate';
 }

@@ -6,7 +6,7 @@ export type MoneyRoundingMode = z.infer<typeof moneyRoundingModeSchema>;
 export const salaryProfileSchema = z
   .object({
     id: z.string().min(1),
-  workplaceId: z.string().min(1).optional(),
+    workplaceId: z.string().min(1).optional(),
     name: z.string().trim().min(1).max(120),
     currency: z.string().length(3).default('ILS'),
     timezone: z.string().min(1).default('Asia/Jerusalem'),
@@ -15,6 +15,11 @@ export const salaryProfileSchema = z
     defaultShiftBonusMinor: z.number().int().min(0).default(0),
     calculationRoundingMode: moneyRoundingModeSchema.default('half_up'),
     breakPolicy: z.enum(['paid', 'unpaid', 'perBreak']).default('perBreak'),
+    workweekStartWeekday: z.number().int().min(0).max(6).default(0),
+    weeklyOvertimeEnabled: z.boolean().default(false),
+    weeklyRegularMinutes: z.number().int().positive().optional(),
+    weeklyOvertimeMultiplierBasisPoints: z.number().int().min(10_000).optional(),
+    weeklyOvertimeBasis: z.enum(['net', 'gross']).default('net'),
     effectiveFrom: z.iso.date().optional(),
     effectiveTo: z.iso.date().optional(),
     isActive: z.boolean().default(true),
@@ -25,6 +30,12 @@ export const salaryProfileSchema = z
   .superRefine((profile, context) => {
     if (profile.effectiveFrom && profile.effectiveTo && profile.effectiveTo < profile.effectiveFrom) {
       context.addIssue({ code: 'custom', path: ['effectiveTo'], message: 'Effective end must not precede start.' });
+    }
+    if (profile.weeklyOvertimeEnabled && profile.weeklyRegularMinutes === undefined) {
+      context.addIssue({ code: 'custom', path: ['weeklyRegularMinutes'], message: 'Enabled weekly overtime requires a regular-time threshold.' });
+    }
+    if (profile.weeklyOvertimeEnabled && profile.weeklyOvertimeMultiplierBasisPoints === undefined) {
+      context.addIssue({ code: 'custom', path: ['weeklyOvertimeMultiplierBasisPoints'], message: 'Enabled weekly overtime requires a multiplier.' });
     }
   });
 

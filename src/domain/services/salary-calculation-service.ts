@@ -17,13 +17,15 @@ import { formatLocalDateKey, resolveLocalDateTime } from '@/shared/utils/zoned-t
 import { resolveHourlyRate } from './rate-resolution-service';
 import { MAX_SHIFT_DURATION_MINUTES } from './shift-duration-policy';
 
-export const SALARY_ENGINE_VERSION = '1.3.0';
+export const SALARY_ENGINE_VERSION = '1.4.0';
 export const DEFAULT_OVERTIME_TIER_ONE_RULE_ID = 'system-default-overtime-8-to-10-hours';
 export const DEFAULT_OVERTIME_TIER_TWO_RULE_ID = 'system-default-overtime-10-to-12-hours';
 export const DEFAULT_OVERTIME_TIER_ONE_RULE_NAME = 'salary.defaultOvertimeTierOneName';
 export const DEFAULT_OVERTIME_TIER_TWO_RULE_NAME = 'salary.defaultOvertimeTierTwoName';
 export const DEFAULT_OVERTIME_THRESHOLD_MINUTES = 8 * 60;
 export const DEFAULT_SECOND_OVERTIME_THRESHOLD_MINUTES = 10 * 60;
+export const PROFILE_WEEKLY_OVERTIME_RULE_ID_PREFIX = 'system-weekly-overtime:';
+export const PROFILE_WEEKLY_OVERTIME_RULE_NAME = 'salary.weeklyOvertimeRuleName';
 
 export interface SalaryCalculationInput {
   shift: Shift;
@@ -39,6 +41,10 @@ export interface SalaryCalculationInput {
   workplaceDefaultShiftBonusMinor?: number;
   priorWorkedMinutesByLocalDate?: Readonly<Record<string, number>>;
   priorGrossMinutesByLocalDate?: Readonly<Record<string, number>>;
+  /** Prior payable minutes keyed by the profile-local YYYY-MM-DD workweek start. */
+  priorWorkedMinutesByWorkweek?: Readonly<Record<string, number>>;
+  /** Prior gross minutes keyed by the profile-local YYYY-MM-DD workweek start. */
+  priorGrossMinutesByWorkweek?: Readonly<Record<string, number>>;
   ignoreHistoricalSnapshot?: boolean;
 }
 
@@ -51,10 +57,16 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
   const timezone = input.profile?.timezone ?? input.shift.timezone;
   const grossMinutes = differenceInMinutes(range.end, range.start);
   const breakSummary = resolveBreaks(input, range, context);
-  const usesDefaultOvertime = !hasConfiguredOvertimeRule(input.rules);
-  const resolvedRules = usesDefaultOvertime
-    ? [...input.rules, ...createDefaultOvertimeRules(input)]
+  const weeklyRule = createProfileWeeklyOvertimeRule(input.profile);
+  const configuredRules = weeklyRule
+    ? [...input.rules.filter((rule) => rule.id !== weeklyRule.id), weeklyRule]
     : input.rules;
+  // A weekly opt-in complements the existing per-shift defaults. Only an
+  // explicit shift/day threshold replaces those defaults.
+  const usesDefaultOvertime = !hasConfiguredShiftOrDayOvertimeRule(input.rules);
+  const resolvedRules = usesDefaultOvertime
+    ? [...configuredRules, ...createDefaultOvertimeRules(input)]
+    : configuredRules;
   const enabledRules = resolvedRules.filter((rule) => isRuleEnabledForRange(rule, range, timezone));
   const boundaries = collectBoundaries(range, timezone, enabledRules, input.holidayIntervals, breakSummary.unpaidIntervals);
   const workIntervals = createWorkIntervals(boundaries, breakSummary.unpaidIntervals);
@@ -67,6 +79,7 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
     context === 'completed' ? 'salary.explanations.used_payable_range' : context === 'scheduled' ? 'salary.explanations.used_scheduled_range' : 'salary.explanations.used_active_range',
     `salary.explanations.breaks:${breakSummary.unpaidMinutes}:${breakSummary.paidMinutes}`,
     usesDefaultOvertime ? 'salary.explanations.default_overtime' : 'salary.explanations.configured_overtime',
+    ...weeklyOvertimeExplanations(enabledRules),
   ];
   const sortedRules = [...enabledRules].sort(compareRules);
   const baseResolution = resolveHourlyRate({
@@ -80,6 +93,9 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
   let missingRateForInterval = false;
   const dailyWorked = { ...(input.priorWorkedMinutesByLocalDate ?? {}) };
   const dailyGross = { ...(input.priorGrossMinutesByLocalDate ?? {}) };
+  const weeklyWorked = { ...(input.priorWorkedMinutesByWorkweek ?? {}) };
+  const weeklyGross = { ...(input.priorGrossMinutesByWorkweek ?? {}) };
+  const workweekStartWeekday = input.profile?.workweekStartWeekday ?? 0;
   const segments = [] as PayCalculationResult['segments'];
   const mode: MoneyRoundingMode = input.profile?.calculationRoundingMode ?? 'half_up';
   const shiftTypeMultiplier = input.shift.shiftTypePayMultiplierBasisPoints ?? 10_000;
@@ -94,14 +110,19 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
     let allocatedMinutes = 0;
     while (allocatedMinutes < work.minutes) {
       const localDate = formatLocalDateKey(new Date(cursor), timezone);
+      const localWorkweek = formatLocalWorkweekKey(new Date(cursor), timezone, workweekStartWeekday);
       const currentDayMinutes = dailyWorked[localDate] ?? 0;
+      const currentWeekMinutes = weeklyWorked[localWorkweek] ?? 0;
       const shiftGrossMinutes = differenceInMinutes(cursor, range.start);
       const currentDayGrossMinutes = (dailyGross[localDate] ?? 0) + grossMinutesWithinCurrentShiftDay(range.start, cursor, localDate, timezone);
+      const currentWeekGrossMinutes = (weeklyGross[localWorkweek] ?? 0) + grossMinutesWithinCurrentShiftWorkweek(range.start, cursor, localWorkweek, timezone);
       const splitAtMinutes = nextThresholdDistance(sortedRules, {
         shiftNet: shiftWorkedMinutes,
         dayNet: currentDayMinutes,
+        weekNet: currentWeekMinutes,
         shiftGross: shiftGrossMinutes,
         dayGross: currentDayGrossMinutes,
+        weekGross: currentWeekGrossMinutes,
       });
       const remainingMinutes = work.minutes - allocatedMinutes;
       const segmentMinutes = splitAtMinutes !== undefined && splitAtMinutes > 0 && splitAtMinutes < remainingMinutes ? splitAtMinutes : remainingMinutes;
@@ -114,8 +135,10 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
         grossMinutes,
         shiftWorkedMinutes,
         dayWorkedMinutes: currentDayMinutes,
+        weekWorkedMinutes: currentWeekMinutes,
         shiftGrossMinutes,
         dayGrossMinutes: currentDayGrossMinutes,
+        weekGrossMinutes: currentWeekGrossMinutes,
       }));
       const rateOverride = matching.find((rule) => rule.effect.type === 'rateOverride');
       const rateResolution = resolveHourlyRate({
@@ -154,12 +177,20 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
       } else missingRateForInterval = true;
       shiftWorkedMinutes += segmentMinutes;
       dailyWorked[localDate] = currentDayMinutes + segmentMinutes;
+      weeklyWorked[localWorkweek] = currentWeekMinutes + segmentMinutes;
       allocatedMinutes += segmentMinutes;
       cursor = end;
     }
   }
 
   const payableMinutes = workIntervals.reduce((total, item) => total + item.minutes, 0);
+  const workweekAllocations = createWorkweekAllocations(
+    range,
+    grossMinutes,
+    workIntervals,
+    timezone,
+    workweekStartWeekday,
+  );
   if (grossMinutes > MAX_SHIFT_DURATION_MINUTES) {
     issues.push({
       code: 'shift_duration_exceeds_maximum',
@@ -171,7 +202,8 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
   if ((missingRateForInterval || (payableMinutes > 0 && segments.length === 0)) && baseResolution.issue) issues.push(baseResolution.issue);
   const componentContext = {
     shift: input.shift, timezone, holidayIntervals: input.holidayIntervals, grossMinutes,
-    shiftWorkedMinutes: payableMinutes, dayWorkedMinutes: 0, shiftGrossMinutes: grossMinutes, dayGrossMinutes: 0,
+    shiftWorkedMinutes: payableMinutes, dayWorkedMinutes: 0, weekWorkedMinutes: 0,
+    shiftGrossMinutes: grossMinutes, dayGrossMinutes: 0, weekGrossMinutes: 0,
   };
   const componentRules = sortedRules.filter((rule) => ['fixedBonus', 'reimbursement', 'minimumPaidDuration'].includes(rule.effect.type) && workIntervals.some((work) => {
     const midpoint = new Date((Date.parse(work.start) + Date.parse(work.end)) / 2);
@@ -195,7 +227,7 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
 
   return {
     context, calculationTimezone: timezone, sourceRange: range, workIntervals, grossMinutes, paidBreakMinutes: breakSummary.paidMinutes,
-    unpaidBreakMinutes: breakSummary.unpaidMinutes, payableMinutes,
+    unpaidBreakMinutes: breakSummary.unpaidMinutes, payableMinutes, workweekAllocations,
     regularMinutes: segments.filter((item) => item.multiplierBasisPoints === 10_000).reduce((sum, item) => sum + item.minutes, 0),
     specialRateMinutes: segments.filter((item) => item.multiplierBasisPoints !== 10_000).reduce((sum, item) => sum + item.minutes, 0),
     segments, basePayMinor, premiumPayMinor, minimumDurationAdjustmentMinutes, minimumDurationAdjustmentMinor,
@@ -209,6 +241,50 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
 export function hasConfiguredOvertimeRule(rules: readonly PayRule[]): boolean {
   return rules.some((rule) => rule.effect.type === 'multiplier'
     && rule.conditions.some((condition) => condition.type === 'workedMinutes'));
+}
+
+function hasConfiguredShiftOrDayOvertimeRule(rules: readonly PayRule[]): boolean {
+  return rules.some((rule) => rule.effect.type === 'multiplier'
+    && rule.conditions.some((condition) => condition.type === 'workedMinutes' && condition.scope !== 'week'));
+}
+
+export function profileWeeklyOvertimeRuleId(profileId: string): string {
+  return `${PROFILE_WEEKLY_OVERTIME_RULE_ID_PREFIX}${profileId}`;
+}
+
+export function createProfileWeeklyOvertimeRule(profile?: SalaryProfile): PayRule | undefined {
+  if (!profile?.weeklyOvertimeEnabled
+    || profile.weeklyRegularMinutes === undefined
+    || profile.weeklyOvertimeMultiplierBasisPoints === undefined) return undefined;
+  return {
+    id: profileWeeklyOvertimeRuleId(profile.id),
+    salaryProfileId: profile.id,
+    name: PROFILE_WEEKLY_OVERTIME_RULE_NAME,
+    priority: 0,
+    conditions: [{
+      type: 'workedMinutes',
+      afterMinutes: profile.weeklyRegularMinutes,
+      scope: 'week',
+      basis: profile.weeklyOvertimeBasis,
+    }],
+    effect: { type: 'multiplier', basisPoints: profile.weeklyOvertimeMultiplierBasisPoints },
+    isEnabled: true,
+    canStack: true,
+    effectiveFrom: profile.effectiveFrom,
+    effectiveTo: profile.effectiveTo,
+    createdAt: profile.createdAt,
+    updatedAt: profile.updatedAt,
+  };
+}
+
+function weeklyOvertimeExplanations(rules: readonly PayRule[]): string[] {
+  return rules.flatMap((rule) => {
+    if (rule.effect.type !== 'multiplier') return [];
+    const basisPoints = rule.effect.basisPoints;
+    return rule.conditions.flatMap((condition) => condition.type === 'workedMinutes' && condition.scope === 'week'
+      ? [`salary.explanations.weekly_overtime:${rule.id}:${condition.afterMinutes}:${basisPoints}:${condition.basis ?? 'net'}`]
+      : []);
+  });
 }
 
 function createDefaultOvertimeRules(input: SalaryCalculationInput): PayRule[] {
@@ -335,7 +411,9 @@ function createWorkIntervals(boundaries: readonly number[], unpaid: readonly Tim
 }
 
 function conditionsMatch(conditions: readonly PayRuleCondition[], instant: Date, context: {
-  shift: Shift; timezone: string; holidayIntervals: readonly HolidayInterval[]; grossMinutes: number; shiftWorkedMinutes: number; dayWorkedMinutes: number; shiftGrossMinutes: number; dayGrossMinutes: number;
+  shift: Shift; timezone: string; holidayIntervals: readonly HolidayInterval[]; grossMinutes: number;
+  shiftWorkedMinutes: number; dayWorkedMinutes: number; weekWorkedMinutes: number;
+  shiftGrossMinutes: number; dayGrossMinutes: number; weekGrossMinutes: number;
 }): boolean {
   const local = TZDate.tz(context.timezone, instant); const date = format(local, 'yyyy-MM-dd'); const time = format(local, 'HH:mm');
   return conditions.every((condition) => {
@@ -350,9 +428,11 @@ function conditionsMatch(conditions: readonly PayRuleCondition[], instant: Date,
       case 'weekend': return isInWeekWindow(local.getDay(), time, condition.startWeekday, condition.startTime, condition.endWeekday, condition.endTime);
       case 'workedMinutes': {
         const gross = condition.basis === 'gross';
-        const worked = condition.scope === 'day'
-          ? gross ? context.dayGrossMinutes : context.dayWorkedMinutes
-          : gross ? context.shiftGrossMinutes : context.shiftWorkedMinutes;
+        const worked = condition.scope === 'week'
+          ? gross ? context.weekGrossMinutes : context.weekWorkedMinutes
+          : condition.scope === 'day'
+            ? gross ? context.dayGrossMinutes : context.dayWorkedMinutes
+            : gross ? context.shiftGrossMinutes : context.shiftWorkedMinutes;
         return worked >= condition.afterMinutes && (condition.beforeMinutes === undefined || worked < condition.beforeMinutes);
       }
     }
@@ -377,23 +457,46 @@ function resolveMultiplier(
   _shiftTypeName?: string,
 ) {
   if (!rules.length) return { basisPoints: shiftTypeBasisPoints, rules: [] as PayRule[] };
-  const nonStacking = rules.filter((rule) => !rule.canStack);
+  const overtimeRules = rules.filter(isOvertimeMultiplierRule);
+  const ordinaryRules = rules.filter((rule) => !isOvertimeMultiplierRule(rule));
+  const overtimeWinner = [...overtimeRules].sort(compareOvertimeStrength)[0];
+  const nonStacking = [
+    ...ordinaryRules.filter((rule) => !rule.canStack),
+    ...(overtimeWinner && !overtimeWinner.canStack ? [overtimeWinner] : []),
+  ].sort(compareRules);
   const winner = nonStacking[0];
   if (winner && nonStacking[1] && winner.priority === nonStacking[1].priority && specificity(winner) === specificity(nonStacking[1])) {
     if (!issues.some((item) => item.code === 'equal_priority_rule_conflict')) issues.push({ code: 'equal_priority_rule_conflict', severity: 'warning', messageKey: 'salary.issues.equalPriorityRuleConflict', metadata: { ruleIds: [winner.id, nonStacking[1].id] } });
   }
-  const stacking = rules.filter((rule) => rule.canStack);
-  const applied = [...(winner ? [winner] : []), ...stacking];
+  const stacking = ordinaryRules.filter((rule) => rule.canStack);
+  const applied = [...(winner ? [winner] : []), ...stacking, ...(overtimeWinner?.canStack ? [overtimeWinner] : [])];
   const winningRuleBasisPoints = winner?.effect.type === 'multiplier' ? winner.effect.basisPoints : 10_000;
   const initial = Math.max(shiftTypeBasisPoints, winningRuleBasisPoints);
-  return { basisPoints: stacking.reduce((value, rule) => value + (rule.effect.type === 'multiplier' ? Math.max(0, rule.effect.basisPoints - 10_000) : 0), initial), rules: applied };
+  const ordinaryBasisPoints = stacking.reduce((value, rule) => value + (rule.effect.type === 'multiplier' ? Math.max(0, rule.effect.basisPoints - 10_000) : 0), initial);
+  const overtimePremium = overtimeWinner?.canStack && overtimeWinner.effect.type === 'multiplier'
+    ? Math.max(0, overtimeWinner.effect.basisPoints - 10_000)
+    : 0;
+  return { basisPoints: ordinaryBasisPoints + overtimePremium, rules: applied };
 }
-function nextThresholdDistance(rules: readonly PayRule[], worked: { shiftNet: number; dayNet: number; shiftGross: number; dayGross: number }): number | undefined {
+
+function isOvertimeMultiplierRule(rule: PayRule): boolean {
+  return rule.effect.type === 'multiplier' && rule.conditions.some((condition) => condition.type === 'workedMinutes');
+}
+
+function compareOvertimeStrength(left: PayRule, right: PayRule): number {
+  const leftBasisPoints = left.effect.type === 'multiplier' ? left.effect.basisPoints : 10_000;
+  const rightBasisPoints = right.effect.type === 'multiplier' ? right.effect.basisPoints : 10_000;
+  return rightBasisPoints - leftBasisPoints || compareRules(left, right);
+}
+
+function nextThresholdDistance(rules: readonly PayRule[], worked: { shiftNet: number; dayNet: number; weekNet: number; shiftGross: number; dayGross: number; weekGross: number }): number | undefined {
   const distances = rules.flatMap((rule) => rule.conditions.flatMap((condition) => condition.type === 'workedMinutes'
     ? (() => {
-      const current = condition.scope === 'day'
-        ? condition.basis === 'gross' ? worked.dayGross : worked.dayNet
-        : condition.basis === 'gross' ? worked.shiftGross : worked.shiftNet;
+      const current = condition.scope === 'week'
+        ? condition.basis === 'gross' ? worked.weekGross : worked.weekNet
+        : condition.scope === 'day'
+          ? condition.basis === 'gross' ? worked.dayGross : worked.dayNet
+          : condition.basis === 'gross' ? worked.shiftGross : worked.shiftNet;
       return [condition.afterMinutes - current, ...(condition.beforeMinutes ? [condition.beforeMinutes - current] : [])];
     })()
     : [])).filter((value) => value > 0);
@@ -404,6 +507,64 @@ function grossMinutesWithinCurrentShiftDay(rangeStart: string, cursor: number, l
   const localMidnight = Date.parse(resolveLocalDateTime(localDate, '00:00', timezone));
   return differenceInMinutes(cursor, Math.max(Date.parse(rangeStart), localMidnight));
 }
+
+function grossMinutesWithinCurrentShiftWorkweek(rangeStart: string, cursor: number, workweekStart: string, timezone: string): number {
+  const localWorkweekStart = Date.parse(resolveLocalDateTime(workweekStart, '00:00', timezone));
+  return differenceInMinutes(cursor, Math.max(Date.parse(rangeStart), localWorkweekStart));
+}
+
+export function formatLocalWorkweekKey(instant: Date | string, timezone: string, workweekStartWeekday: number): string {
+  if (!Number.isInteger(workweekStartWeekday) || workweekStartWeekday < 0 || workweekStartWeekday > 6) {
+    throw new Error('Workweek start weekday must be an integer from 0 through 6.');
+  }
+  const local = TZDate.tz(timezone, new Date(instant));
+  const localDate = format(local, 'yyyy-MM-dd');
+  const daysSinceStart = (local.getDay() - workweekStartWeekday + 7) % 7;
+  const [year, month, day] = localDate.split('-').map(Number);
+  return new Date(Date.UTC(year!, month! - 1, day! - daysSinceStart)).toISOString().slice(0, 10);
+}
+
+function createWorkweekAllocations(
+  range: TimeRange,
+  grossMinutes: number,
+  workIntervals: readonly WorkInterval[],
+  timezone: string,
+  workweekStartWeekday: number,
+): NonNullable<PayCalculationResult['workweekAllocations']> {
+  const allocations: Record<string, { startLocalDate: string; netMinutes: number; grossMinutes: number }> = {};
+  const get = (key: string) => allocations[key] ??= { startLocalDate: key, netMinutes: 0, grossMinutes: 0 };
+
+  for (const interval of workIntervals) {
+    get(formatLocalWorkweekKey(interval.start, timezone, workweekStartWeekday)).netMinutes += interval.minutes;
+  }
+
+  let cursor = Date.parse(range.start);
+  const end = Date.parse(range.end);
+  const totalMilliseconds = end - cursor;
+  let elapsedMilliseconds = 0;
+  let assignedMinutes = 0;
+  while (cursor < end) {
+    const localDate = formatLocalDateKey(new Date(cursor), timezone);
+    const nextDate = nextLocalDateKey(localDate);
+    const segmentEnd = Math.min(end, Date.parse(resolveLocalDateTime(nextDate, '00:00', timezone)));
+    elapsedMilliseconds += segmentEnd - cursor;
+    const cumulativeMinutes = segmentEnd === end
+      ? grossMinutes
+      : Math.floor(grossMinutes * elapsedMilliseconds / totalMilliseconds);
+    const key = formatLocalWorkweekKey(new Date(cursor), timezone, workweekStartWeekday);
+    get(key).grossMinutes += cumulativeMinutes - assignedMinutes;
+    assignedMinutes = cumulativeMinutes;
+    cursor = segmentEnd;
+  }
+
+  return Object.values(allocations).sort((left, right) => left.startLocalDate.localeCompare(right.startLocalDate));
+}
+
+function nextLocalDateKey(localDate: string): string {
+  const [year, month, day] = localDate.split('-').map(Number);
+  return new Date(Date.UTC(year!, month! - 1, day! + 1)).toISOString().slice(0, 10);
+}
+
 function sumRuleAmounts(rules: readonly PayRule[], type: 'fixedBonus' | 'reimbursement'): number { return rules.reduce((sum, rule) => rule.effect.type === type ? sum + rule.effect.amountMinor : sum, 0); }
 function isTimeInWindow(value: string, start: string, end: string): boolean { return start < end ? value >= start && value < end : value >= start || value < end; }
 function isInWeekWindow(day: number, time: string, startDay: number, startTime: string, endDay: number, endTime: string): boolean {

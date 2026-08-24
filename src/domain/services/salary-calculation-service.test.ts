@@ -67,7 +67,7 @@ describe('salary calculation engine', () => {
       basePayMinor: 72_000,
       premiumPayMinor: 9_000,
       totalGrossPayMinor: 81_000,
-      engineVersion: '1.3.0',
+      engineVersion: '1.4.0',
     });
     expect(result.segments.map((segment) => [segment.minutes, segment.multiplierBasisPoints])).toEqual([
       [480, 10_000],
@@ -311,6 +311,271 @@ describe('salary calculation engine', () => {
     const threshold = createPayRule({ id: 'overtime', conditions: [{ type: 'workedMinutes', afterMinutes: 480, scope: 'day' }], effect: { type: 'multiplier', basisPoints: 12500 } });
     const result = calculate(regularShift, [threshold], { priorWorkedMinutesByLocalDate: { '2026-07-15': 300 } });
     expect(result.segments.map((item) => [item.minutes, item.multiplierBasisPoints])).toEqual([[180, 10000], [300, 12500]]);
+  });
+
+  it('crosses a configured weekly threshold using prior local-workweek minutes', () => {
+    const weeklyProfile = createSalaryProfile({
+      baseHourlyRateMinor: 6_000,
+      workweekStartWeekday: 0,
+      weeklyOvertimeEnabled: true,
+      weeklyRegularMinutes: 42 * 60,
+      weeklyOvertimeMultiplierBasisPoints: 12_500,
+      weeklyOvertimeBasis: 'net',
+    });
+    const shift = createShift({
+      scheduledStart: '2026-07-20T08:00:00+03:00',
+      scheduledEnd: '2026-07-20T10:00:00+03:00',
+      expectedBreakMinutes: 0,
+      hourlyRateSnapshotMinor: 0,
+    });
+
+    const result = calculateSalary({
+      shift,
+      profile: weeklyProfile,
+      rules: [],
+      breaks: [],
+      holidayIntervals: [],
+      calculatedAt,
+      priorWorkedMinutesByWorkweek: { '2026-07-19': 41 * 60 },
+    });
+
+    expect(result.segments.map((item) => [item.minutes, item.multiplierBasisPoints])).toEqual([[60, 10_000], [60, 12_500]]);
+    expect(result).toMatchObject({ basePayMinor: 12_000, premiumPayMinor: 1_500, totalGrossPayMinor: 13_500 });
+    expect(result.segments[1]?.appliedRuleIds).toEqual(['system-weekly-overtime:profile-1']);
+    expect(result.explanations).toContain('salary.explanations.weekly_overtime:system-weekly-overtime:profile-1:2520:12500:net');
+  });
+
+  it('resets weekly minutes at Sunday and supports an alternate Monday workweek start', () => {
+    const sundayProfile = createSalaryProfile({
+      baseHourlyRateMinor: 6_000,
+      workweekStartWeekday: 0,
+      weeklyOvertimeEnabled: true,
+      weeklyRegularMinutes: 60,
+      weeklyOvertimeMultiplierBasisPoints: 12_500,
+    });
+    const sundayShift = createShift({
+      scheduledStart: '2026-07-19T08:00:00+03:00',
+      scheduledEnd: '2026-07-19T09:00:00+03:00',
+      expectedBreakMinutes: 0,
+      hourlyRateSnapshotMinor: 0,
+    });
+    const sunday = calculateSalary({
+      shift: sundayShift,
+      profile: sundayProfile,
+      rules: [],
+      breaks: [],
+      holidayIntervals: [],
+      calculatedAt,
+      priorWorkedMinutesByWorkweek: { '2026-07-12': 10_000 },
+    });
+    expect(sunday.segments.map((item) => [item.minutes, item.multiplierBasisPoints])).toEqual([[60, 10_000]]);
+
+    const mondayProfile = createSalaryProfile({
+      ...sundayProfile,
+      workweekStartWeekday: 1,
+      weeklyRegularMinutes: 30,
+    });
+    const monday = calculateSalary({
+      shift: { ...sundayShift, scheduledStart: '2026-07-20T08:00:00+03:00', scheduledEnd: '2026-07-20T09:00:00+03:00' },
+      profile: mondayProfile,
+      rules: [],
+      breaks: [],
+      holidayIntervals: [],
+      calculatedAt,
+      priorWorkedMinutesByWorkweek: { '2026-07-20': 15 },
+    });
+    expect(monday.segments.map((item) => [item.minutes, item.multiplierBasisPoints])).toEqual([[15, 10_000], [45, 12_500]]);
+  });
+
+  it('records net and gross allocation provenance on both sides of an overnight workweek boundary', () => {
+    const shift = createShift({
+      scheduledStart: '2026-07-18T23:00:00+03:00',
+      scheduledEnd: '2026-07-19T02:00:00+03:00',
+      expectedBreakMinutes: 0,
+      hourlyRateSnapshotMinor: 0,
+    });
+    const result = calculateSalary({
+      shift,
+      profile: createSalaryProfile({ baseHourlyRateMinor: 6_000, workweekStartWeekday: 0 }),
+      rules: [],
+      breaks: [],
+      holidayIntervals: [],
+      calculatedAt,
+    });
+
+    expect(result.workweekAllocations).toEqual([
+      { startLocalDate: '2026-07-12', netMinutes: 60, grossMinutes: 60 },
+      { startLocalDate: '2026-07-19', netMinutes: 120, grossMinutes: 120 },
+    ]);
+  });
+
+  it('keeps default per-shift overtime when weekly overtime is the only configured threshold', () => {
+    const weeklyProfile = createSalaryProfile({
+      baseHourlyRateMinor: 6_000,
+      weeklyOvertimeEnabled: true,
+      weeklyRegularMinutes: 42 * 60,
+      weeklyOvertimeMultiplierBasisPoints: 12_500,
+    });
+    const shift = createShift({
+      scheduledStart: '2026-07-20T08:00:00+03:00',
+      scheduledEnd: '2026-07-20T17:00:00+03:00',
+      expectedBreakMinutes: 0,
+      hourlyRateSnapshotMinor: 0,
+    });
+    const result = calculateSalary({ shift, profile: weeklyProfile, rules: [], breaks: [], holidayIntervals: [], calculatedAt });
+
+    expect(result.segments.map((item) => [item.minutes, item.multiplierBasisPoints])).toEqual([[480, 10_000], [60, 12_500]]);
+    expect(result.segments[1]?.appliedRuleIds).toEqual([DEFAULT_OVERTIME_TIER_ONE_RULE_ID]);
+    expect(result.issues).toContainEqual(expect.objectContaining({ code: 'default_overtime_applied' }));
+  });
+
+  it('evaluates and explains a persisted weekly pay rule without suppressing per-shift defaults', () => {
+    const weekly = createPayRule({
+      id: 'persisted-weekly',
+      conditions: [{ type: 'workedMinutes', afterMinutes: 60, scope: 'week', basis: 'net' }],
+      effect: { type: 'multiplier', basisPoints: 13_000 },
+    });
+    const shift = createShift({
+      scheduledStart: '2026-07-20T08:00:00+03:00',
+      scheduledEnd: '2026-07-20T09:00:00+03:00',
+      expectedBreakMinutes: 0,
+      hourlyRateSnapshotMinor: 0,
+    });
+    const result = calculateSalary({
+      shift,
+      profile,
+      rules: [weekly],
+      breaks: [],
+      holidayIntervals: [],
+      calculatedAt,
+      priorWorkedMinutesByWorkweek: { '2026-07-19': 60 },
+    });
+
+    expect(result.segments).toEqual([expect.objectContaining({ multiplierBasisPoints: 13_000, appliedRuleIds: ['persisted-weekly'] })]);
+    expect(result.issues).toContainEqual(expect.objectContaining({ code: 'default_overtime_applied' }));
+    expect(result.explanations).toContain('salary.explanations.weekly_overtime:persisted-weekly:60:13000:net');
+  });
+
+  it('uses only the strongest daily or weekly overtime premium for the same minute', () => {
+    const weeklyProfile = createSalaryProfile({
+      baseHourlyRateMinor: 6_000,
+      weeklyOvertimeEnabled: true,
+      weeklyRegularMinutes: 42 * 60,
+      weeklyOvertimeMultiplierBasisPoints: 12_500,
+    });
+    const daily = createPayRule({
+      id: 'configured-daily-150',
+      conditions: [{ type: 'workedMinutes', afterMinutes: 60, scope: 'day', basis: 'net' }],
+      effect: { type: 'multiplier', basisPoints: 15_000 },
+      canStack: true,
+    });
+    const shift = createShift({
+      scheduledStart: '2026-07-20T08:00:00+03:00',
+      scheduledEnd: '2026-07-20T10:00:00+03:00',
+      expectedBreakMinutes: 0,
+      hourlyRateSnapshotMinor: 0,
+    });
+    const result = calculateSalary({
+      shift,
+      profile: weeklyProfile,
+      rules: [daily],
+      breaks: [],
+      holidayIntervals: [],
+      calculatedAt,
+      priorWorkedMinutesByWorkweek: { '2026-07-19': 41 * 60 },
+    });
+
+    expect(result.segments.map((item) => [item.minutes, item.multiplierBasisPoints])).toEqual([[60, 10_000], [60, 15_000]]);
+    expect(result.segments[1]?.appliedRuleIds).toEqual(['configured-daily-150']);
+    expect(result).toMatchObject({ basePayMinor: 12_000, premiumPayMinor: 3_000, totalGrossPayMinor: 15_000 });
+  });
+
+  it('stacks weekly overtime onto the shift-type multiplier', () => {
+    const weeklyProfile = createSalaryProfile({
+      baseHourlyRateMinor: 6_000,
+      weeklyOvertimeEnabled: true,
+      weeklyRegularMinutes: 42 * 60,
+      weeklyOvertimeMultiplierBasisPoints: 12_500,
+    });
+    const shift = createShift({
+      scheduledStart: '2026-07-20T08:00:00+03:00',
+      scheduledEnd: '2026-07-20T09:00:00+03:00',
+      expectedBreakMinutes: 0,
+      hourlyRateSnapshotMinor: 0,
+      shiftTypeNameSnapshot: 'Night',
+      shiftTypePayMultiplierBasisPoints: 15_000,
+    });
+    const result = calculateSalary({
+      shift,
+      profile: weeklyProfile,
+      rules: [],
+      breaks: [],
+      holidayIntervals: [],
+      calculatedAt,
+      priorWorkedMinutesByWorkweek: { '2026-07-19': 42 * 60 },
+    });
+
+    expect(result.segments).toEqual([expect.objectContaining({ minutes: 60, multiplierBasisPoints: 17_500, appliedRuleIds: ['system-weekly-overtime:profile-1'] })]);
+    expect(result).toMatchObject({ basePayMinor: 6_000, premiumPayMinor: 4_500, totalGrossPayMinor: 10_500 });
+  });
+
+  it('preserves non-stacking worked-minute rules as alternatives to a stronger shift type', () => {
+    const weekly = createPayRule({
+      id: 'legacy-non-stacking-weekly',
+      conditions: [{ type: 'workedMinutes', afterMinutes: 0, scope: 'week', basis: 'net' }],
+      effect: { type: 'multiplier', basisPoints: 12_500 },
+      canStack: false,
+    });
+    const shift = createShift({
+      scheduledStart: '2026-07-20T08:00:00+03:00',
+      scheduledEnd: '2026-07-20T09:00:00+03:00',
+      expectedBreakMinutes: 0,
+      hourlyRateSnapshotMinor: 0,
+      shiftTypeNameSnapshot: 'Night',
+      shiftTypePayMultiplierBasisPoints: 15_000,
+    });
+
+    const result = calculateSalary({ shift, profile, rules: [weekly], breaks: [], holidayIntervals: [], calculatedAt });
+
+    expect(result.segments).toEqual([expect.objectContaining({
+      minutes: 60,
+      multiplierBasisPoints: 15_000,
+      appliedRuleIds: ['legacy-non-stacking-weekly'],
+    })]);
+    expect(result.totalGrossPayMinor).toBe(9_000);
+  });
+
+  it('evaluates weekly gross and net thresholds deterministically around an unpaid break', () => {
+    const shift = createShift({
+      scheduledStart: '2026-07-20T08:00:00+03:00',
+      scheduledEnd: '2026-07-20T10:00:00+03:00',
+      expectedBreakMinutes: 0,
+      hourlyRateSnapshotMinor: 0,
+    });
+    const unpaid = createBreak({ shiftId: shift.id, start: '2026-07-20T08:30:00+03:00', end: '2026-07-20T09:00:00+03:00' });
+    const configured = (basis: 'net' | 'gross') => createSalaryProfile({
+      baseHourlyRateMinor: 6_000,
+      weeklyOvertimeEnabled: true,
+      weeklyRegularMinutes: 42 * 60,
+      weeklyOvertimeMultiplierBasisPoints: 12_500,
+      weeklyOvertimeBasis: basis,
+    });
+    const common = {
+      shift,
+      rules: [],
+      breaks: [unpaid],
+      holidayIntervals: [],
+      calculatedAt,
+      priorWorkedMinutesByWorkweek: { '2026-07-19': 41 * 60 },
+      priorGrossMinutesByWorkweek: { '2026-07-19': 41 * 60 },
+    };
+    const net = calculateSalary({ ...common, profile: configured('net') });
+    const gross = calculateSalary({ ...common, profile: configured('gross') });
+
+    expect(net.segments.map((item) => [item.minutes, item.multiplierBasisPoints])).toEqual([[30, 10_000], [30, 10_000], [30, 12_500]]);
+    expect(net).toMatchObject({ payableMinutes: 90, basePayMinor: 9_000, premiumPayMinor: 750, totalGrossPayMinor: 9_750 });
+    expect(gross.segments.map((item) => [item.minutes, item.multiplierBasisPoints])).toEqual([[30, 10_000], [60, 12_500]]);
+    expect(gross).toMatchObject({ payableMinutes: 90, basePayMinor: 9_000, premiumPayMinor: 1_500, totalGrossPayMinor: 10_500 });
   });
 
   it('reports missing configuration without a false zero total', () => {

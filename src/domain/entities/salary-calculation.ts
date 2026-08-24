@@ -42,6 +42,11 @@ export const payCalculationResultSchema = z.object({
   payableMinutes: z.number().int().min(0),
   regularMinutes: z.number().int().min(0),
   specialRateMinutes: z.number().int().min(0),
+  workweekAllocations: z.array(z.object({
+    startLocalDate: z.iso.date(),
+    netMinutes: z.number().int().min(0),
+    grossMinutes: z.number().int().min(0),
+  })).optional(),
   segments: z.array(paySegmentSchema),
   basePayMinor: z.number().int().min(0),
   premiumPayMinor: z.number().int().min(0),
