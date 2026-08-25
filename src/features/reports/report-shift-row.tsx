@@ -1,7 +1,10 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Shift } from '@/domain/entities';
-import type { ReportSalaryStatus } from '@/features/reports/monthly-report-service';
+import type {
+  MonthlyReportSpecialInterval,
+  ReportSalaryStatus,
+} from '@/features/reports/monthly-report-service';
 import { calculateShiftDuration, getEffectiveShiftRange } from '@/domain/services';
 import { useTranslation } from '@/shared/i18n';
 import { radius, spacing, typography, useAppTheme } from '@/shared/theme';
@@ -13,11 +16,12 @@ interface Props {
   workplaceName: string;
   salaryMinor?: number;
   salaryStatus?: ReportSalaryStatus;
+  specialIntervals?: readonly MonthlyReportSpecialInterval[];
   paidMinutes?: number;
   onPress: () => void;
 }
 
-export function ReportShiftRow({ shift, workplaceName, salaryMinor, salaryStatus, paidMinutes, onPress }: Props) {
+export function ReportShiftRow({ shift, workplaceName, salaryMinor, salaryStatus, specialIntervals = [], paidMinutes, onPress }: Props) {
   const { colors } = useAppTheme();
   const { formatCurrency, formatDate, isRtl, locale, t } = useTranslation();
   const range = shift.status === 'completed' && shift.actualStart && shift.actualEnd
@@ -32,6 +36,19 @@ export function ReportShiftRow({ shift, workplaceName, salaryMinor, salaryStatus
     ? t('reports.expectedAmount', { amount: formatCurrency(salaryMinor) })
     : t(resolvedSalaryStatus === 'stale' ? 'reports.salaryStale' : resolvedSalaryStatus === 'incomplete' ? 'reports.salaryIncomplete' : 'salary.missingConfig');
   const textAlign = isRtl ? 'right' : 'left';
+  const intervalSummary = resolvedSalaryStatus === 'available'
+    ? specialIntervals
+      .filter((interval) => interval.contributedToEstimate)
+      .map((interval) => {
+        const typeKey = interval.type === 'holiday'
+          ? 'salary.specialIntervalTypeHoliday'
+          : interval.type === 'weekly_rest'
+            ? 'salary.specialIntervalTypeWeeklyRest'
+            : 'salary.specialIntervalTypeCustom';
+        return `${t(typeKey)}: ${interval.name}`;
+      })
+      .join(' · ')
+    : '';
 
   return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.card, { backgroundColor: pressed ? colors.surfaceMuted : colors.surface, borderColor: colors.border }]}>
     <View style={[styles.topRow, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}>
@@ -43,6 +60,7 @@ export function ReportShiftRow({ shift, workplaceName, salaryMinor, salaryStatus
     </View>
     <Text style={[styles.time, { color: colors.text, textAlign }]}>{formatDate(range.start, { hour: '2-digit', minute: '2-digit', timeZone: shift.timezone })}–{crossesDate ? `${formatDate(range.end, { weekday: 'short', timeZone: shift.timezone })} ` : ''}{formatDate(range.end, { hour: '2-digit', minute: '2-digit', timeZone: shift.timezone })}</Text>
     <Text style={[styles.duration, { color: colors.textMuted, textAlign }]}>{durationMinutes === undefined ? '—' : formatDurationCompact(durationMinutes, locale)}</Text>
+    {intervalSummary ? <Text testID="report-special-intervals" style={[styles.evidence, { color: colors.textMuted, textAlign }]}>{intervalSummary}</Text> : null}
   </Pressable>;
 }
 
@@ -55,4 +73,5 @@ const styles = StyleSheet.create({
   salary: { fontSize: typography.title, fontWeight: '800' },
   time: { fontSize: typography.body, fontVariant: ['tabular-nums'], fontWeight: '700' },
   duration: { fontSize: typography.body, fontWeight: '600' },
+  evidence: { flexShrink: 1, fontSize: typography.caption, lineHeight: 20 },
 });

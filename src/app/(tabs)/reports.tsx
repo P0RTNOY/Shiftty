@@ -55,6 +55,7 @@ export default function ReportsScreen() {
           paidMinutes={row.paidMinutes}
           salaryMinor={row.salaryMinor}
           salaryStatus={row.salaryStatus}
+          specialIntervals={row.specialIntervals}
           shift={row.shift}
           workplaceName={row.workplaceName}
         />)}

@@ -15,7 +15,7 @@ const shift = createShift({
 const mockReport: MonthlyReport = {
   month: '2026-08', timezone: 'Asia/Jerusalem', generatedAt: '2026-08-10T09:00:00+03:00',
   range: { start: '2026-08-01T00:00:00+03:00', end: '2026-09-01T00:00:00+03:00' },
-  rows: [{ shiftId: shift.id, shift, workplaceName: 'קפה', start: shift.payableStart!, end: shift.payableEnd!, paidMinutes: 720, breakMinutes: 0, salaryStatus: 'available', salaryMinor: 117_000 }],
+  rows: [{ shiftId: shift.id, shift, workplaceName: 'קפה', start: shift.payableStart!, end: shift.payableEnd!, paidMinutes: 720, breakMinutes: 0, salaryStatus: 'available', salaryMinor: 117_000, specialIntervals: [] }],
   totals: { shiftCount: 1, paidMinutes: 720, breakMinutes: 0, availableSalaryMinor: 117_000, salaryMinor: 117_000, salaryIssueCount: 0, invalidShiftCount: 0 },
 };
 

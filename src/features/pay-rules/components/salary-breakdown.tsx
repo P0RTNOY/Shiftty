@@ -62,7 +62,23 @@ export function SalaryBreakdown({ result, status, onRecalculate, onOpenSalarySet
       <Row strong label={t('salary.totalGross')} value={formatCurrency(result.totalGrossPayMinor)} />
       <Row label={t('salary.regularHours')} value={formatDurationLong(result.regularMinutes, locale)} />
       <Row label={t('salary.specialHours')} value={formatDurationLong(result.specialRateMinutes, locale)} />
-      {result.segments.map((segment) => <View key={`${segment.start}-${segment.end}`} style={[styles.segment, { borderTopColor: colors.border }]}><Text style={{ color: colors.text, textAlign: align }}>{formatDurationLong(segment.minutes, locale)} · {segment.multiplierBasisPoints / 100}%</Text><Text style={{ color: colors.textMuted, textAlign: align }}>{segment.labels.map((label) => label === DEFAULT_OVERTIME_TIER_ONE_RULE_NAME ? t('salary.defaultOvertimeTierOneName') : label === DEFAULT_OVERTIME_TIER_TWO_RULE_NAME ? t('salary.defaultOvertimeTierTwoName') : label === PROFILE_WEEKLY_OVERTIME_RULE_NAME ? weeklyRuleLabel : label).join(' + ') || t('salary.regularHours')} · {formatCurrency(segment.totalPayMinor)}</Text></View>)}
+      {result.segments.map((segment) => {
+        const evidenceNames = (result.specialIntervalEvaluations ?? [])
+          .filter((evaluation) => segment.specialIntervalIds?.includes(evaluation.intervalId))
+          .map((evaluation) => evaluation.name);
+        const ruleLabels = segment.labels.map((label) => label === DEFAULT_OVERTIME_TIER_ONE_RULE_NAME
+          ? t('salary.defaultOvertimeTierOneName')
+          : label === DEFAULT_OVERTIME_TIER_TWO_RULE_NAME
+            ? t('salary.defaultOvertimeTierTwoName')
+            : label === PROFILE_WEEKLY_OVERTIME_RULE_NAME
+              ? weeklyRuleLabel
+              : label);
+        return <View key={`${segment.start}-${segment.end}`} style={[styles.segment, { borderTopColor: colors.border }]}>
+          <Text style={{ color: colors.text, textAlign: align }}>{formatDurationLong(segment.minutes, locale)} · {segment.multiplierBasisPoints / 100}%</Text>
+          <Text style={{ color: colors.textMuted, textAlign: align }}>{ruleLabels.join(' + ') || t('salary.regularHours')} · {formatCurrency(segment.totalPayMinor)}</Text>
+          {evidenceNames.length > 0 ? <Text testID="salary-segment-special-intervals" style={{ color: colors.textMuted, textAlign: align }}>{evidenceNames.join(' · ')}</Text> : null}
+        </View>;
+      })}
       {onRecalculate ? <PrimaryButton label={t('salary.recalculate')} onPress={onRecalculate} /> : null}
     </View> : null}
   </View>;

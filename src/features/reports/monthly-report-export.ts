@@ -19,6 +19,7 @@ export function generateMonthlyReportCsv(report: MonthlyReport, locale: DateTime
       { key: 'title', header: labels.shift, isUserText: true },
       { key: 'salaryStatus', header: labels.estimateStatus },
       { key: 'salary', header: labels.salary },
+      { key: 'specialIntervals', header: labels.specialIntervals, isUserText: true },
       { key: 'estimateNote', header: labels.noteHeader },
     ],
     rows: report.rows.map((row, index) => ({
@@ -32,6 +33,9 @@ export function generateMonthlyReportCsv(report: MonthlyReport, locale: DateTime
       title: row.title ?? labels.shift,
       salaryStatus: labels.statuses[row.salaryStatus],
       salary: row.salaryMinor === undefined ? undefined : (row.salaryMinor / 100).toFixed(2),
+      specialIntervals: row.salaryStatus === 'available'
+        ? formatSpecialIntervalLabels(row.specialIntervals, labels.specialIntervalTypes)
+        : undefined,
       estimateNote: index === 0 ? labels.estimateNote : undefined,
     })),
   });
@@ -54,7 +58,7 @@ export function generateMonthlyReportPdfHtml(report: MonthlyReport, locale: Date
       { label: labels.totalBreaks, value: formatMinutes(report.totals.breakMinutes) },
       { label: labels.totalSalary, value: salaryTotal },
     ],
-    headers: [labels.date, labels.shift, labels.workplace, `${labels.start}–${labels.end}`, labels.duration, labels.breaks, labels.estimateStatus, labels.salary],
+    headers: [labels.date, labels.shift, labels.workplace, `${labels.start}–${labels.end}`, labels.duration, labels.breaks, labels.estimateStatus, labels.salary, labels.specialIntervals],
     rows: report.rows.map((row) => [
       formatLocalDateKey(row.start, report.timezone),
       row.title ?? labels.shift,
@@ -64,6 +68,9 @@ export function generateMonthlyReportPdfHtml(report: MonthlyReport, locale: Date
       formatMinutes(row.breakMinutes),
       salaryStatusLabel(row.salaryStatus, locale),
       row.salaryMinor === undefined ? labels.unavailable : formatCurrency(row.salaryMinor, locale),
+      row.salaryStatus === 'available'
+        ? formatSpecialIntervalLabels(row.specialIntervals, labels.specialIntervalTypes)
+        : '',
     ]),
   });
 }
@@ -84,6 +91,7 @@ function exportLabels(locale: DateTimeLocale) {
     shift: messages['exports.report.shift'],
     estimateStatus: messages['exports.report.estimateStatus'],
     salary: messages['exports.report.estimatedGrossPay'],
+    specialIntervals: messages['exports.report.specialIntervals'],
     shifts: messages['exports.report.shifts'],
     totalHours: messages['exports.report.totalHours'],
     totalBreaks: messages['exports.report.totalBreaks'],
@@ -92,6 +100,11 @@ function exportLabels(locale: DateTimeLocale) {
     generated: messages['exports.report.generated'],
     noteHeader: messages['exports.report.noteHeader'],
     estimateNote: messages['exports.report.estimateNote'],
+    specialIntervalTypes: {
+      holiday: messages['salary.specialIntervalTypeHoliday'],
+      weekly_rest: messages['salary.specialIntervalTypeWeeklyRest'],
+      custom: messages['salary.specialIntervalTypeCustom'],
+    },
     statuses: {
       available: messages['exports.report.statusAvailable'],
       missing: messages['exports.report.statusMissing'],
@@ -99,6 +112,16 @@ function exportLabels(locale: DateTimeLocale) {
       incomplete: messages['exports.report.statusIncomplete'],
     } satisfies Record<ReportSalaryStatus, string>,
   };
+}
+
+function formatSpecialIntervalLabels(
+  intervals: MonthlyReport['rows'][number]['specialIntervals'],
+  typeLabels: Record<'holiday' | 'weekly_rest' | 'custom', string>,
+): string {
+  return intervals
+    .filter((interval) => interval.contributedToEstimate)
+    .map((interval) => `${typeLabels[interval.type]}: ${interval.name}`)
+    .join(' · ');
 }
 function formatExit(start: string, end: string, locale: DateTimeLocale, timezone: string): string {
   const endTime = formatTime(end, locale, timezone);

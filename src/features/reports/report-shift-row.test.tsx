@@ -19,12 +19,30 @@ const completed = createShift({
 
 describe('ReportShiftRow', () => {
   it('shows localized date, duration, workplace, and estimated pay for the shift', () => {
-    renderApp(<ReportShiftRow onPress={jest.fn()} salaryMinor={117_000} shift={completed} workplaceName="קפה" />);
+    renderApp(<ReportShiftRow
+      onPress={jest.fn()}
+      salaryMinor={117_000}
+      shift={completed}
+      specialIntervals={[{
+        intervalId: 'holiday-1',
+        type: 'holiday',
+        name: 'חג שאושר',
+        contributedToEstimate: true,
+      }, {
+        intervalId: 'custom-no-rule',
+        type: 'custom',
+        name: 'סימון ללא כלל',
+        contributedToEstimate: false,
+      }]}
+      workplaceName="קפה"
+    />);
 
     expect(screen.getByText(/שבת/)).toBeTruthy();
     expect(screen.getByText('12:00 שעות')).toBeTruthy();
     expect(screen.getByText('קפה')).toBeTruthy();
     expect(screen.getByText(`שכר משוער: ${new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(1170)}`)).toBeTruthy();
+    expect(screen.getByTestId('report-special-intervals')).toHaveTextContent('חג: חג שאושר');
+    expect(screen.queryByText(/סימון ללא כלל/)).toBeNull();
   });
 
   it('distinguishes missing, stale, and legitimate zero salary', () => {

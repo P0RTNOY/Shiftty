@@ -26,7 +26,7 @@ export function SecondaryButton({ label, onPress, destructive = false, disabled 
 }
 
 const styles = StyleSheet.create({
-  button: { alignItems: 'center', borderRadius: radius.md, borderWidth: 1, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.md },
+  button: { alignItems: 'center', borderRadius: radius.md, borderWidth: 1, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   disabled: { opacity: 0.45 },
-  label: { fontSize: typography.body, fontWeight: '700' },
+  label: { flexShrink: 1, fontSize: typography.body, fontWeight: '700', textAlign: 'center' },
 });

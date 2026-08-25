@@ -14,7 +14,7 @@ const missingShift = createShift({
 const mockReport: MonthlyReport = {
   month: '2026-08', timezone: 'Asia/Jerusalem', generatedAt: '2026-08-12T10:00:00+03:00',
   range: { start: '2026-08-01T00:00:00+03:00', end: '2026-09-01T00:00:00+03:00' },
-  rows: [{ shiftId: missingShift.id, shift: missingShift, workplaceName: 'קפה', start: missingShift.payableStart!, end: missingShift.payableEnd!, paidMinutes: 60, breakMinutes: 0, salaryStatus: 'missing' }],
+  rows: [{ shiftId: missingShift.id, shift: missingShift, workplaceName: 'קפה', start: missingShift.payableStart!, end: missingShift.payableEnd!, paidMinutes: 60, breakMinutes: 0, salaryStatus: 'missing', specialIntervals: [] }],
   totals: { shiftCount: 1, paidMinutes: 60, breakMinutes: 0, availableSalaryMinor: 0, salaryMinor: undefined, salaryIssueCount: 1, invalidShiftCount: 0 },
 };
 
@@ -39,6 +39,7 @@ describe('ExportsScreen', () => {
     expect(input.content).not.toContain('2026-08-05T08:00:00+03:00');
     const shiftLine = input.content.split('\r\n').find((line) => line.startsWith('2026-08-05'))!;
     expect(shiftLine.split(',')[9]).toBe('');
-    expect(shiftLine).toContain('סכומי השכר הם הערכות המבוססות על הגדרות השכר שהזנת.');
+    expect(shiftLine).toContain('סכומי השכר הם הערכות המבוססות על ההגדרות שלך.');
+    expect(shiftLine).toContain('ולא קביעה של זכאות משפטית.');
   });
 });

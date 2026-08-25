@@ -44,12 +44,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 56,
     paddingHorizontal: 24,
+    paddingVertical: 12,
   },
   disabled: {
     opacity: 0.45,
   },
   label: {
+    flexShrink: 1,
     fontSize: 18,
     fontWeight: '700',
+    textAlign: 'center',
   },
 });

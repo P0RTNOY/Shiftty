@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { PayCalculationResult, SalaryCalculationStatus, SalaryTrustState } from '@/domain/entities';
+import type {
+  PayCalculationResult,
+  SalaryCalculationStatus,
+  SalaryTrustState,
+  SpecialIntervalEvaluation,
+} from '@/domain/entities';
 import { deriveSalaryTrustState } from '@/domain/services';
 import { SecondaryButton } from '@/shared/components';
 import { useTranslation, type TranslationKey } from '@/shared/i18n';
@@ -21,7 +26,7 @@ export function SalaryTrustDisclosure({
   onOpenSalarySettings,
 }: SalaryTrustDisclosureProps) {
   const { colors } = useAppTheme();
-  const { isRtl, t } = useTranslation();
+  const { formatDate, isRtl, t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const trustState = mode === 'calculation' ? deriveSalaryTrustState(result, status) : undefined;
   const usesDefaultOvertime = result?.issues?.some((issue) => issue.code === 'default_overtime_applied') ?? false;
@@ -31,6 +36,7 @@ export function SalaryTrustDisclosure({
   )) ?? false;
   const align = isRtl ? 'right' : 'left';
   const includedKeys = resolveIncludedKeys(result, mode, usesDefaultOvertime, usesConfiguredWeeklyOvertime, trustState);
+  const specialIntervals = mode === 'calculation' ? result?.specialIntervalEvaluations ?? [] : [];
   const notModeledKeys: TranslationKey[] = [
     ...(usesConfiguredWeeklyOvertime ? [] : ['salary.assumptionWeeklyOvertime'] as const),
     'salary.assumptionAutomaticHolidays',
@@ -63,9 +69,99 @@ export function SalaryTrustDisclosure({
 
     {expanded ? <View style={styles.details}>
       <AssumptionList title={t('salary.assumptionsIncluded')} translationKeys={includedKeys} />
+      {specialIntervals.length > 0 ? <View testID="salary-special-intervals" style={styles.list}>
+        <Text style={[styles.listTitle, { color: colors.text, textAlign: align }]}>{t('salary.specialIntervalsIncluded')}</Text>
+        {status === 'stale' ? <Text style={[styles.intervalText, { color: colors.textMuted, textAlign: align }]}>{t('salary.specialIntervalStoredPrevious')}</Text> : null}
+        {specialIntervals.map((evaluation) => <SpecialIntervalDetail
+          evaluation={evaluation}
+          formatDate={formatDate}
+          key={`${evaluation.intervalId}:${evaluation.start}:${evaluation.end}`}
+          result={result!}
+        />)}
+      </View> : null}
       <AssumptionList title={t('salary.assumptionsNotModeled')} translationKeys={notModeledKeys} />
     </View> : null}
   </View>;
+}
+
+function SpecialIntervalDetail({
+  evaluation,
+  formatDate,
+  result,
+}: {
+  evaluation: SpecialIntervalEvaluation;
+  formatDate: ReturnType<typeof useTranslation>['formatDate'];
+  result: PayCalculationResult;
+}) {
+  const { colors } = useAppTheme();
+  const { isRtl, t } = useTranslation();
+  const align = isRtl ? 'right' : 'left';
+  const sourceKey = evaluation.sourceKind === 'manual'
+    ? 'salary.specialIntervalManual'
+    : evaluation.sourceKind === 'confirmed_preset'
+      ? 'salary.specialIntervalConfirmedPreset'
+      : 'salary.specialIntervalImported';
+  const typeKey = evaluation.type === 'holiday'
+    ? 'salary.specialIntervalTypeHoliday'
+    : evaluation.type === 'weekly_rest'
+      ? 'salary.specialIntervalTypeWeeklyRest'
+      : 'salary.specialIntervalTypeCustom';
+  const rangeOptions: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZone: evaluation.timezone,
+  };
+  const multipliers = [...new Set(result.segments
+    .filter((segment) => segment.specialIntervalIds?.includes(evaluation.intervalId)
+      && segment.appliedRuleIds.some((ruleId) => evaluation.appliedRuleIds.includes(ruleId)))
+    .map((segment) => segment.multiplierBasisPoints))]
+    .sort((left, right) => left - right);
+  const effectKey = evaluation.appliedRuleIds.length === 0
+    ? 'salary.specialIntervalNoRule'
+    : evaluation.contributedToEstimate
+      ? 'salary.specialIntervalContributed'
+      : 'salary.specialIntervalNoContribution';
+
+  return <View testID="salary-special-interval-detail" style={[styles.interval, { borderColor: colors.border }]}>
+    <Text style={[styles.intervalTitle, { color: colors.text, textAlign: align }]}>{t(typeKey)}: {evaluation.name}</Text>
+    <Text testID="salary-special-interval-range" style={[styles.machineText, { color: colors.textMuted, textAlign: 'left' }]}>{t('salary.specialIntervalRange', {
+      start: formatDate(evaluation.start, rangeOptions),
+      end: formatDate(evaluation.end, rangeOptions),
+      timezone: evaluation.timezone,
+    })}</Text>
+    <Text style={[styles.intervalText, { color: colors.textMuted, textAlign: align }]}>{t(sourceKey)}</Text>
+    <Text style={[styles.intervalText, { color: colors.textMuted, textAlign: align }]}>{t('salary.specialIntervalConfirmedAt', {
+      date: isolateLtr(formatDate(evaluation.confirmedAt, {
+        year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: evaluation.timezone,
+      })),
+    })}</Text>
+    {evaluation.sourceTitle ? <Text style={[styles.intervalText, { color: colors.textMuted, textAlign: align }]}>{t('salary.specialIntervalSource', { source: evaluation.sourceTitle })}</Text> : null}
+    {evaluation.sourceUrl ? <Text
+      accessibilityLabel={evaluation.sourceUrl}
+      selectable
+      style={[styles.sourceUrl, { color: colors.primary }]}
+    >{evaluation.sourceUrl}</Text> : null}
+    {evaluation.presetId && evaluation.presetVersion ? <Text style={[styles.intervalText, { color: colors.textMuted, textAlign: align }]}>{t('salary.specialIntervalPreset', {
+      id: isolateLtr(evaluation.presetId),
+      version: isolateLtr(evaluation.presetVersion),
+    })}</Text> : null}
+    {evaluation.appliedRuleIds.length > 0 ? <Text style={[styles.intervalText, { color: colors.textMuted, textAlign: align }]}>{t('salary.specialIntervalRule')}</Text> : null}
+    {evaluation.appliedRuleIds.map((ruleId) => <Text key={ruleId} style={[styles.intervalText, { color: colors.textMuted, textAlign: align }]}>{t('salary.specialIntervalAppliedRule', {
+      id: isolateLtr(ruleId),
+    })}</Text>)}
+    {multipliers.length > 0 ? <Text testID="salary-special-interval-multiplier" style={[styles.intervalText, { color: colors.textMuted, textAlign: align }]}>{t('salary.specialIntervalCombinedMultiplier', {
+      multiplier: isolateLtr(multipliers.map((basisPoints) => basisPoints / 100).join(', ')),
+    })}</Text> : null}
+    <Text style={[styles.intervalEffect, { color: colors.text, textAlign: align }]}>{t(effectKey)}</Text>
+  </View>;
+}
+
+function isolateLtr(value: string): string {
+  return `\u2066${value}\u2069`;
 }
 
 function resolveIncludedKeys(
@@ -125,4 +221,10 @@ const styles = StyleSheet.create({
   item: { alignItems: 'flex-start', gap: spacing.xs },
   bullet: { fontSize: typography.body, lineHeight: 22 },
   itemText: { flex: 1, flexShrink: 1, fontSize: typography.body, lineHeight: 22 },
+  interval: { borderRadius: radius.sm, borderWidth: StyleSheet.hairlineWidth, gap: spacing.xxs, padding: spacing.sm },
+  intervalText: { flexShrink: 1, fontSize: typography.body, lineHeight: 22 },
+  machineText: { flexShrink: 1, fontSize: typography.body, fontVariant: ['tabular-nums'], lineHeight: 22, writingDirection: 'ltr' },
+  intervalTitle: { flexShrink: 1, fontSize: typography.body, fontWeight: '800', lineHeight: 22 },
+  intervalEffect: { flexShrink: 1, fontSize: typography.body, fontWeight: '700', lineHeight: 22 },
+  sourceUrl: { flexShrink: 1, fontSize: typography.caption, lineHeight: 20, textAlign: 'left', writingDirection: 'ltr' },
 });

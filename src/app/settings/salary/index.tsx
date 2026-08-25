@@ -1,4 +1,4 @@
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -64,6 +64,7 @@ export default function SalaryProfilesScreen() {
     {!profiles.length ? <EmptyState title={t('salary.noProfiles')} body={t('salary.noProfilesBody')} /> : profiles.map((profile) => <View key={profile.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, opacity: profile.isArchived ? 0.6 : 1 }]}>
       <Pressable accessibilityRole="button" onPress={() => edit(profile)}><Text style={[styles.title, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}>{profile.name}</Text><Text style={{ color: colors.textMuted, textAlign: isRtl ? 'right' : 'left' }}>{formatMinorUnits(profile.baseHourlyRateMinor, profile.currency, locale)} · {profile.effectiveFrom ?? '—'}</Text></Pressable>
       <PrimaryButton label={t('salary.rules')} onPress={() => router.push(`/settings/salary/rules?profileId=${profile.id}`)} />
+      <SecondaryButton label={t('salary.holidaysRestTitle')} onPress={() => router.push(`/settings/salary/holidays-rest?profileId=${profile.id}` as Href)} />
       <SecondaryButton label={t('salary.duplicate')} onPress={() => void duplicate(profile)} />{!profile.isArchived && workplaces.find((item) => item.id === profile.workplaceId)?.salaryProfileId !== profile.id ? <SecondaryButton label={t('salary.setDefault')} onPress={() => void setDefault(profile)} /> : null}{profile.isArchived ? <SecondaryButton label={t('salary.activate')} onPress={() => void activate(profile)} /> : <SecondaryButton destructive label={t('salary.archive')} onPress={() => void archive(profile)} />}
     </View>)}
   </AppScreen>;

@@ -30,7 +30,7 @@ export function WeekdayPicker({ label, value, onChange }: Props) {
           key={day}
           onPress={() => onChange(index)}
           style={[styles.day, { backgroundColor: colors.surface, borderColor: value === index ? colors.primary : colors.border }]}
-        ><Text style={{ color: colors.text }}>{dayLabel}</Text></Pressable>;
+        ><Text accessible={false} style={{ color: colors.text }}>{value === index ? '✓ ' : ''}{dayLabel}</Text></Pressable>;
       })}
     </View>
   </View>;

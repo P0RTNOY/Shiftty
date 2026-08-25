@@ -24,6 +24,14 @@ function LocaleHarness() {
   </>;
 }
 
+function EvidenceLocaleHarness({ result }: { result: typeof defaultResult }) {
+  const { setLocale } = useTranslation();
+  return <>
+    <Pressable accessibilityRole="button" onPress={() => setLocale('en')}><Text>English</Text></Pressable>
+    <SalaryTrustDisclosure result={result} status="finalized" />
+  </>;
+}
+
 describe('SalaryTrustDisclosure', () => {
   it('uses accessible progressive disclosure in Hebrew RTL and English LTR', () => {
     renderApp(<LocaleHarness />);
@@ -65,5 +73,79 @@ describe('SalaryTrustDisclosure', () => {
     fireEvent.press(screen.getByRole('button', { name: 'איך חושב הסכום?' }));
     expect(screen.getByText('סף השעות הנוספות השבועי שהוגדר')).toBeTruthy();
     expect(screen.queryByText('ספי שעות נוספות שבועיים')).toBeNull();
+  });
+
+  it('discloses frozen overlapping evidence, source provenance, pay effect, and no-rule behavior bilingually', () => {
+    const segments = defaultResult.segments.map((segment, index) => index === 0 ? {
+      ...segment,
+      appliedRuleIds: [...segment.appliedRuleIds, 'holiday-rule'],
+      multiplierBasisPoints: 15_000,
+      specialIntervalIds: ['holiday-1', 'custom-1'],
+    } : segment);
+    const result = {
+      ...defaultResult,
+      segments,
+      appliedRuleIds: [...defaultResult.appliedRuleIds, 'holiday-rule'],
+      specialIntervalEvaluations: [
+        {
+          intervalId: 'holiday-1',
+          type: 'holiday' as const,
+          name: 'יום בדיקה',
+          start: '2026-08-24T09:00:00+03:00',
+          end: '2026-08-24T11:00:00+03:00',
+          timezone: 'Asia/Jerusalem',
+          sourceKind: 'confirmed_preset' as const,
+          sourceTitle: 'Official date source',
+          sourceUrl: 'https://example.gov/official-date',
+          presetId: 'preset-date',
+          presetVersion: '1',
+          confirmedAt: '2026-08-20T10:00:00+03:00',
+          appliedRuleIds: ['holiday-rule'],
+          contributedToEstimate: true,
+        },
+        {
+          intervalId: 'custom-1',
+          type: 'custom' as const,
+          name: 'Marker only',
+          start: '2026-08-24T10:00:00+03:00',
+          end: '2026-08-24T10:30:00+03:00',
+          timezone: 'Asia/Jerusalem',
+          sourceKind: 'manual' as const,
+          confirmedAt: '2026-08-20T10:00:00+03:00',
+          appliedRuleIds: [],
+          contributedToEstimate: false,
+        },
+      ],
+    };
+
+    const { unmount } = renderApp(<EvidenceLocaleHarness result={result} />);
+    fireEvent.press(screen.getByRole('button', { name: 'איך חושב הסכום?' }));
+
+    expect(screen.getByText('חג: יום בדיקה')).toBeTruthy();
+    expect(screen.getByText('מבוסס על מקור שאישרת')).toBeTruthy();
+    expect(screen.getByText('כלל שכר שהוגדר באפליקציה')).toBeTruthy();
+    expect(screen.getByText(/holiday-rule/)).toBeTruthy();
+    expect(screen.getByText(/מכפיל משולב.*150/)).toBeTruthy();
+    expect(StyleSheet.flatten(screen.getAllByTestId('salary-special-interval-range')[0]!.props.style).writingDirection).toBe('ltr');
+    expect(screen.getByTestId('salary-special-interval-multiplier').props.children).toContain('\u2066150\u2069');
+    expect(screen.getByText('זמן מיוחד: Marker only')).toBeTruthy();
+    expect(screen.getByText('לא הוגדר כלל שכר — לא שינה את ההערכה')).toBeTruthy();
+    expect(screen.getByText('https://example.gov/official-date')).toBeTruthy();
+    expect(screen.getAllByTestId('salary-special-interval-detail')).toHaveLength(2);
+
+    fireEvent.press(screen.getByRole('button', { name: 'English' }));
+    expect(screen.getByText('Holiday: יום בדיקה')).toBeTruthy();
+    expect(screen.getByText('Based on a source you confirmed')).toBeTruthy();
+    expect(screen.getByText('Configured estimation rule')).toBeTruthy();
+    expect(screen.getByText(/Combined multiplier.*150/)).toBeTruthy();
+    expect(screen.getByText('No configured pay rule — did not change this estimate')).toBeTruthy();
+    expect(screen.queryByText(/Legally verified|Guaranteed entitlement/)).toBeNull();
+
+    unmount();
+    renderApp(<SalaryTrustDisclosure result={result} status="stale" />);
+    expect(screen.getByText('הערכת השכר אינה זמינה')).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: 'איך חושב הסכום?' }));
+    expect(screen.getByText('פרטי הקלט מהערכת השכר השמורה')).toBeTruthy();
+    expect(screen.getByText('https://example.gov/official-date')).toBeTruthy();
   });
 });

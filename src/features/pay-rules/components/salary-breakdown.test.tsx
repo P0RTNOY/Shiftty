@@ -93,6 +93,39 @@ it('labels weekly overtime segments with their configured threshold and multipli
   expect(screen.getByText(/שעות נוספות שבועיות אחרי 42 שעות · 125%/)).toBeTruthy();
 });
 
+it('shows frozen evidence names on the exact salary segments they overlap', () => {
+  const evidenceResult = {
+    ...result,
+    specialIntervalEvaluations: [{
+      intervalId: 'holiday-1',
+      type: 'holiday' as const,
+      name: 'חג שאושר',
+      start: result.segments[0]!.start,
+      end: result.segments[0]!.end,
+      timezone: result.calculationTimezone,
+      sourceKind: 'manual' as const,
+      confirmedAt: '2026-07-14T10:00:00+03:00',
+      appliedRuleIds: ['holiday-rule'],
+      contributedToEstimate: true,
+    }],
+    segments: result.segments.map((segment, index) => index === 0
+      ? { ...segment, appliedRuleIds: [...segment.appliedRuleIds, 'holiday-rule'], specialIntervalIds: ['holiday-1'] }
+      : segment),
+  };
+  renderApp(<SalaryBreakdown result={evidenceResult} status="finalized" />);
+  fireEvent.press(screen.getByRole('button', { name: 'פירוט סכומים' }));
+
+  expect(screen.getByTestId('salary-segment-special-intervals')).toHaveTextContent('חג שאושר');
+});
+
+it('keeps a legitimate finalized zero numeric', () => {
+  const zeroResult = { ...result, totalGrossPayMinor: 0 };
+  renderApp(<SalaryBreakdown result={zeroResult} status="finalized" />);
+
+  expect(screen.getByText(new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(0))).toBeTruthy();
+  expect(screen.queryByText('חישוב שכר חסר')).toBeNull();
+});
+
 it('explains why compensation is unavailable for an over-limit recovery record', () => {
   renderApp(<SalaryBreakdown result={overLimitResult} status="estimated" />);
 

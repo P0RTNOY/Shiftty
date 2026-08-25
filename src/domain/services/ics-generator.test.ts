@@ -73,6 +73,28 @@ describe('ics-generator', () => {
     expect(result).not.toContain('425.00');
   });
 
+  it('does not serialize special-interval provenance, source claims, rules, or multipliers', () => {
+    const evidenceAwareShift = {
+      ...baseShift,
+      salaryCalculationEvidence: [{
+        name: 'Private holiday evidence',
+        sourceUrl: 'https://example.gov/private-holiday-source',
+        presetId: 'preset-private-holiday',
+        appliedRuleIds: ['holiday-150-rule'],
+        multiplierBasisPoints: 15_000,
+      }],
+    } as Shift;
+
+    const result = generateIcs([evidenceAwareShift], hebrewOptions);
+
+    expect(result).not.toContain('Private holiday evidence');
+    expect(result).not.toContain('https://example.gov');
+    expect(result).not.toContain('preset-private-holiday');
+    expect(result).not.toContain('holiday-150-rule');
+    expect(result).not.toContain('150%');
+    expect(result).not.toContain('15000');
+  });
+
   it('uses the caller-provided localized fallback title', () => {
     const untitled = { ...baseShift, title: undefined };
 

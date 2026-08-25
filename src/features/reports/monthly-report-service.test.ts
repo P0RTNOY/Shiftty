@@ -4,14 +4,18 @@ import { createShift } from '@/test/fixtures';
 
 const workplace = { id: 'workplace-1', name: 'קפה' } as const;
 
-function finalizedSnapshot(shiftId: string, totalGrossPayMinor: number): SalaryCalculationSnapshot {
+function finalizedSnapshot(
+  shiftId: string,
+  totalGrossPayMinor: number,
+  specialIntervalEvaluations?: SalaryCalculationSnapshot['result']['specialIntervalEvaluations'],
+): SalaryCalculationSnapshot {
   return {
     id: `snapshot-${shiftId}`,
     shiftId,
     version: 1,
     status: 'finalized',
     isCurrent: true,
-    result: { totalGrossPayMinor } as SalaryCalculationSnapshot['result'],
+    result: { totalGrossPayMinor, specialIntervalEvaluations } as SalaryCalculationSnapshot['result'],
     createdAt: '2026-08-05T12:00:00+03:00',
   };
 }
@@ -73,10 +77,22 @@ describe('monthly report model', () => {
     const missing = createShift({ ...base, id: 'missing', salaryCalculationStatus: 'finalized' });
     const free = createShift({ ...base, id: 'free', salaryCalculationStatus: 'finalized' });
 
+    const frozenEvidence: NonNullable<SalaryCalculationSnapshot['result']['specialIntervalEvaluations']> = [{
+      intervalId: 'frozen-holiday',
+      type: 'holiday',
+      name: 'Frozen holiday',
+      start: '2026-08-05T08:00:00+03:00',
+      end: '2026-08-05T09:00:00+03:00',
+      timezone: 'Asia/Jerusalem',
+      sourceKind: 'manual',
+      confirmedAt: '2026-08-01T10:00:00+03:00',
+      appliedRuleIds: ['holiday-rule'],
+      contributedToEstimate: true,
+    }];
     const report = buildMonthlyReport({
       month: '2026-08', timezone: 'Asia/Jerusalem', generatedAt: '2026-08-12T10:00:00+03:00',
       shifts: [stale, incomplete, missing, free],
-      snapshots: [finalizedSnapshot(stale.id, 9_999), finalizedSnapshot(free.id, 0)],
+      snapshots: [finalizedSnapshot(stale.id, 9_999, frozenEvidence), finalizedSnapshot(free.id, 0, frozenEvidence)],
       workplaces: [workplace], roles: [],
     });
 
@@ -89,6 +105,66 @@ describe('monthly report model', () => {
     expect(report.totals.salaryMinor).toBeUndefined();
     expect(report.totals.availableSalaryMinor).toBe(0);
     expect(report.totals.salaryIssueCount).toBe(3);
+    expect(report.rows.find((row) => row.shiftId === 'stale')?.specialIntervals).toEqual([
+      { intervalId: 'frozen-holiday', type: 'holiday', name: 'Frozen holiday', contributedToEstimate: true },
+    ]);
+    expect(report.rows.find((row) => row.shiftId === 'free')?.specialIntervals).toEqual([
+      { intervalId: 'frozen-holiday', type: 'holiday', name: 'Frozen holiday', contributedToEstimate: true },
+    ]);
+  });
+
+  it('uses concise evidence labels frozen in the snapshot without querying live evidence', () => {
+    const completed = createShift({
+      id: 'evidence-shift',
+      status: 'completed',
+      actualStart: '2026-08-05T08:00:00+03:00',
+      actualEnd: '2026-08-05T12:00:00+03:00',
+      payableStart: '2026-08-05T08:00:00+03:00',
+      payableEnd: '2026-08-05T12:00:00+03:00',
+      salaryCalculationStatus: 'finalized',
+    });
+    const evaluations: NonNullable<SalaryCalculationSnapshot['result']['specialIntervalEvaluations']> = [
+      {
+        intervalId: 'manual-holiday',
+        type: 'holiday',
+        name: 'User holiday',
+        start: '2026-08-05T09:00:00+03:00',
+        end: '2026-08-05T11:00:00+03:00',
+        timezone: 'Asia/Jerusalem',
+        sourceKind: 'manual',
+        confirmedAt: '2026-08-01T10:00:00+03:00',
+        appliedRuleIds: ['holiday-rule'],
+        contributedToEstimate: true,
+      },
+      {
+        intervalId: 'custom-no-rule',
+        type: 'custom',
+        name: 'Confirmed marker only',
+        start: '2026-08-05T10:00:00+03:00',
+        end: '2026-08-05T10:30:00+03:00',
+        timezone: 'Asia/Jerusalem',
+        sourceKind: 'imported',
+        confirmedAt: '2026-08-01T10:00:00+03:00',
+        appliedRuleIds: [],
+        contributedToEstimate: false,
+      },
+    ];
+
+    const report = buildMonthlyReport({
+      month: '2026-08',
+      timezone: 'Asia/Jerusalem',
+      generatedAt: '2026-08-12T10:00:00+03:00',
+      shifts: [completed],
+      snapshots: [finalizedSnapshot(completed.id, 30_000, evaluations)],
+      workplaces: [workplace],
+      roles: [],
+    });
+
+    expect(report.rows[0]?.specialIntervals).toEqual([
+      { intervalId: 'manual-holiday', type: 'holiday', name: 'User holiday', contributedToEstimate: true },
+      { intervalId: 'custom-no-rule', type: 'custom', name: 'Confirmed marker only', contributedToEstimate: false },
+    ]);
+    expect(report.rows).toHaveLength(1);
   });
 
   it('assigns a cross-month shift to the month of its actual clock-out', () => {

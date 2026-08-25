@@ -1,4 +1,10 @@
-import type { Role, SalaryCalculationSnapshot, Shift, Workplace } from '@/domain/entities';
+import type {
+  Role,
+  SalaryCalculationSnapshot,
+  Shift,
+  SpecialIntervalType,
+  Workplace,
+} from '@/domain/entities';
 import type { SalaryCalculationRepository, ShiftRepository, WorkplaceRepository } from '@/domain/repositories';
 import { calculateShiftDuration } from '@/domain/services';
 import { resolveLocalDateTime } from '@/shared/utils/zoned-time';
@@ -17,6 +23,15 @@ export interface MonthlyReportRow {
   breakMinutes: number;
   salaryStatus: ReportSalaryStatus;
   salaryMinor?: number;
+  /** Concise labels copied from the immutable salary snapshot, never live evidence rows. */
+  specialIntervals: MonthlyReportSpecialInterval[];
+}
+
+export interface MonthlyReportSpecialInterval {
+  intervalId: string;
+  type: SpecialIntervalType;
+  name: string;
+  contributedToEstimate: boolean;
 }
 
 export interface MonthlyReport {
@@ -103,6 +118,7 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
       breakMinutes: shift.payableBreakMinutes ?? shift.actualBreakMinutes ?? 0,
       salaryStatus,
       salaryMinor: salaryStatus === 'available' ? snapshot!.result.totalGrossPayMinor : undefined,
+      specialIntervals: resolveSpecialIntervals(snapshot),
     });
   }
 
@@ -128,6 +144,23 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
       invalidShiftCount,
     },
   };
+}
+
+function resolveSpecialIntervals(
+  snapshot: SalaryCalculationSnapshot | undefined,
+): MonthlyReportSpecialInterval[] {
+  return [...(snapshot?.result.specialIntervalEvaluations ?? [])]
+    .sort((left, right) => (
+      left.start.localeCompare(right.start)
+      || left.type.localeCompare(right.type)
+      || left.intervalId.localeCompare(right.intervalId)
+    ))
+    .map((evaluation) => ({
+      intervalId: evaluation.intervalId,
+      type: evaluation.type,
+      name: evaluation.name,
+      contributedToEstimate: evaluation.contributedToEstimate,
+    }));
 }
 
 interface MonthlyReportRepositories {

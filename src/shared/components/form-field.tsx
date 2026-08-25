@@ -5,7 +5,7 @@ import { radius, spacing, typography, useAppTheme } from '@/shared/theme';
 
 export interface FormFieldProps extends TextInputProps { label: string; error?: string }
 
-export function FormField({ label, error, ...props }: FormFieldProps) {
+export function FormField({ label, error, style, ...props }: FormFieldProps) {
   const { colors } = useAppTheme();
   const { isRtl } = useTranslation();
   const textAlign = isRtl ? 'right' : 'left';
@@ -15,7 +15,7 @@ export function FormField({ label, error, ...props }: FormFieldProps) {
       <TextInput
         accessibilityLabel={label}
         placeholderTextColor={colors.textMuted}
-        style={[styles.input, { backgroundColor: colors.surface, borderColor: error ? colors.danger : colors.border, color: colors.text, textAlign }]}
+        style={[styles.input, { backgroundColor: colors.surface, borderColor: error ? colors.danger : colors.border, color: colors.text, textAlign }, style]}
         {...props}
       />
       {error ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.danger, textAlign }]}>{error}</Text> : null}

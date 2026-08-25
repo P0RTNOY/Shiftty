@@ -2,6 +2,7 @@ import { phase2En, phase2He } from '@/shared/i18n/translations-phase2';
 import { phase3En, phase3He } from '@/shared/i18n/translations-phase3';
 import { phase4En, phase4He } from '@/shared/i18n/translations-phase4';
 import { phase5En, phase5He } from '@/shared/i18n/translations-phase5';
+import { milestone3En, milestone3He } from '@/shared/i18n/translations-milestone3';
 
 export const he = {
   'app.name': 'שיפטי',
@@ -80,6 +81,7 @@ export const he = {
   ...phase3He,
   ...phase4He,
   ...phase5He,
+  ...milestone3He,
 } as const;
 
 export type TranslationKey = keyof typeof he;
@@ -161,4 +163,5 @@ export const en: Record<TranslationKey, string> = {
   ...phase3En,
   ...phase4En,
   ...phase5En,
+  ...milestone3En,
 };
