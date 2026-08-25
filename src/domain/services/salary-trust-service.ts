@@ -47,11 +47,15 @@ export function deriveSalaryTrustState(
     || explanation === 'salary.explanations.configured_weekly_overtime'
   ));
 
-  if (usesDefaultAssumption && !usesConfiguredWeeklyOvertime) return 'basic_estimate';
+  const usesConfiguredSpecialInterval = result.specialIntervalEvaluations?.some((evaluation) => (
+    evaluation.contributedToEstimate && evaluation.appliedRuleIds.length > 0
+  )) ?? false;
+
+  if (usesDefaultAssumption && !usesConfiguredWeeklyOvertime && !usesConfiguredSpecialInterval) return 'basic_estimate';
 
   // Only new results that explicitly record configured-overtime provenance are
   // promoted. Historical results without provenance remain conservative.
-  return result.explanations?.some((explanation) => (
+  return usesConfiguredSpecialInterval || result.explanations?.some((explanation) => (
     explanation === 'salary.explanations.configured_overtime'
     || explanation === 'salary.explanations.configured_weekly_overtime'
     || explanation.startsWith('salary.explanations.weekly_overtime:')

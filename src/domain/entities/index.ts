@@ -1,5 +1,6 @@
 export * from './app-settings';
 export * from './break-session';
+export * from './calendar-evidence';
 export * from './pay-rule';
 export * from './prediction';
 export * from './prediction-feedback';

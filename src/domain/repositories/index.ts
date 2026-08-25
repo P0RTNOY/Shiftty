@@ -1,4 +1,5 @@
 export * from './active-shift-repository';
+export * from './calendar-evidence-repositories';
 export * from './notification-settings-repository';
 export * from './prediction-feedback-repository';
 export * from './recurrence-repository';

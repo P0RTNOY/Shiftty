@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { specialIntervalEvaluationSchema } from './calendar-evidence';
 
 export const holidayIntervalSchema = z.object({
   id: z.string().min(1),
@@ -28,6 +29,7 @@ export const paySegmentSchema = z.object({
   totalPayMinor: z.number().int().min(0),
   appliedRuleIds: z.array(z.string()),
   labels: z.array(z.string()),
+  specialIntervalIds: z.array(z.string().min(1)).optional(),
 });
 export type PaySegment = z.infer<typeof paySegmentSchema>;
 
@@ -47,6 +49,7 @@ export const payCalculationResultSchema = z.object({
     netMinutes: z.number().int().min(0),
     grossMinutes: z.number().int().min(0),
   })).optional(),
+  specialIntervalEvaluations: z.array(specialIntervalEvaluationSchema).optional(),
   segments: z.array(paySegmentSchema),
   basePayMinor: z.number().int().min(0),
   premiumPayMinor: z.number().int().min(0),

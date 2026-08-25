@@ -1,6 +1,6 @@
-import type { ActiveShiftRepository, PayRuleRepository, SalaryCalculationRepository, SalaryProfileRepository, ShiftRepository, WorkplaceRepository } from '@/domain/repositories';
-import type { BreakSession, PayCalculationResult, PayRule, Role, SalaryCalculationSnapshot, SalaryProfile, Shift, Workplace } from '@/domain/entities';
-import { calculateSalary, NO_HOLIDAYS, type HolidayProvider } from '@/domain/services';
+import type { ActiveShiftRepository, CalendarEvidenceIntervalRepository, PayRuleRepository, SalaryCalculationRepository, SalaryProfileRepository, ShiftRepository, WeeklyRestScheduleRepository, WorkplaceRepository } from '@/domain/repositories';
+import type { BreakSession, CalendarEvidenceInterval, PayCalculationResult, PayRule, Role, SalaryCalculationSnapshot, SalaryProfile, Shift, Workplace } from '@/domain/entities';
+import { calculateSalary, NO_HOLIDAYS, resolveWeeklyRestOccurrences, type HolidayProvider } from '@/domain/services';
 import { createId } from '@/shared/utils/id';
 import { formatLocalDateKey, resolveLocalDateTime } from '@/shared/utils/zoned-time';
 
@@ -11,6 +11,10 @@ export interface SalaryCoordinatorRepositories {
   salaryProfiles: SalaryProfileRepository;
   payRules: PayRuleRepository;
   salaryCalculations: SalaryCalculationRepository;
+  /** Optional for backward-compatible callers that have no Migration 9 repositories. */
+  calendarEvidenceIntervals?: CalendarEvidenceIntervalRepository;
+  /** Optional for backward-compatible callers that have no Migration 9 repositories. */
+  weeklyRestSchedules?: WeeklyRestScheduleRepository;
 }
 
 export interface SalaryBatchResult {
@@ -221,6 +225,7 @@ export class SalaryCalculationCoordinator {
     const breaks = shift.status === 'scheduled' ? [] : preparedBreaks ?? await this.repositories.activeShifts.listBreaks(shift.id);
     const source = salarySourceRange(shift, activeEnd);
     const calculationTimezone = profile?.timezone ?? shift.timezone;
+    const specialIntervals = await this.loadSpecialIntervals(shift, profile, source);
     // Hidden predecessors are loaded only to complete weekly context. Keeping them
     // out of the legacy day/shift accumulators prevents a profile-specific weekly
     // lookup from changing an unrelated requested shift's daily thresholds.
@@ -234,6 +239,7 @@ export class SalaryCalculationCoordinator {
     const priorWeeklyGross = accumulatePriorWorkweekMinutes(compatibleWeeklyResults, calculationTimezone, profile?.workweekStartWeekday ?? 0, 'gross');
     const result = calculateSalary({ shift, profile, rules, breaks,
       holidayIntervals: this.holidayProvider.getHolidayIntervals(source.start, source.end, profile?.timezone ?? shift.timezone), calculatedAt, activeEnd, roleHourlyRateMinor: roleValid ? role?.hourlyRateMinor : undefined,
+      specialIntervals,
       workplaceHourlyRateMinor: workplace?.defaultHourlyRateMinor,
       workplaceDefaultShiftBonusMinor: workplace?.defaultShiftBonusMinor,
       workplaceDefaultTravelReimbursementMinor: workplace?.defaultTravelReimbursementMinor,
@@ -250,6 +256,52 @@ export class SalaryCalculationCoordinator {
       ? { ...result, totalGrossPayMinor: undefined, issues: [...result.issues, ...runtimeIssues] }
       : runtimeIssues.length ? { ...result, issues: [...result.issues, ...runtimeIssues] } : result;
   }
+
+  private async loadSpecialIntervals(
+    shift: Shift,
+    profile: SalaryProfile | undefined,
+    source: { start: string; end: string },
+  ): Promise<CalendarEvidenceInterval[]> {
+    const [persisted, schedule] = await Promise.all([
+      this.repositories.calendarEvidenceIntervals?.listOverlapping({
+        workplaceId: shift.workplaceId,
+        salaryProfileId: profile?.id,
+        start: source.start,
+        end: source.end,
+      }) ?? Promise.resolve([]),
+      profile
+        ? this.repositories.weeklyRestSchedules?.getForProfile(profile.id) ?? Promise.resolve(null)
+        : Promise.resolve(null),
+    ]);
+    const compatiblePersisted = persisted.filter((interval) => interval.workplaceId === shift.workplaceId
+      && !interval.isArchived
+      && (!interval.salaryProfileId || interval.salaryProfileId === profile?.id)
+      && Date.parse(interval.start) < Date.parse(source.end)
+      && Date.parse(interval.end) > Date.parse(source.start));
+    const occurrences = schedule
+      && profile
+      && schedule.workplaceId === shift.workplaceId
+      && schedule.salaryProfileId === profile.id
+      ? resolveWeeklyRestOccurrences(schedule, source.start, source.end, profile.timezone)
+      : [];
+
+    // A persisted interval wins an impossible-but-valid ID collision with a
+    // generated occurrence. This keeps user-owned evidence authoritative and
+    // makes the final ordering independent of repository return order.
+    const byId = new Map<string, CalendarEvidenceInterval>();
+    for (const interval of [...compatiblePersisted].sort(compareSpecialIntervals)) byId.set(interval.id, interval);
+    for (const interval of occurrences.sort(compareSpecialIntervals)) {
+      if (!byId.has(interval.id)) byId.set(interval.id, interval);
+    }
+    return [...byId.values()].sort(compareSpecialIntervals);
+  }
+}
+
+function compareSpecialIntervals(left: CalendarEvidenceInterval, right: CalendarEvidenceInterval): number {
+  return Date.parse(left.start) - Date.parse(right.start)
+    || Date.parse(left.end) - Date.parse(right.end)
+    || left.type.localeCompare(right.type)
+    || left.id.localeCompare(right.id);
 }
 
 function sourceStart(shift: Shift): string { return shift.payableStart ?? shift.actualStart ?? shift.scheduledStart ?? shift.createdAt; }

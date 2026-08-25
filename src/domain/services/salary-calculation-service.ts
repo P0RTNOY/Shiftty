@@ -3,6 +3,7 @@ import { addDays, differenceInMinutes, format } from 'date-fns';
 
 import type {
   BreakSession,
+  CalendarEvidenceInterval,
   HolidayInterval,
   MoneyRoundingMode,
   PayCalculationIssue,
@@ -12,12 +13,13 @@ import type {
   SalaryProfile,
   Shift,
 } from '@/domain/entities';
+import { calendarEvidenceIntervalSchema } from '@/domain/entities';
 import { calculateMinutePay, roundRationalToMinor } from '@/shared/utils/money';
 import { formatLocalDateKey, resolveLocalDateTime } from '@/shared/utils/zoned-time';
 import { resolveHourlyRate } from './rate-resolution-service';
 import { MAX_SHIFT_DURATION_MINUTES } from './shift-duration-policy';
 
-export const SALARY_ENGINE_VERSION = '1.4.0';
+export const SALARY_ENGINE_VERSION = '1.5.0';
 export const DEFAULT_OVERTIME_TIER_ONE_RULE_ID = 'system-default-overtime-8-to-10-hours';
 export const DEFAULT_OVERTIME_TIER_TWO_RULE_ID = 'system-default-overtime-10-to-12-hours';
 export const DEFAULT_OVERTIME_TIER_ONE_RULE_NAME = 'salary.defaultOvertimeTierOneName';
@@ -33,6 +35,7 @@ export interface SalaryCalculationInput {
   rules: readonly PayRule[];
   breaks: readonly BreakSession[];
   holidayIntervals: readonly HolidayInterval[];
+  specialIntervals?: readonly CalendarEvidenceInterval[];
   calculatedAt: string;
   activeEnd?: string;
   roleHourlyRateMinor?: number;
@@ -52,6 +55,10 @@ interface TimeRange { start: string; end: string }
 interface WorkInterval extends TimeRange { minutes: number }
 
 export function calculateSalary(input: SalaryCalculationInput): PayCalculationResult {
+  return calculateSalaryInternal(input, true);
+}
+
+function calculateSalaryInternal(input: SalaryCalculationInput, analyzeSpecialContributions: boolean): PayCalculationResult {
   const context = input.shift.status === 'completed' ? 'completed' : input.shift.status === 'active' ? 'active_provisional' : 'scheduled';
   const range = resolveSourceRange(input.shift, context, input.activeEnd);
   const timezone = input.profile?.timezone ?? input.shift.timezone;
@@ -68,7 +75,8 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
     ? [...configuredRules, ...createDefaultOvertimeRules(input)]
     : configuredRules;
   const enabledRules = resolvedRules.filter((rule) => isRuleEnabledForRange(rule, range, timezone));
-  const boundaries = collectBoundaries(range, timezone, enabledRules, input.holidayIntervals, breakSummary.unpaidIntervals);
+  const specialIntervals = normalizeSpecialIntervals(input.specialIntervals ?? [], input.shift, input.profile, range);
+  const boundaries = collectBoundaries(range, timezone, enabledRules, input.holidayIntervals, specialIntervals, breakSummary.unpaidIntervals);
   const workIntervals = createWorkIntervals(boundaries, breakSummary.unpaidIntervals);
   const issues: PayCalculationIssue[] = usesDefaultOvertime ? [{
     code: 'default_overtime_applied',
@@ -80,6 +88,7 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
     `salary.explanations.breaks:${breakSummary.unpaidMinutes}:${breakSummary.paidMinutes}`,
     usesDefaultOvertime ? 'salary.explanations.default_overtime' : 'salary.explanations.configured_overtime',
     ...weeklyOvertimeExplanations(enabledRules),
+    ...(specialIntervals.length ? [`salary.explanations.special_intervals:${specialIntervals.length}`] : []),
   ];
   const sortedRules = [...enabledRules].sort(compareRules);
   const baseResolution = resolveHourlyRate({
@@ -132,6 +141,7 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
         shift: input.shift,
         timezone,
         holidayIntervals: input.holidayIntervals,
+        specialIntervals,
         grossMinutes,
         shiftWorkedMinutes,
         dayWorkedMinutes: currentDayMinutes,
@@ -157,6 +167,8 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
         shiftTypeMultiplier,
         input.shift.shiftTypeNameSnapshot,
       );
+      const appliedSegmentRules = [...(rateOverride ? [rateOverride] : []), ...multiplier.rules];
+      const matchingSpecialIntervals = specialIntervals.filter((interval) => intervalContains(interval, midpoint));
       if (rateMinor) {
         cumulativeBaseNumerator += BigInt(rateMinor) * BigInt(segmentMinutes) * 10_000n;
         cumulativePremiumNumerator += BigInt(rateMinor) * BigInt(segmentMinutes) * BigInt(multiplier.basisPoints - 10_000);
@@ -171,8 +183,9 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
           start: new Date(cursor).toISOString(), end: new Date(end).toISOString(), localDate, minutes: segmentMinutes,
           baseHourlyRateMinor: rateMinor, multiplierBasisPoints: multiplier.basisPoints, basePayMinor,
           premiumPayMinor, totalPayMinor,
-          appliedRuleIds: [...(rateOverride ? [rateOverride.id] : []), ...multiplier.rules.map((rule) => rule.id)],
+          appliedRuleIds: appliedSegmentRules.map((rule) => rule.id),
           labels: [...(input.shift.shiftTypeNameSnapshot ? [input.shift.shiftTypeNameSnapshot] : []), ...multiplier.rules.map((rule) => rule.name)],
+          specialIntervalIds: matchingSpecialIntervals.length ? matchingSpecialIntervals.map((interval) => interval.id) : undefined,
         });
       } else missingRateForInterval = true;
       shiftWorkedMinutes += segmentMinutes;
@@ -201,7 +214,7 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
   }
   if ((missingRateForInterval || (payableMinutes > 0 && segments.length === 0)) && baseResolution.issue) issues.push(baseResolution.issue);
   const componentContext = {
-    shift: input.shift, timezone, holidayIntervals: input.holidayIntervals, grossMinutes,
+    shift: input.shift, timezone, holidayIntervals: input.holidayIntervals, specialIntervals, grossMinutes,
     shiftWorkedMinutes: payableMinutes, dayWorkedMinutes: 0, weekWorkedMinutes: 0,
     shiftGrossMinutes: grossMinutes, dayGrossMinutes: 0, weekGrossMinutes: 0,
   };
@@ -224,6 +237,62 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
   const allAppliedRules = [...new Set([...segments.flatMap((item) => item.appliedRuleIds), ...componentRules.map((rule) => rule.id)])];
   const hasError = issues.some((issue) => issue.severity === 'error');
   const totalGrossPayMinor = hasError ? undefined : basePayMinor + premiumPayMinor + minimumDurationAdjustmentMinor + fixedBonusesMinor + reimbursementsMinor;
+  const contributionByRuleId = new Map<string, boolean>();
+  const ruleChangesEstimate = (ruleId: string): boolean => {
+    if (!analyzeSpecialContributions) return false;
+    const cached = contributionByRuleId.get(ruleId);
+    if (cached !== undefined) return cached;
+    if (!input.rules.some((rule) => rule.id === ruleId)) {
+      contributionByRuleId.set(ruleId, false);
+      return false;
+    }
+    const counterfactual = calculateSalaryInternal({
+      ...input,
+      rules: input.rules.filter((rule) => rule.id !== ruleId),
+    }, false);
+    const changed = monetaryFingerprint({
+      basePayMinor,
+      premiumPayMinor,
+      minimumDurationAdjustmentMinor,
+      fixedBonusesMinor,
+      reimbursementsMinor,
+      totalGrossPayMinor,
+    }) !== monetaryFingerprint(counterfactual);
+    contributionByRuleId.set(ruleId, changed);
+    return changed;
+  };
+  const specialIntervalEvaluations = specialIntervals.map((interval) => {
+    const appliedRuleIds = [...new Set([
+      ...segments.flatMap((segment) => segment.specialIntervalIds?.includes(interval.id)
+        ? segment.appliedRuleIds.filter((ruleId) => {
+          const rule = sortedRules.find((candidate) => candidate.id === ruleId);
+          return rule ? ruleTargetsInterval(rule, interval) : false;
+        })
+        : []),
+      ...componentRules.filter((rule) => ruleTargetsInterval(rule, interval) && workIntervals.some((work) => {
+        const midpoint = new Date((Date.parse(work.start) + Date.parse(work.end)) / 2);
+        return intervalContains(interval, midpoint) && isRuleEffectiveAt(rule, midpoint, timezone)
+          && conditionsMatch(rule.conditions, midpoint, { ...componentContext, holidayIntervals: [], specialIntervals: [interval] });
+      })).map((rule) => rule.id),
+    ])].sort();
+    return {
+      intervalId: interval.id,
+      scheduleId: interval.scheduleId,
+      type: interval.type,
+      name: interval.name,
+      start: interval.start,
+      end: interval.end,
+      timezone: interval.timezone,
+      sourceKind: interval.sourceKind,
+      sourceTitle: interval.sourceTitle,
+      sourceUrl: interval.sourceUrl,
+      presetId: interval.presetId,
+      presetVersion: interval.presetVersion,
+      confirmedAt: interval.confirmedAt,
+      appliedRuleIds,
+      contributedToEstimate: appliedRuleIds.some(ruleChangesEstimate),
+    };
+  });
 
   return {
     context, calculationTimezone: timezone, sourceRange: range, workIntervals, grossMinutes, paidBreakMinutes: breakSummary.paidMinutes,
@@ -234,8 +303,27 @@ export function calculateSalary(input: SalaryCalculationInput): PayCalculationRe
     fixedBonusesMinor, reimbursementsMinor, totalGrossPayMinor, resolvedBaseHourlyRateMinor: resolvedBaseRate,
     shiftTypeName: input.shift.shiftTypeNameSnapshot,
     shiftTypeMultiplierBasisPoints: shiftTypeMultiplier,
-    appliedRuleIds: allAppliedRules, issues, explanations, calculatedAt: input.calculatedAt, engineVersion: SALARY_ENGINE_VERSION,
+    appliedRuleIds: allAppliedRules, issues, explanations,
+    specialIntervalEvaluations: specialIntervalEvaluations.length ? specialIntervalEvaluations : undefined,
+    calculatedAt: input.calculatedAt, engineVersion: SALARY_ENGINE_VERSION,
   };
+}
+
+function monetaryFingerprint(value: Pick<PayCalculationResult,
+  | 'basePayMinor'
+  | 'premiumPayMinor'
+  | 'minimumDurationAdjustmentMinor'
+  | 'fixedBonusesMinor'
+  | 'reimbursementsMinor'
+  | 'totalGrossPayMinor'>): string {
+  return [
+    value.basePayMinor,
+    value.premiumPayMinor,
+    value.minimumDurationAdjustmentMinor,
+    value.fixedBonusesMinor,
+    value.reimbursementsMinor,
+    value.totalGrossPayMinor ?? 'unavailable',
+  ].join(':');
 }
 
 export function hasConfiguredOvertimeRule(rules: readonly PayRule[]): boolean {
@@ -371,9 +459,34 @@ function resolveBreaks(input: SalaryCalculationInput, range: TimeRange, context:
   return { paidMinutes, unpaidMinutes: desired, unpaidIntervals: mergeRanges(unpaidIntervals) };
 }
 
-function collectBoundaries(range: TimeRange, timezone: string, rules: readonly PayRule[], holidays: readonly HolidayInterval[], unpaid: readonly TimeRange[]): number[] {
+function normalizeSpecialIntervals(
+  inputs: readonly CalendarEvidenceInterval[],
+  shift: Shift,
+  profile: SalaryProfile | undefined,
+  range: TimeRange,
+): CalendarEvidenceInterval[] {
+  const start = Date.parse(range.start);
+  const end = Date.parse(range.end);
+  const byId = new Map<string, CalendarEvidenceInterval>();
+  for (const input of inputs) {
+    const interval = calendarEvidenceIntervalSchema.parse(input);
+    if (byId.has(interval.id)) throw new Error(`Duplicate calendar evidence interval ID: ${interval.id}`);
+    byId.set(interval.id, interval);
+  }
+  return [...byId.values()].filter((interval) => !interval.isArchived
+    && interval.workplaceId === shift.workplaceId
+    && (!interval.salaryProfileId || interval.salaryProfileId === profile?.id)
+    && Date.parse(interval.start) < end
+    && Date.parse(interval.end) > start)
+    .sort((left, right) => Date.parse(left.start) - Date.parse(right.start)
+      || Date.parse(left.end) - Date.parse(right.end)
+      || left.type.localeCompare(right.type)
+      || left.id.localeCompare(right.id));
+}
+
+function collectBoundaries(range: TimeRange, timezone: string, rules: readonly PayRule[], holidays: readonly HolidayInterval[], specialIntervals: readonly CalendarEvidenceInterval[], unpaid: readonly TimeRange[]): number[] {
   const start = Date.parse(range.start); const end = Date.parse(range.end); const values = new Set([start, end]);
-  for (const item of [...holidays, ...unpaid]) { addBoundary(values, item.start, start, end); addBoundary(values, item.end, start, end); }
+  for (const item of [...holidays, ...specialIntervals, ...unpaid]) { addBoundary(values, item.start, start, end); addBoundary(values, item.end, start, end); }
   let date = formatLocalDateKey(range.start, timezone);
   const finalDate = formatLocalDateKey(range.end, timezone);
   for (let guard = 0; guard < 370; guard += 1) {
@@ -396,6 +509,14 @@ function collectBoundaries(range: TimeRange, timezone: string, rules: readonly P
 }
 
 function addBoundary(values: Set<number>, value: string, start: number, end: number) { const time = Date.parse(value); if (time > start && time < end) values.add(time); }
+function intervalContains(interval: Pick<CalendarEvidenceInterval, 'start' | 'end'>, instant: Date): boolean {
+  return instant.getTime() >= Date.parse(interval.start) && instant.getTime() < Date.parse(interval.end);
+}
+function ruleTargetsInterval(rule: PayRule, interval: CalendarEvidenceInterval): boolean {
+  return rule.conditions.some((condition) => condition.type === 'specialInterval'
+    ? condition.intervalTypes.includes(interval.type)
+    : condition.type === 'holiday' && interval.type === 'holiday');
+}
 function createWorkIntervals(boundaries: readonly number[], unpaid: readonly TimeRange[]): WorkInterval[] {
   const output: WorkInterval[] = [];
   let accumulatedWorkedMilliseconds = 0;
@@ -411,7 +532,7 @@ function createWorkIntervals(boundaries: readonly number[], unpaid: readonly Tim
 }
 
 function conditionsMatch(conditions: readonly PayRuleCondition[], instant: Date, context: {
-  shift: Shift; timezone: string; holidayIntervals: readonly HolidayInterval[]; grossMinutes: number;
+  shift: Shift; timezone: string; holidayIntervals: readonly HolidayInterval[]; specialIntervals: readonly CalendarEvidenceInterval[]; grossMinutes: number;
   shiftWorkedMinutes: number; dayWorkedMinutes: number; weekWorkedMinutes: number;
   shiftGrossMinutes: number; dayGrossMinutes: number; weekGrossMinutes: number;
 }): boolean {
@@ -423,7 +544,9 @@ function conditionsMatch(conditions: readonly PayRuleCondition[], instant: Date,
       case 'workplace': return condition.workplaceId === context.shift.workplaceId;
       case 'role': return condition.roleId === context.shift.roleId;
       case 'minimumDuration': return context.grossMinutes >= condition.minutes;
-      case 'holiday': return context.holidayIntervals.some((item) => instant.getTime() >= Date.parse(item.start) && instant.getTime() < Date.parse(item.end));
+      case 'holiday': return context.holidayIntervals.some((item) => instant.getTime() >= Date.parse(item.start) && instant.getTime() < Date.parse(item.end))
+        || context.specialIntervals.some((item) => item.type === 'holiday' && intervalContains(item, instant));
+      case 'specialInterval': return context.specialIntervals.some((item) => condition.intervalTypes.includes(item.type) && intervalContains(item, instant));
       case 'timeWindow': return isTimeInWindow(time, condition.startTime, condition.endTime);
       case 'weekend': return isInWeekWindow(local.getDay(), time, condition.startWeekday, condition.startTime, condition.endWeekday, condition.endTime);
       case 'workedMinutes': {
@@ -449,7 +572,7 @@ function isRuleEffectiveAt(rule: PayRule, instant: Date, timezone: string): bool
   return (!rule.effectiveFrom || date >= rule.effectiveFrom) && (!rule.effectiveTo || date <= rule.effectiveTo);
 }
 function compareRules(left: PayRule, right: PayRule): number { return right.priority - left.priority || specificity(right) - specificity(left) || left.id.localeCompare(right.id); }
-function specificity(rule: PayRule): number { return rule.conditions.reduce((score, condition) => score + ({ date: 100, role: 60, workplace: 50, holiday: 40, weekend: 30, timeWindow: 20, weekday: 10, workedMinutes: 10, minimumDuration: 5 }[condition.type]), 0); }
+function specificity(rule: PayRule): number { return rule.conditions.reduce((score, condition) => score + ({ date: 100, role: 60, workplace: 50, holiday: 40, specialInterval: 40, weekend: 30, timeWindow: 20, weekday: 10, workedMinutes: 10, minimumDuration: 5 }[condition.type]), 0); }
 function resolveMultiplier(
   rules: PayRule[],
   issues: PayCalculationIssue[],
@@ -457,18 +580,34 @@ function resolveMultiplier(
   _shiftTypeName?: string,
 ) {
   if (!rules.length) return { basisPoints: shiftTypeBasisPoints, rules: [] as PayRule[] };
-  const overtimeRules = rules.filter(isOvertimeMultiplierRule);
-  const ordinaryRules = rules.filter((rule) => !isOvertimeMultiplierRule(rule));
+  const overtimeRules = rules.filter((rule) => resolvePremiumFamily(rule) === 'overtime');
+  const specialRules = rules.filter((rule) => resolvePremiumFamily(rule) === 'special_interval');
+  const ordinaryRules = rules.filter((rule) => resolvePremiumFamily(rule) === 'ordinary');
   const overtimeWinner = [...overtimeRules].sort(compareOvertimeStrength)[0];
-  const nonStacking = [
-    ...ordinaryRules.filter((rule) => !rule.canStack),
-    ...(overtimeWinner && !overtimeWinner.canStack ? [overtimeWinner] : []),
-  ].sort(compareRules);
-  const winner = nonStacking[0];
-  if (winner && nonStacking[1] && winner.priority === nonStacking[1].priority && specificity(winner) === specificity(nonStacking[1])) {
-    if (!issues.some((item) => item.code === 'equal_priority_rule_conflict')) issues.push({ code: 'equal_priority_rule_conflict', severity: 'warning', messageKey: 'salary.issues.equalPriorityRuleConflict', metadata: { ruleIds: [winner.id, nonStacking[1].id] } });
+  const ordinaryNonStacking = [...ordinaryRules.filter((rule) => !rule.canStack)].sort(compareRules);
+  const specialNonStacking = [...specialRules.filter((rule) => !rule.canStack)].sort(compareMultiplierStrength);
+  const specialWinner = specialNonStacking[0];
+  const legacyConflictCandidates = [...ordinaryNonStacking, ...(overtimeWinner && !overtimeWinner.canStack ? [overtimeWinner] : [])].sort(compareRules);
+  const legacyWinner = legacyConflictCandidates[0];
+  const winner = specialWinner && legacyWinner
+    ? [specialWinner, legacyWinner].sort(compareMultiplierStrength)[0]
+    : specialWinner ?? legacyWinner;
+  const conflictPair = legacyConflictCandidates[0] && legacyConflictCandidates[1]
+    && legacyConflictCandidates[0].priority === legacyConflictCandidates[1].priority
+    && specificity(legacyConflictCandidates[0]) === specificity(legacyConflictCandidates[1])
+    ? [legacyConflictCandidates[0], legacyConflictCandidates[1]] as const
+    : specialNonStacking[0] && specialNonStacking[1]
+      && specialNonStacking[0].effect.type === 'multiplier' && specialNonStacking[1].effect.type === 'multiplier'
+      && specialNonStacking[0].effect.basisPoints === specialNonStacking[1].effect.basisPoints
+      && specialNonStacking[0].priority === specialNonStacking[1].priority
+      && specificity(specialNonStacking[0]) === specificity(specialNonStacking[1])
+      ? [specialNonStacking[0], specialNonStacking[1]] as const
+      : undefined;
+  if (conflictPair) {
+    if (!issues.some((item) => item.code === 'equal_priority_rule_conflict')) issues.push({ code: 'equal_priority_rule_conflict', severity: 'warning', messageKey: 'salary.issues.equalPriorityRuleConflict', metadata: { ruleIds: conflictPair.map((rule) => rule.id) } });
   }
-  const stacking = ordinaryRules.filter((rule) => rule.canStack);
+  const stacking = [...ordinaryRules.filter((rule) => rule.canStack), ...specialRules.filter((rule) => rule.canStack)]
+    .sort(compareRules).filter((rule, index, all) => all.findIndex((candidate) => candidate.id === rule.id) === index);
   const applied = [...(winner ? [winner] : []), ...stacking, ...(overtimeWinner?.canStack ? [overtimeWinner] : [])];
   const winningRuleBasisPoints = winner?.effect.type === 'multiplier' ? winner.effect.basisPoints : 10_000;
   const initial = Math.max(shiftTypeBasisPoints, winningRuleBasisPoints);
@@ -483,7 +622,20 @@ function isOvertimeMultiplierRule(rule: PayRule): boolean {
   return rule.effect.type === 'multiplier' && rule.conditions.some((condition) => condition.type === 'workedMinutes');
 }
 
+function resolvePremiumFamily(rule: PayRule): NonNullable<PayRule['premiumFamily']> {
+  if (rule.premiumFamily) return rule.premiumFamily;
+  if (isOvertimeMultiplierRule(rule)) return 'overtime';
+  if (rule.conditions.some((condition) => condition.type === 'specialInterval')) return 'special_interval';
+  return 'ordinary';
+}
+
 function compareOvertimeStrength(left: PayRule, right: PayRule): number {
+  const leftBasisPoints = left.effect.type === 'multiplier' ? left.effect.basisPoints : 10_000;
+  const rightBasisPoints = right.effect.type === 'multiplier' ? right.effect.basisPoints : 10_000;
+  return rightBasisPoints - leftBasisPoints || compareRules(left, right);
+}
+
+function compareMultiplierStrength(left: PayRule, right: PayRule): number {
   const leftBasisPoints = left.effect.type === 'multiplier' ? left.effect.basisPoints : 10_000;
   const rightBasisPoints = right.effect.type === 'multiplier' ? right.effect.basisPoints : 10_000;
   return rightBasisPoints - leftBasisPoints || compareRules(left, right);

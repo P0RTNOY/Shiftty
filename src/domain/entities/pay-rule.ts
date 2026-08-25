@@ -11,6 +11,11 @@ export const payRuleConditionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('minimumDuration'), minutes: z.number().int().positive() }),
   z.object({ type: z.literal('holiday') }),
   z.object({
+    type: z.literal('specialInterval'),
+    intervalTypes: z.array(z.enum(['holiday', 'weekly_rest', 'custom'])).min(1)
+      .refine((values) => new Set(values).size === values.length, { message: 'Special-interval types must be unique.' }),
+  }),
+  z.object({
     type: z.literal('weekend'),
     startWeekday: z.number().int().min(0).max(6),
     startTime: localTimeSchema,
@@ -43,6 +48,7 @@ export const payRuleSchema = z.object({
   ]),
   isEnabled: z.boolean().default(true),
   canStack: z.boolean(),
+  premiumFamily: z.enum(['ordinary', 'overtime', 'special_interval']).optional(),
   effectiveFrom: z.iso.date().optional(),
   effectiveTo: z.iso.date().optional(),
   createdAt: z.iso.datetime({ offset: true }),
@@ -50,6 +56,17 @@ export const payRuleSchema = z.object({
 }).superRefine((rule, context) => {
   if (rule.effectiveFrom && rule.effectiveTo && rule.effectiveTo < rule.effectiveFrom) {
     context.addIssue({ code: 'custom', path: ['effectiveTo'], message: 'Effective end must not precede start.' });
+  }
+  if (rule.premiumFamily && rule.effect.type !== 'multiplier') {
+    context.addIssue({ code: 'custom', path: ['premiumFamily'], message: 'Only multiplier rules can declare a premium family.' });
+  }
+  if (rule.premiumFamily === 'overtime' && !rule.conditions.some((condition) => condition.type === 'workedMinutes')) {
+    context.addIssue({ code: 'custom', path: ['premiumFamily'], message: 'Overtime-family rules require a worked-minute condition.' });
+  }
+  if (rule.premiumFamily === 'special_interval' && !rule.conditions.some((condition) => (
+    condition.type === 'specialInterval' || condition.type === 'holiday' || condition.type === 'weekend'
+  ))) {
+    context.addIssue({ code: 'custom', path: ['premiumFamily'], message: 'Special-interval-family rules require a special interval condition.' });
   }
 });
 

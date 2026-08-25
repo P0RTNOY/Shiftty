@@ -1,11 +1,14 @@
-import type { PayRule, Role, SalaryProfile, Shift, Workplace } from '@/domain/entities';
+import type { CalendarEvidenceInterval, PayRule, Role, SalaryProfile, Shift, WeeklyRestSchedule, Workplace } from '@/domain/entities';
 import { calculateSalary } from './salary-calculation-service';
+import { resolveWeeklyRestOccurrences } from './weekly-rest-occurrence-service';
 
 export interface MonthlyEarningsDependencies {
   profilesByWorkplace: Readonly<Record<string, SalaryProfile>>;
   rulesByProfile: Readonly<Record<string, readonly PayRule[]>>;
   rolesById: Readonly<Record<string, Role>>;
   workplacesById: Readonly<Record<string, Workplace>>;
+  specialIntervalsByWorkplace?: Readonly<Record<string, readonly CalendarEvidenceInterval[]>>;
+  weeklyRestSchedulesByProfile?: Readonly<Record<string, WeeklyRestSchedule | undefined>>;
   calculatedAt: string;
 }
 
@@ -28,8 +31,20 @@ export function calculateMonthlyEarnings(shifts: readonly Shift[], dependencies:
     const profile = dependencies.profilesByWorkplace[shift.workplaceId];
     const role = shift.roleId ? dependencies.rolesById[shift.roleId] : undefined;
     const workplace = dependencies.workplacesById[shift.workplaceId];
+    const range = salarySourceRange(shift);
+    const persistedIntervals = (dependencies.specialIntervalsByWorkplace?.[shift.workplaceId] ?? [])
+      .filter((interval) => !interval.isArchived
+        && (!interval.salaryProfileId || interval.salaryProfileId === profile?.id)
+        && Date.parse(interval.start) < Date.parse(range.end)
+        && Date.parse(interval.end) > Date.parse(range.start));
+    const schedule = profile ? dependencies.weeklyRestSchedulesByProfile?.[profile.id] : undefined;
+    const recurringIntervals = schedule && schedule.workplaceId === shift.workplaceId && schedule.salaryProfileId === profile?.id
+      ? resolveWeeklyRestOccurrences(schedule, range.start, range.end, profile.timezone)
+      : [];
+    const specialIntervals = uniqueSortedIntervals(persistedIntervals, recurringIntervals);
     const result = calculateSalary({
       shift, profile, rules: profile ? dependencies.rulesByProfile[profile.id] ?? [] : [], breaks: [], holidayIntervals: [],
+      specialIntervals,
       calculatedAt: dependencies.calculatedAt, roleHourlyRateMinor: role?.hourlyRateMinor,
       workplaceHourlyRateMinor: workplace?.defaultHourlyRateMinor, priorWorkedMinutesByLocalDate,
     });
@@ -41,4 +56,30 @@ export function calculateMonthlyEarnings(shifts: readonly Shift[], dependencies:
     for (const segment of result.segments) priorWorkedMinutesByLocalDate[segment.localDate] = (priorWorkedMinutesByLocalDate[segment.localDate] ?? 0) + segment.minutes;
   }
   return { earnedMinor, futureMinor, forecastMinor: earnedMinor + futureMinor, incompleteShiftCount, regularMinutes, specialRateMinutes, resultsByShiftId };
+}
+
+function salarySourceRange(shift: Shift): { start: string; end: string } {
+  if (shift.status === 'completed' && shift.payableStart && shift.payableEnd) {
+    return { start: shift.payableStart, end: shift.payableEnd };
+  }
+  if (shift.scheduledStart && shift.scheduledEnd) {
+    return { start: shift.scheduledStart, end: shift.scheduledEnd };
+  }
+  throw new Error('The selected salary context has no complete time range.');
+}
+
+function uniqueSortedIntervals(
+  persisted: readonly CalendarEvidenceInterval[],
+  recurring: readonly CalendarEvidenceInterval[],
+): CalendarEvidenceInterval[] {
+  const compare = (left: CalendarEvidenceInterval, right: CalendarEvidenceInterval) => Date.parse(left.start) - Date.parse(right.start)
+    || Date.parse(left.end) - Date.parse(right.end)
+    || left.type.localeCompare(right.type)
+    || left.id.localeCompare(right.id);
+  const byId = new Map<string, CalendarEvidenceInterval>();
+  for (const interval of [...persisted].sort(compare)) byId.set(interval.id, interval);
+  for (const interval of [...recurring].sort(compare)) {
+    if (!byId.has(interval.id)) byId.set(interval.id, interval);
+  }
+  return [...byId.values()].sort(compare);
 }

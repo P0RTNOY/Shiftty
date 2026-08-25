@@ -1,4 +1,16 @@
-import { payRuleSchema, salaryProfileSchema, shiftSchema, type BreakSession, type PayRule, type SalaryProfile, type Shift } from '@/domain/entities';
+import {
+  calendarEvidenceIntervalSchema,
+  payRuleSchema,
+  salaryProfileSchema,
+  shiftSchema,
+  weeklyRestScheduleSchema,
+  type BreakSession,
+  type CalendarEvidenceInterval,
+  type PayRule,
+  type SalaryProfile,
+  type Shift,
+  type WeeklyRestSchedule,
+} from '@/domain/entities';
 
 export function createShift(overrides: Partial<Shift> = {}): Shift {
   const candidate = {
@@ -53,4 +65,22 @@ export function createBreak(overrides: Partial<BreakSession> = {}): BreakSession
     updatedAt: '2026-07-15T17:30:00+03:00',
     ...overrides,
   };
+}
+
+export function createCalendarEvidenceInterval(overrides: Partial<CalendarEvidenceInterval> = {}): CalendarEvidenceInterval {
+  return calendarEvidenceIntervalSchema.parse({
+    id: 'evidence-1', workplaceId: 'workplace-1', salaryProfileId: 'profile-1', type: 'holiday', name: 'Configured holiday',
+    start: '2026-07-15T09:00:00+03:00', end: '2026-07-15T11:00:00+03:00', timezone: 'Asia/Jerusalem',
+    sourceKind: 'manual', confirmedAt: '2026-07-01T10:00:00+03:00', isArchived: false,
+    createdAt: '2026-07-01T10:00:00+03:00', updatedAt: '2026-07-01T10:00:00+03:00', ...overrides,
+  });
+}
+
+export function createWeeklyRestSchedule(overrides: Partial<WeeklyRestSchedule> = {}): WeeklyRestSchedule {
+  return weeklyRestScheduleSchema.parse({
+    id: 'weekly-rest-1', workplaceId: 'workplace-1', salaryProfileId: 'profile-1', label: 'My weekly rest',
+    startWeekday: 5, startTime: '18:00', endWeekday: 6, endTime: '18:00', enabled: false,
+    sourceKind: 'manual', isArchived: false, createdAt: '2026-07-01T10:00:00+03:00', updatedAt: '2026-07-01T10:00:00+03:00',
+    ...overrides,
+  });
 }

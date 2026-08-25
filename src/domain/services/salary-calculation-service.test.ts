@@ -67,7 +67,7 @@ describe('salary calculation engine', () => {
       basePayMinor: 72_000,
       premiumPayMinor: 9_000,
       totalGrossPayMinor: 81_000,
-      engineVersion: '1.4.0',
+      engineVersion: '1.5.0',
     });
     expect(result.segments.map((segment) => [segment.minutes, segment.multiplierBasisPoints])).toEqual([
       [480, 10_000],

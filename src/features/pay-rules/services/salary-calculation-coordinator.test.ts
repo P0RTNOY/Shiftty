@@ -1,7 +1,7 @@
 import { SalaryCalculationCoordinator, type SalaryCoordinatorRepositories } from '@/features/pay-rules/services/salary-calculation-coordinator';
 import { calculateSalary } from '@/domain/services';
 import { StaticHolidayProvider } from '@/domain/services/holiday-provider';
-import { createPayRule, createSalaryProfile, createShift } from '@/test/fixtures';
+import { createCalendarEvidenceInterval, createPayRule, createSalaryProfile, createShift, createWeeklyRestSchedule } from '@/test/fixtures';
 
 function repositories(overrides: Partial<SalaryCoordinatorRepositories> = {}): SalaryCoordinatorRepositories {
   const workplace = { id: 'workplace-1', name: 'Cafe', defaultHourlyRateMinor: 0, defaultBreakMinutes: 0, createdAt: '2026-01-01T00:00:00+02:00', updatedAt: '2026-01-01T00:00:00+02:00' };
@@ -187,6 +187,112 @@ describe('SalaryCalculationCoordinator', () => {
     const provider = new StaticHolidayProvider([{ id: 'holiday-1', name: 'Holiday', start: shift.scheduledStart!, end: shift.scheduledEnd! }]);
     const result = await new SalaryCalculationCoordinator(deps, provider).previewShift(shift, '2026-07-15T08:00:00+03:00');
     expect(result.specialRateMinutes).toBe(510);
+  });
+
+  it('loads bounded evidence for the resolved workplace and profile in deterministic order', async () => {
+    const shift = createShift({
+      scheduledStart: '2026-07-15T08:00:00+03:00', scheduledEnd: '2026-07-15T12:00:00+03:00',
+      expectedBreakMinutes: 0, hourlyRateSnapshotMinor: 0,
+    });
+    const profile = createSalaryProfile({ baseHourlyRateMinor: 6000 });
+    const holiday = createCalendarEvidenceInterval({
+      id: 'holiday', start: '2026-07-15T09:00:00+03:00', end: '2026-07-15T11:00:00+03:00',
+    });
+    const custom = createCalendarEvidenceInterval({
+      id: 'custom', type: 'custom', name: 'Confirmed custom interval',
+      start: '2026-07-15T10:00:00+03:00', end: '2026-07-15T10:30:00+03:00',
+    });
+    const foreignProfile = createCalendarEvidenceInterval({
+      id: 'foreign-profile', salaryProfileId: 'other-profile',
+      start: '2026-07-15T08:00:00+03:00', end: '2026-07-15T12:00:00+03:00',
+    });
+    const archived = createCalendarEvidenceInterval({
+      id: 'archived', isArchived: true, archivedAt: '2026-07-10T00:00:00+03:00',
+      start: '2026-07-15T08:00:00+03:00', end: '2026-07-15T12:00:00+03:00',
+    });
+    const rule = createPayRule({
+      id: 'configured-holiday', premiumFamily: 'special_interval',
+      conditions: [{ type: 'specialInterval', intervalTypes: ['holiday'] }],
+      effect: { type: 'multiplier', basisPoints: 15000 },
+    });
+    const listOverlapping = jest.fn().mockResolvedValue([custom, archived, foreignProfile, holiday]);
+    const deps = repositories({
+      salaryProfiles: { listByWorkplace: jest.fn().mockResolvedValue([profile]), getById: jest.fn() } as unknown as SalaryCoordinatorRepositories['salaryProfiles'],
+      payRules: { listForProfile: jest.fn().mockResolvedValue([rule]) } as unknown as SalaryCoordinatorRepositories['payRules'],
+      calendarEvidenceIntervals: { listOverlapping } as unknown as NonNullable<SalaryCoordinatorRepositories['calendarEvidenceIntervals']>,
+    });
+
+    const result = await new SalaryCalculationCoordinator(deps).previewShift(shift, '2026-07-15T12:00:00+03:00');
+
+    expect(listOverlapping).toHaveBeenCalledWith({
+      workplaceId: shift.workplaceId,
+      salaryProfileId: profile.id,
+      start: shift.scheduledStart,
+      end: shift.scheduledEnd,
+    });
+    expect(result.totalGrossPayMinor).toBe(30000);
+    expect(result.segments.map((segment) => [segment.minutes, segment.multiplierBasisPoints])).toEqual([
+      [60, 10000], [60, 15000], [30, 15000], [30, 15000], [60, 10000],
+    ]);
+    expect(result.specialIntervalEvaluations?.map((item) => [item.intervalId, item.contributedToEstimate])).toEqual([
+      ['holiday', true], ['custom', false],
+    ]);
+  });
+
+  it('resolves a confirmed recurring weekly-rest occurrence without materializing a shift', async () => {
+    const shift = createShift({
+      scheduledStart: '2026-07-17T08:00:00+03:00', scheduledEnd: '2026-07-17T12:00:00+03:00',
+      expectedBreakMinutes: 0, hourlyRateSnapshotMinor: 0,
+    });
+    const profile = createSalaryProfile({ baseHourlyRateMinor: 6000 });
+    const schedule = createWeeklyRestSchedule({
+      startWeekday: 5, startTime: '09:00', endWeekday: 5, endTime: '11:00', enabled: true,
+      confirmedAt: '2026-07-01T10:00:00+03:00',
+    });
+    const rule = createPayRule({
+      id: 'weekly-rest-rate', premiumFamily: 'special_interval',
+      conditions: [{ type: 'specialInterval', intervalTypes: ['weekly_rest'] }],
+      effect: { type: 'multiplier', basisPoints: 15000 },
+    });
+    const getForProfile = jest.fn().mockResolvedValue(schedule);
+    const deps = repositories({
+      salaryProfiles: { listByWorkplace: jest.fn().mockResolvedValue([profile]), getById: jest.fn() } as unknown as SalaryCoordinatorRepositories['salaryProfiles'],
+      payRules: { listForProfile: jest.fn().mockResolvedValue([rule]) } as unknown as SalaryCoordinatorRepositories['payRules'],
+      calendarEvidenceIntervals: { listOverlapping: jest.fn().mockResolvedValue([]) } as unknown as NonNullable<SalaryCoordinatorRepositories['calendarEvidenceIntervals']>,
+      weeklyRestSchedules: { getForProfile } as unknown as NonNullable<SalaryCoordinatorRepositories['weeklyRestSchedules']>,
+    });
+
+    const result = await new SalaryCalculationCoordinator(deps).previewShift(shift, '2026-07-17T12:00:00+03:00');
+
+    expect(getForProfile).toHaveBeenCalledWith(profile.id);
+    expect(result.totalGrossPayMinor).toBe(30000);
+    expect(result.specialIntervalEvaluations).toEqual([
+      expect.objectContaining({ type: 'weekly_rest', name: schedule.label, contributedToEstimate: true }),
+    ]);
+  });
+
+  it('isolates profile-scoped evidence by the effective-dated resolved profile', async () => {
+    const oldProfile = createSalaryProfile({ id: 'old-profile', effectiveFrom: '2026-01-01', effectiveTo: '2026-06-30', baseHourlyRateMinor: 6000 });
+    const currentProfile = createSalaryProfile({ id: 'current-profile', effectiveFrom: '2026-07-01', baseHourlyRateMinor: 6000 });
+    const shift = createShift({
+      scheduledStart: '2026-07-15T08:00:00+03:00', scheduledEnd: '2026-07-15T12:00:00+03:00',
+      expectedBreakMinutes: 0, hourlyRateSnapshotMinor: 0,
+    });
+    const oldEvidence = createCalendarEvidenceInterval({
+      id: 'old-evidence', salaryProfileId: oldProfile.id,
+      start: shift.scheduledStart!, end: shift.scheduledEnd!,
+    });
+    const listOverlapping = jest.fn().mockResolvedValue([oldEvidence]);
+    const deps = repositories({
+      salaryProfiles: { listByWorkplace: jest.fn().mockResolvedValue([oldProfile, currentProfile]), getById: jest.fn() } as unknown as SalaryCoordinatorRepositories['salaryProfiles'],
+      calendarEvidenceIntervals: { listOverlapping } as unknown as NonNullable<SalaryCoordinatorRepositories['calendarEvidenceIntervals']>,
+    });
+
+    const result = await new SalaryCalculationCoordinator(deps).previewShift(shift, '2026-07-15T12:00:00+03:00');
+
+    expect(listOverlapping).toHaveBeenCalledWith(expect.objectContaining({ salaryProfileId: currentProfile.id }));
+    expect(result.specialIntervalEvaluations).toBeUndefined();
+    expect(result.totalGrossPayMinor).toBe(24000);
   });
 
   it('allocates a cross-month shift by segment and assigns fixed components to its start date', async () => {
@@ -435,6 +541,65 @@ describe('SalaryCalculationCoordinator', () => {
     expect(preview.totalGrossPayMinor).toBe(27000);
     expect(finalized.result.totalGrossPayMinor).toBe(preview.totalGrossPayMinor);
     expect(finalized.result.segments).toEqual(preview.segments);
+  });
+
+  it('keeps frozen evidence provenance authoritative until explicit recalculation creates vN+1', async () => {
+    const profile = createSalaryProfile({ baseHourlyRateMinor: 6000 });
+    const shift = createShift({
+      id: 'evidence-recalculation', status: 'completed',
+      actualStart: '2026-07-15T08:00:00+03:00', actualEnd: '2026-07-15T12:00:00+03:00',
+      payableStart: '2026-07-15T08:00:00+03:00', payableEnd: '2026-07-15T12:00:00+03:00',
+      payableBreakMinutes: 0, payableSource: 'actual', completedAt: '2026-07-15T12:00:00+03:00',
+      hourlyRateSnapshotMinor: 6000, salaryCalculationStatus: 'stale',
+    });
+    const oldEvidence = createCalendarEvidenceInterval({
+      id: 'deleted-old-evidence', start: '2026-07-15T09:00:00+03:00', end: '2026-07-15T10:00:00+03:00',
+    });
+    const currentEvidence = createCalendarEvidenceInterval({
+      id: 'current-evidence', start: '2026-07-15T10:00:00+03:00', end: '2026-07-15T11:00:00+03:00',
+    });
+    const rule = createPayRule({
+      id: 'holiday-rate', premiumFamily: 'special_interval',
+      conditions: [{ type: 'specialInterval', intervalTypes: ['holiday'] }],
+      effect: { type: 'multiplier', basisPoints: 15000 },
+    });
+    const frozenResult = calculateSalary({
+      shift, profile, rules: [rule], breaks: [], holidayIntervals: [], specialIntervals: [oldEvidence],
+      calculatedAt: '2026-07-15T12:00:00+03:00',
+    });
+    const frozenSnapshot = {
+      id: 'salary-calculation-v1', shiftId: shift.id, version: 1, status: 'finalized' as const,
+      salaryProfileId: profile.id, result: frozenResult, isCurrent: true, createdAt: frozenResult.calculatedAt,
+    };
+    const frozenJson = JSON.stringify(frozenSnapshot.result);
+    const listOverlapping = jest.fn().mockResolvedValue([currentEvidence]);
+    const saveSnapshot = jest.fn().mockResolvedValue(undefined);
+    const deps = repositories({
+      shifts: { list: jest.fn().mockResolvedValue([shift]) } as unknown as SalaryCoordinatorRepositories['shifts'],
+      salaryProfiles: { listByWorkplace: jest.fn().mockResolvedValue([profile]), getById: jest.fn().mockResolvedValue(profile) } as unknown as SalaryCoordinatorRepositories['salaryProfiles'],
+      payRules: { listForProfile: jest.fn().mockResolvedValue([rule]) } as unknown as SalaryCoordinatorRepositories['payRules'],
+      calendarEvidenceIntervals: { listOverlapping } as unknown as NonNullable<SalaryCoordinatorRepositories['calendarEvidenceIntervals']>,
+      salaryCalculations: {
+        listCurrentForShifts: jest.fn().mockResolvedValue([frozenSnapshot]),
+        listHistory: jest.fn().mockResolvedValue([frozenSnapshot]),
+        saveSnapshot,
+      } as unknown as SalaryCoordinatorRepositories['salaryCalculations'],
+    });
+    const coordinator = new SalaryCalculationCoordinator(deps);
+
+    const frozen = await coordinator.calculateMany([shift], '2026-08-01T00:00:00+03:00');
+    expect(frozen.resultsByShiftId[shift.id]?.specialIntervalEvaluations?.[0]?.intervalId).toBe(oldEvidence.id);
+    expect(listOverlapping).not.toHaveBeenCalled();
+
+    const preview = await coordinator.previewShift(shift, '2026-08-01T00:00:00+03:00', undefined, true);
+    const recalculated = await coordinator.finalizeCompletedShift(shift, '2026-08-01T00:00:00+03:00', true);
+
+    expect(preview.specialIntervalEvaluations?.[0]?.intervalId).toBe(currentEvidence.id);
+    expect(recalculated).toMatchObject({ version: 2, status: 'finalized', isCurrent: true });
+    expect(recalculated.result.specialIntervalEvaluations?.[0]?.intervalId).toBe(currentEvidence.id);
+    expect(recalculated.result.segments).toEqual(preview.segments);
+    expect(saveSnapshot).toHaveBeenCalledWith(recalculated);
+    expect(JSON.stringify(frozenSnapshot.result)).toBe(frozenJson);
   });
 
   it('does not mix active provisional components into finalized report aggregates', async () => {
