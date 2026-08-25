@@ -1,0 +1,98 @@
+appId: ${APP_ID}
+name: C - create and select a shift type with a pay multiplier
+tags:
+  - shift-type
+---
+- clearState
+- launchApp
+- runFlow: ../helpers/complete-first-use.yaml
+- tapOn:
+    id: e2e-tab-settings
+- tapOn:
+    id: e2e-settings-shift-types
+- tapOn:
+    id: e2e-shift-type-add
+- tapOn:
+    id: e2e-shift-type-name
+- inputText: E2E Premium
+- tapOn:
+    id: e2e-shift-type-multiplier
+- eraseText: 3
+- inputText: "150"
+- tapOn: "100% is the standard rate.*|100% הוא התעריף הרגיל.*"
+- tapOn: "Create shift type|יצירת סוג משמרת"
+- scrollUntilVisible:
+    element:
+      id: e2e-shift-type-save
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: e2e-shift-type-save
+- tapOn:
+    text: "OK|אישור"
+    optional: true
+- extendedWaitUntil:
+    visible: E2E Premium
+    timeout: 15000
+- openLink: "shifty://shifts/new?mode=scheduled&date=2026-08-26"
+- tapOn:
+    text: "Open|פתח"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: e2e-shift-type-option
+    timeout: 15000
+- tapOn:
+    id: e2e-shift-type-option
+- assertVisible: E2E Premium .* 150%
+- scrollUntilVisible:
+    element:
+      id: e2e-shift-advanced
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: e2e-shift-advanced
+- assertVisible: "Hide Options|הסתרת אפשרויות"
+- scrollUntilVisible:
+    element:
+      id: e2e-shift-expectedBreak
+    direction: DOWN
+- tapOn:
+    id: e2e-shift-expectedBreak
+- eraseText: 4
+- inputText: "15"
+- tapOn: E2E Workplace
+- tapOn:
+    id: e2e-shift-save
+- tapOn:
+    text: "Start now|התחל עכשיו"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: e2e-shift-details
+    timeout: 30000
+- assertVisible: E2E Premium
+- assertVisible: "15 minutes|15 דקות"
+- openLink: shifty://settings/templates
+- tapOn:
+    text: "Open|פתח"
+    optional: true
+- extendedWaitUntil:
+    visible: E2E Premium
+    timeout: 30000
+- longPressOn: E2E Premium
+- tapOn: "Archive|העברה לארכיון"
+- openLink: shifty://calendar
+- tapOn:
+    text: "Open|פתח"
+    optional: true
+- tapOn: "Agenda|סדר יום"
+- extendedWaitUntil:
+    visible:
+      id: e2e-calendar-shift-card
+    timeout: 30000
+- tapOn:
+    id: e2e-calendar-shift-card
+- assertVisible:
+    id: e2e-shift-details
+- assertVisible: E2E Premium

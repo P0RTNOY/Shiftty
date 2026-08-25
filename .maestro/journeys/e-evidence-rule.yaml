@@ -1,0 +1,242 @@
+appId: ${APP_ID}
+name: E - confirmed preset has no pay effect until a matching rule exists
+tags:
+  - salary
+  - evidence
+---
+- clearState
+- launchApp
+- runFlow: ../helpers/complete-first-use.yaml
+- tapOn:
+    id: e2e-tab-settings
+- tapOn:
+    id: e2e-settings-salary
+- scrollUntilVisible:
+    element:
+      id: e2e-salary-evidence
+    direction: DOWN
+- tapOn:
+    id: e2e-salary-evidence
+- scrollUntilVisible:
+    element:
+      id: e2e-evidence-preset-expand
+    direction: DOWN
+- tapOn:
+    id: e2e-evidence-preset-expand
+- scrollUntilVisible:
+    element:
+      id: e2e-evidence-preset-confirm
+    direction: DOWN
+- tapOn:
+    id: e2e-evidence-preset-confirm
+- tapOn:
+    id: e2e-evidence-preset-apply
+- scrollUntilVisible:
+    element:
+      id: special-pay-interval-card
+    direction: DOWN
+- assertVisible:
+    id: special-pay-interval-card
+- openLink: shifty://shifts/new?mode=completed&date=2026-04-21
+- tapOn:
+    text: "Open|פתח"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: e2e-shift-save
+    timeout: 30000
+- tapOn: E2E Workplace
+- tapOn:
+    id: e2e-shift-save
+- extendedWaitUntil:
+    visible:
+      id: e2e-shift-details
+    timeout: 30000
+- openLink: shifty://shifts/new?mode=completed&date=2026-04-22
+- tapOn:
+    text: "Open|פתח"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: e2e-shift-save
+    timeout: 30000
+- tapOn: E2E Workplace
+- tapOn:
+    id: e2e-shift-save
+- extendedWaitUntil:
+    visible:
+      id: e2e-shift-details
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: e2e-salary-breakdown-toggle
+    direction: DOWN
+- tapOn:
+    id: e2e-salary-breakdown-toggle
+- assertNotVisible:
+    id: salary-segment-special-intervals
+- openLink: shifty://settings/salary
+- tapOn:
+    text: "Open|פתח"
+    optional: true
+- scrollUntilVisible:
+    element:
+      id: e2e-salary-evidence
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: e2e-salary-evidence
+- scrollUntilVisible:
+    element:
+      id: e2e-evidence-open-rule
+    direction: DOWN
+- tapOn:
+    id: e2e-evidence-open-rule
+- tapOn:
+    id: e2e-rule-name
+- inputText: E2E Holiday 150
+- pressKey: Enter
+- scrollUntilVisible:
+    element:
+      id: e2e-rule-value
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: e2e-rule-value
+- eraseText: 3
+- inputText: "150"
+- assertVisible:
+    id: e2e-rule-value
+    text: "^150$"
+- tapOn: "Stack premium with other rules|צבירת תוספת עם חוקים אחרים"
+- scrollUntilVisible:
+    element:
+      id: e2e-rule-save
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: e2e-rule-save
+- assertVisible: E2E Holiday 150
+- openLink: shifty://reports
+- tapOn:
+    text: "Open|פתח"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: e2e-reports-previous-month
+    timeout: 15000
+- repeat:
+    times: 4
+    commands:
+      - tapOn:
+          id: e2e-reports-previous-month
+- extendedWaitUntil:
+    visible:
+      id: e2e-report-row-2026-04-22
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: e2e-report-row-2026-04-22
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: e2e-report-row-2026-04-22
+- scrollUntilVisible:
+    element:
+      id: e2e-salary-recalculate
+    direction: DOWN
+- assertVisible:
+    id: e2e-salary-unavailable-or-stale
+- assertNotVisible:
+    id: salary-segment-special-intervals
+- tapOn:
+    id: e2e-salary-recalculate
+- tapOn:
+    text: "Confirm|אישור"
+- scrollUntilVisible:
+    element:
+      id: e2e-salary-breakdown-toggle
+    direction: DOWN
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: e2e-salary-breakdown-toggle
+- scrollUntilVisible:
+    element:
+      id: salary-segment-special-intervals
+    direction: DOWN
+- assertVisible:
+    id: salary-segment-special-intervals
+- openLink: shifty://settings/salary
+- tapOn:
+    text: "Open|פתח"
+    optional: true
+- scrollUntilVisible:
+    element:
+      id: e2e-salary-evidence
+    direction: DOWN
+- tapOn:
+    id: e2e-salary-evidence
+- scrollUntilVisible:
+    element:
+      id: e2e-evidence-edit
+    direction: DOWN
+- tapOn:
+    id: e2e-evidence-edit
+- scrollUntilVisible:
+    element:
+      id: e2e-evidence-name
+    direction: DOWN
+- tapOn:
+    id: e2e-evidence-name
+- eraseText: 30
+- inputText: E2E Edited Evidence
+- tapOn: "Start date|תאריך התחלה"
+- tapOn:
+    id: e2e-date-time-cancel
+    optional: true
+- scrollUntilVisible:
+    element:
+      id: e2e-evidence-confirm-edit
+    direction: DOWN
+- tapOn:
+    id: e2e-evidence-confirm-edit
+- scrollUntilVisible:
+    element:
+      id: e2e-evidence-save
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: e2e-evidence-save
+- extendedWaitUntil:
+    visible: E2E Edited Evidence.*
+    timeout: 30000
+- openLink: shifty://reports
+- tapOn:
+    text: "Open|פתח"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: e2e-report-row-2026-04-21
+    timeout: 30000
+- tapOn:
+    id: e2e-report-row-2026-04-21
+- assertNotVisible:
+    id: e2e-salary-unavailable-or-stale
+- tapOn: "Back|חזרה"
+- tapOn:
+    id: e2e-report-row-2026-04-22
+- assertVisible:
+    id: e2e-salary-unavailable-or-stale
+- scrollUntilVisible:
+    element:
+      id: e2e-salary-trust-toggle
+    direction: DOWN
+- tapOn:
+    id: e2e-salary-trust-toggle
+- scrollUntilVisible:
+    element:
+      text: ".*Independence Day — 2026|.*יום העצמאות — 2026"
+    direction: DOWN
+- assertVisible: ".*Independence Day — 2026|.*יום העצמאות — 2026"
+- assertNotVisible: E2E Edited Evidence.*

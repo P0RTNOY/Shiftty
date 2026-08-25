@@ -1,0 +1,30 @@
+appId: ${APP_ID}
+name: A - first use creates a real local workplace and salary profile
+tags:
+  - smoke
+  - first-use
+---
+- clearState
+- launchApp
+- runFlow: ../helpers/complete-first-use.yaml
+- assertVisible:
+    id: e2e-home-clock-in
+- assertVisible:
+    id: e2e-home-add-shift
+- assertNotVisible:
+    id: e2e-active-shift-panel
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: e2e-home-clock-in
+    timeout: 30000
+- tapOn:
+    id: e2e-tab-settings
+- tapOn:
+    id: e2e-settings-workplaces
+- scrollUntilVisible:
+    element:
+      text: E2E Workplace
+    direction: DOWN
+- assertVisible: E2E Workplace

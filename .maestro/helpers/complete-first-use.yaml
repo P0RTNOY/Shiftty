@@ -1,0 +1,24 @@
+appId: ${APP_ID}
+---
+- tapOn:
+    text: "Open|פתח"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: e2e-onboarding-start
+    timeout: 30000
+- tapOn:
+    id: e2e-onboarding-start
+- tapOn:
+    id: e2e-onboarding-workplace-name
+- inputText: E2E Workplace
+- tapOn:
+    id: e2e-onboarding-hourly-rate
+- inputText: "50"
+- tapOn: "Where do you work[?]|איפה עובדים[?]"
+- tapOn:
+    id: e2e-onboarding-complete
+- extendedWaitUntil:
+    visible:
+      id: e2e-home-clock-in
+    timeout: 30000

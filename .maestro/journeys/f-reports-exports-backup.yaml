@@ -1,0 +1,84 @@
+appId: ${APP_ID}
+name: F - finalized-zero report exposes PDF CSV ICS and backup actions
+tags:
+  - smoke
+  - exports
+  - backup
+---
+- clearState
+- launchApp
+- runFlow: ../helpers/complete-first-use.yaml
+- tapOn:
+    id: e2e-home-clock-in
+- scrollUntilVisible:
+    element:
+      id: e2e-active-clock-out
+    direction: DOWN
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: e2e-active-clock-out
+- scrollUntilVisible:
+    element:
+      id: e2e-clock-out-save
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: e2e-clock-out-save
+- extendedWaitUntil:
+    visible:
+      id: e2e-tab-reports
+    timeout: 30000
+- tapOn:
+    id: e2e-tab-reports
+- assertVisible:
+    id: e2e-reports-estimated-total
+- extendedWaitUntil:
+    visible:
+      id: e2e-reports-export
+    timeout: 30000
+- tapOn:
+    id: e2e-reports-export
+- assertVisible:
+    id: e2e-export-pdf
+- assertVisible:
+    id: e2e-export-csv
+- assertVisible:
+    id: e2e-export-ics
+- tapOn:
+    id: e2e-export-pdf
+- extendedWaitUntil:
+    visible: "Copy|העתק"
+    timeout: 30000
+- tapOn: "Copy|העתק"
+- tapOn:
+    id: e2e-export-csv
+- extendedWaitUntil:
+    visible: "Copy|העתק"
+    timeout: 30000
+- tapOn: "Copy|העתק"
+- tapOn:
+    id: e2e-export-ics
+- extendedWaitUntil:
+    visible: "Copy|העתק"
+    timeout: 30000
+- tapOn: "Copy|העתק"
+- tapOn: "Back|חזרה"
+- extendedWaitUntil:
+    visible:
+      id: e2e-tab-settings
+    timeout: 15000
+- tapOn:
+    id: e2e-tab-settings
+- tapOn:
+    id: e2e-settings-backup
+- assertVisible:
+    id: e2e-backup-export
+- assertVisible:
+    id: e2e-backup-restore
+- tapOn:
+    id: e2e-backup-export
+- extendedWaitUntil:
+    visible: "Copy|העתק"
+    timeout: 30000
+- tapOn: "Copy|העתק"
