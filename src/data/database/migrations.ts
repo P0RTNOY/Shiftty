@@ -945,4 +945,282 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       END;
     `,
   },
+  {
+    version: 9,
+    name: 'evidence_aware_holiday_rest',
+    sql: `
+      -- Premium families make multiplier interaction explicit. Existing
+      -- worked-minute rules retain the overtime-family behavior introduced in
+      -- Migration 8; every other legacy rule keeps its ordinary behavior.
+      ALTER TABLE pay_rules ADD COLUMN premium_family TEXT
+        CHECK (premium_family IS NULL OR premium_family IN ('ordinary', 'overtime', 'special_interval'));
+
+      CREATE TABLE calendar_evidence_intervals (
+        id TEXT PRIMARY KEY NOT NULL,
+        schedule_id TEXT REFERENCES weekly_rest_schedules(id) ON DELETE SET NULL,
+        workplace_id TEXT NOT NULL REFERENCES workplaces(id) ON DELETE CASCADE,
+        salary_profile_id TEXT REFERENCES salary_profiles(id) ON DELETE CASCADE,
+        interval_type TEXT NOT NULL CHECK (interval_type IN ('holiday', 'weekly_rest', 'custom')),
+        name TEXT NOT NULL CHECK (length(trim(name)) BETWEEN 1 AND 120),
+        start_at TEXT NOT NULL CHECK (julianday(start_at) IS NOT NULL),
+        end_at TEXT NOT NULL CHECK (julianday(end_at) IS NOT NULL),
+        timezone TEXT NOT NULL CHECK (length(timezone) BETWEEN 1 AND 120),
+        source_kind TEXT NOT NULL CHECK (source_kind IN ('manual', 'confirmed_preset', 'imported')),
+        source_title TEXT CHECK (source_title IS NULL OR length(source_title) <= 240),
+        source_url TEXT CHECK (source_url IS NULL OR length(source_url) <= 2048),
+        preset_id TEXT CHECK (preset_id IS NULL OR length(preset_id) <= 120),
+        preset_version TEXT CHECK (preset_version IS NULL OR length(preset_version) <= 80),
+        confirmed_at TEXT NOT NULL CHECK (julianday(confirmed_at) IS NOT NULL),
+        is_archived INTEGER NOT NULL DEFAULT 0 CHECK (is_archived IN (0, 1)),
+        archived_at TEXT CHECK (archived_at IS NULL OR julianday(archived_at) IS NOT NULL),
+        created_at TEXT NOT NULL CHECK (julianday(created_at) IS NOT NULL),
+        updated_at TEXT NOT NULL CHECK (julianday(updated_at) IS NOT NULL),
+        CHECK (julianday(end_at) > julianday(start_at)),
+        CHECK (schedule_id IS NULL OR interval_type = 'weekly_rest'),
+        CHECK (source_kind != 'confirmed_preset' OR (preset_id IS NOT NULL AND preset_version IS NOT NULL)),
+        CHECK (
+          (is_archived = 0 AND archived_at IS NULL) OR
+          (is_archived = 1 AND archived_at IS NOT NULL)
+        )
+      );
+
+      CREATE TABLE weekly_rest_schedules (
+        id TEXT PRIMARY KEY NOT NULL,
+        workplace_id TEXT NOT NULL REFERENCES workplaces(id) ON DELETE CASCADE,
+        salary_profile_id TEXT NOT NULL REFERENCES salary_profiles(id) ON DELETE CASCADE,
+        label TEXT NOT NULL CHECK (length(trim(label)) BETWEEN 1 AND 120),
+        start_weekday INTEGER NOT NULL CHECK (start_weekday BETWEEN 0 AND 6),
+        start_time TEXT NOT NULL,
+        end_weekday INTEGER NOT NULL CHECK (end_weekday BETWEEN 0 AND 6),
+        end_time TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),
+        source_kind TEXT NOT NULL CHECK (source_kind IN ('manual', 'confirmed_preset', 'imported')),
+        source_title TEXT CHECK (source_title IS NULL OR length(source_title) <= 240),
+        source_url TEXT CHECK (source_url IS NULL OR length(source_url) <= 2048),
+        preset_id TEXT CHECK (preset_id IS NULL OR length(preset_id) <= 120),
+        preset_version TEXT CHECK (preset_version IS NULL OR length(preset_version) <= 80),
+        confirmed_at TEXT CHECK (confirmed_at IS NULL OR julianday(confirmed_at) IS NOT NULL),
+        is_archived INTEGER NOT NULL DEFAULT 0 CHECK (is_archived IN (0, 1)),
+        archived_at TEXT CHECK (archived_at IS NULL OR julianday(archived_at) IS NOT NULL),
+        created_at TEXT NOT NULL CHECK (julianday(created_at) IS NOT NULL),
+        updated_at TEXT NOT NULL CHECK (julianday(updated_at) IS NOT NULL),
+        CHECK (
+          start_time GLOB '[0-2][0-9]:[0-5][0-9]' AND
+          CAST(substr(start_time, 1, 2) AS INTEGER) BETWEEN 0 AND 23 AND
+          CAST(substr(start_time, 4, 2) AS INTEGER) BETWEEN 0 AND 59
+        ),
+        CHECK (
+          end_time GLOB '[0-2][0-9]:[0-5][0-9]' AND
+          CAST(substr(end_time, 1, 2) AS INTEGER) BETWEEN 0 AND 23 AND
+          CAST(substr(end_time, 4, 2) AS INTEGER) BETWEEN 0 AND 59
+        ),
+        CHECK (start_weekday != end_weekday OR start_time != end_time),
+        CHECK (enabled = 0 OR confirmed_at IS NOT NULL),
+        CHECK (source_kind != 'confirmed_preset' OR (preset_id IS NOT NULL AND preset_version IS NOT NULL)),
+        CHECK (
+          (is_archived = 0 AND archived_at IS NULL) OR
+          (is_archived = 1 AND archived_at IS NOT NULL)
+        ),
+        UNIQUE(salary_profile_id)
+      );
+
+      CREATE INDEX evidence_intervals_workplace_range
+        ON calendar_evidence_intervals(workplace_id, is_archived, julianday(start_at), julianday(end_at));
+      CREATE INDEX evidence_intervals_profile_range
+        ON calendar_evidence_intervals(salary_profile_id, is_archived, julianday(start_at), julianday(end_at))
+        WHERE salary_profile_id IS NOT NULL;
+      CREATE INDEX weekly_rest_schedules_workplace
+        ON weekly_rest_schedules(workplace_id, is_archived, enabled, salary_profile_id);
+
+      CREATE TRIGGER prevent_cross_workplace_evidence_profile_insert
+      BEFORE INSERT ON calendar_evidence_intervals
+      WHEN NEW.salary_profile_id IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM salary_profiles
+        WHERE id = NEW.salary_profile_id AND workplace_id = NEW.workplace_id
+      )
+      BEGIN SELECT RAISE(ABORT, 'evidence interval profile must belong to its workplace'); END;
+
+      -- Child-side guards above cover evidence/schedule edits. This parent-side
+      -- guard prevents moving a salary profile while scoped children would be
+      -- left associated with the old workplace.
+      CREATE TRIGGER prevent_profile_move_stranding_evidence
+      BEFORE UPDATE OF workplace_id ON salary_profiles
+      WHEN NOT (OLD.workplace_id IS NEW.workplace_id) AND (
+        EXISTS (
+          SELECT 1 FROM calendar_evidence_intervals interval
+          WHERE interval.salary_profile_id = OLD.id
+            AND NOT (interval.workplace_id IS NEW.workplace_id)
+        ) OR EXISTS (
+          SELECT 1 FROM weekly_rest_schedules schedule
+          WHERE schedule.salary_profile_id = OLD.id
+            AND NOT (schedule.workplace_id IS NEW.workplace_id)
+        )
+      )
+      BEGIN SELECT RAISE(ABORT, 'salary profile move would strand evidence configuration'); END;
+
+      CREATE TRIGGER prevent_cross_workplace_weekly_rest_insert
+      BEFORE INSERT ON weekly_rest_schedules
+      WHEN NOT EXISTS (
+        SELECT 1 FROM salary_profiles
+        WHERE id = NEW.salary_profile_id AND workplace_id = NEW.workplace_id
+      )
+      BEGIN SELECT RAISE(ABORT, 'weekly-rest profile must belong to its workplace'); END;
+
+      CREATE TRIGGER prevent_cross_workplace_weekly_rest_update
+      BEFORE UPDATE OF workplace_id, salary_profile_id ON weekly_rest_schedules
+      WHEN NOT EXISTS (
+        SELECT 1 FROM salary_profiles
+        WHERE id = NEW.salary_profile_id AND workplace_id = NEW.workplace_id
+      )
+      BEGIN SELECT RAISE(ABORT, 'weekly-rest profile must belong to its workplace'); END;
+
+      CREATE TRIGGER prevent_cross_workplace_evidence_profile_update
+      BEFORE UPDATE OF workplace_id, salary_profile_id ON calendar_evidence_intervals
+      WHEN NEW.salary_profile_id IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM salary_profiles
+        WHERE id = NEW.salary_profile_id AND workplace_id = NEW.workplace_id
+      )
+      BEGIN SELECT RAISE(ABORT, 'evidence interval profile must belong to its workplace'); END;
+
+      CREATE TRIGGER prevent_mismatched_evidence_schedule_insert
+      BEFORE INSERT ON calendar_evidence_intervals
+      WHEN NEW.schedule_id IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM weekly_rest_schedules
+        WHERE id = NEW.schedule_id
+          AND workplace_id = NEW.workplace_id
+          AND salary_profile_id IS NEW.salary_profile_id
+      )
+      BEGIN SELECT RAISE(ABORT, 'evidence interval schedule must match its workplace and profile'); END;
+
+      CREATE TRIGGER prevent_mismatched_evidence_schedule_update
+      BEFORE UPDATE OF schedule_id, workplace_id, salary_profile_id ON calendar_evidence_intervals
+      WHEN NEW.schedule_id IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM weekly_rest_schedules
+        WHERE id = NEW.schedule_id
+          AND workplace_id = NEW.workplace_id
+          AND salary_profile_id IS NEW.salary_profile_id
+      )
+      BEGIN SELECT RAISE(ABORT, 'evidence interval schedule must match its workplace and profile'); END;
+
+      -- Evidence is part of the estimate disclosure even when no pay rule is
+      -- connected, so an added interval precisely stales overlapping completed
+      -- calculations without changing or deleting their frozen snapshots.
+      CREATE TRIGGER mark_salary_stale_after_evidence_insert
+      AFTER INSERT ON calendar_evidence_intervals
+      WHEN NEW.is_archived = 0
+      BEGIN
+        UPDATE shifts SET salary_calculation_status = 'stale'
+        WHERE status = 'completed' AND salary_calculation_status = 'finalized'
+          AND workplace_id = NEW.workplace_id
+          AND julianday(COALESCE(payable_start, actual_start, scheduled_start)) < julianday(NEW.end_at)
+          AND julianday(COALESCE(payable_end, actual_end, scheduled_end)) > julianday(NEW.start_at)
+          AND (
+            NEW.salary_profile_id IS NULL OR EXISTS (
+              SELECT 1 FROM salary_calculation_snapshots snapshot
+              WHERE snapshot.shift_id = shifts.id AND snapshot.is_current = 1
+                AND snapshot.status = 'finalized' AND snapshot.salary_profile_id = NEW.salary_profile_id
+            )
+          );
+      END;
+
+      CREATE TRIGGER mark_salary_stale_after_evidence_update
+      AFTER UPDATE OF workplace_id, salary_profile_id, interval_type, name, start_at, end_at,
+        timezone, source_kind, source_title, source_url, preset_id, preset_version, confirmed_at,
+        is_archived, archived_at ON calendar_evidence_intervals
+      BEGIN
+        UPDATE shifts SET salary_calculation_status = 'stale'
+        WHERE status = 'completed' AND salary_calculation_status = 'finalized'
+          AND (
+            (
+              OLD.is_archived = 0 AND workplace_id = OLD.workplace_id
+              AND julianday(COALESCE(payable_start, actual_start, scheduled_start)) < julianday(OLD.end_at)
+              AND julianday(COALESCE(payable_end, actual_end, scheduled_end)) > julianday(OLD.start_at)
+              AND (
+                OLD.salary_profile_id IS NULL OR EXISTS (
+                  SELECT 1 FROM salary_calculation_snapshots snapshot
+                  WHERE snapshot.shift_id = shifts.id AND snapshot.is_current = 1
+                    AND snapshot.status = 'finalized' AND snapshot.salary_profile_id = OLD.salary_profile_id
+                )
+              )
+            ) OR (
+              NEW.is_archived = 0 AND workplace_id = NEW.workplace_id
+              AND julianday(COALESCE(payable_start, actual_start, scheduled_start)) < julianday(NEW.end_at)
+              AND julianday(COALESCE(payable_end, actual_end, scheduled_end)) > julianday(NEW.start_at)
+              AND (
+                NEW.salary_profile_id IS NULL OR EXISTS (
+                  SELECT 1 FROM salary_calculation_snapshots snapshot
+                  WHERE snapshot.shift_id = shifts.id AND snapshot.is_current = 1
+                    AND snapshot.status = 'finalized' AND snapshot.salary_profile_id = NEW.salary_profile_id
+                )
+              )
+            ) OR EXISTS (
+              SELECT 1 FROM salary_calculation_snapshots snapshot
+              JOIN json_each(snapshot.result_json, '$.specialIntervalEvaluations') evaluation
+              WHERE snapshot.shift_id = shifts.id AND snapshot.is_current = 1
+                AND snapshot.status = 'finalized'
+                AND json_extract(evaluation.value, '$.intervalId') = OLD.id
+            )
+          );
+      END;
+
+      CREATE TRIGGER mark_salary_stale_before_evidence_delete
+      BEFORE DELETE ON calendar_evidence_intervals
+      BEGIN
+        UPDATE shifts SET salary_calculation_status = 'stale'
+        WHERE status = 'completed' AND salary_calculation_status = 'finalized'
+          AND (
+            (
+              OLD.is_archived = 0
+              AND workplace_id = OLD.workplace_id
+              AND julianday(COALESCE(payable_start, actual_start, scheduled_start)) < julianday(OLD.end_at)
+              AND julianday(COALESCE(payable_end, actual_end, scheduled_end)) > julianday(OLD.start_at)
+              AND (OLD.salary_profile_id IS NULL OR EXISTS (
+                SELECT 1 FROM salary_calculation_snapshots snapshot
+                WHERE snapshot.shift_id = shifts.id AND snapshot.is_current = 1
+                  AND snapshot.status = 'finalized' AND snapshot.salary_profile_id = OLD.salary_profile_id
+              ))
+            ) OR EXISTS (
+              SELECT 1 FROM salary_calculation_snapshots snapshot
+              JOIN json_each(snapshot.result_json, '$.specialIntervalEvaluations') evaluation
+              WHERE snapshot.shift_id = shifts.id AND snapshot.is_current = 1
+                AND snapshot.status = 'finalized'
+                AND json_extract(evaluation.value, '$.intervalId') = OLD.id
+            )
+          );
+      END;
+
+      -- New recurring occurrences are resolved in application code because
+      -- SQLite has no IANA timezone/DST model. These defensive triggers still
+      -- invalidate every finalized calculation that froze the old schedule.
+      CREATE TRIGGER mark_salary_stale_after_weekly_rest_update
+      AFTER UPDATE OF workplace_id, salary_profile_id, label, start_weekday, start_time,
+        end_weekday, end_time, enabled, confirmed_at, source_kind, source_title, source_url,
+        preset_id, preset_version, is_archived, archived_at ON weekly_rest_schedules
+      BEGIN
+        UPDATE shifts SET salary_calculation_status = 'stale'
+        WHERE status = 'completed' AND salary_calculation_status = 'finalized'
+          AND EXISTS (
+            SELECT 1 FROM salary_calculation_snapshots snapshot
+            JOIN json_each(snapshot.result_json, '$.specialIntervalEvaluations') evaluation
+            WHERE snapshot.shift_id = shifts.id AND snapshot.is_current = 1
+              AND snapshot.status = 'finalized'
+              AND json_extract(evaluation.value, '$.scheduleId') = OLD.id
+          );
+      END;
+
+      CREATE TRIGGER mark_salary_stale_before_weekly_rest_delete
+      BEFORE DELETE ON weekly_rest_schedules
+      BEGIN
+        UPDATE shifts SET salary_calculation_status = 'stale'
+        WHERE status = 'completed' AND salary_calculation_status = 'finalized'
+          AND EXISTS (
+            SELECT 1 FROM salary_calculation_snapshots snapshot
+            JOIN json_each(snapshot.result_json, '$.specialIntervalEvaluations') evaluation
+            WHERE snapshot.shift_id = shifts.id AND snapshot.is_current = 1
+              AND snapshot.status = 'finalized'
+              AND json_extract(evaluation.value, '$.scheduleId') = OLD.id
+          );
+      END;
+    `,
+  },
 ];

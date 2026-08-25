@@ -108,4 +108,22 @@ describe('database migrations', () => {
     expect(migration?.sql).toContain('mark_later_salary_dependencies_stale_before_delete');
     expect(migration?.sql).not.toContain('UPDATE salary_calculation_snapshots SET result_json');
   });
+
+  it('adds neutral evidence storage, recurring-rest configuration, and explicit premium families', () => {
+    const migration = DATABASE_MIGRATIONS.find((item) => item.version === 9);
+    expect(migration?.name).toBe('evidence_aware_holiday_rest');
+    expect(migration?.sql).toContain('CREATE TABLE calendar_evidence_intervals');
+    expect(migration?.sql).toContain('CREATE TABLE weekly_rest_schedules');
+    expect(migration?.sql).toContain('premium_family TEXT');
+    expect(migration?.sql).toContain('evidence_intervals_workplace_range');
+    expect(migration?.sql).toContain('prevent_cross_workplace_evidence_profile_insert');
+    expect(migration?.sql).toContain('prevent_profile_move_stranding_evidence');
+    expect(migration?.sql).toContain('prevent_mismatched_evidence_schedule_insert');
+    expect(migration?.sql).toContain("schedule_id TEXT REFERENCES weekly_rest_schedules(id) ON DELETE SET NULL");
+    expect(migration?.sql).toContain("start_time GLOB '[0-2][0-9]:[0-5][0-9]'");
+    expect(migration?.sql).toContain('mark_salary_stale_after_evidence_insert');
+    expect(migration?.sql).toContain('mark_salary_stale_after_weekly_rest_update');
+    expect(migration?.sql).not.toContain('INSERT INTO weekly_rest_schedules');
+    expect(migration?.sql).not.toContain('UPDATE salary_calculation_snapshots SET result_json');
+  });
 });

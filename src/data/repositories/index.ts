@@ -1,4 +1,5 @@
 export * from './sqlite-active-shift-repository';
+export * from './sqlite-calendar-evidence-repositories';
 export * from './sqlite-notification-settings-repository';
 export * from './sqlite-prediction-feedback-repository';
 export * from './sqlite-recurrence-repository';

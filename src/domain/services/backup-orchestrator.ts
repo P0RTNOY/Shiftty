@@ -2,6 +2,11 @@ import { SQLiteDatabase } from 'expo-sqlite';
 import { BackupEnvelopeV1, BackupDataV1, parseBackupEnvelope, BackupEnvelopeV1Schema } from '@/domain/entities/backup';
 import Constants from 'expo-constants';
 import * as Crypto from 'expo-crypto';
+import { calendarEvidenceIntervalSchema, weeklyRestScheduleSchema, type WeeklyRestSchedule } from '@/domain/entities/calendar-evidence';
+import { resolveWeeklyRestOccurrences } from '@/domain/services/weekly-rest-occurrence-service';
+import { payRuleSchema } from '@/domain/entities/pay-rule';
+import { salaryCalculationSnapshotSchema } from '@/domain/entities/salary-calculation';
+import { collectSpecialRuleAffectedShiftIds, markSalaryStaleMany } from '@/data/repositories/sqlite-salary-repositories';
 
 export interface RestoreResult {
   success: boolean;
@@ -27,6 +32,8 @@ export class BackupOrchestrator {
       predictionFeedback: await this.fetchAll('prediction_feedback', this.mapPredictionFeedback),
       scheduledNotifications: await this.fetchAll('scheduled_notification_records', this.mapScheduledNotification),
       workplaceNotificationOverrides: await this.fetchAll('workplace_notification_overrides', this.mapWorkplaceNotificationOverride),
+      calendarEvidenceIntervals: await this.fetchAll('calendar_evidence_intervals', this.mapCalendarEvidenceInterval),
+      weeklyRestSchedules: await this.fetchAll('weekly_rest_schedules', this.mapWeeklyRestSchedule),
       exportPresets: await this.fetchAll('export_presets', this.mapExportPreset),
       exportHistory: await this.fetchAll('export_history', this.mapExportHistory),
       appSettings: await this.fetchAll('app_settings', this.mapAppSetting),
@@ -53,6 +60,8 @@ export class BackupOrchestrator {
         predictionFeedback: data.predictionFeedback.length,
         scheduledNotifications: data.scheduledNotifications.length,
         workplaceNotificationOverrides: data.workplaceNotificationOverrides.length,
+        calendarEvidenceIntervals: data.calendarEvidenceIntervals.length,
+        weeklyRestSchedules: data.weeklyRestSchedules.length,
         exportPresets: data.exportPresets.length,
         exportHistory: data.exportHistory.length,
         appSettings: data.appSettings.length,
@@ -94,6 +103,8 @@ export class BackupOrchestrator {
       predictionFeedback: data.predictionFeedback.length,
       scheduledNotifications: data.scheduledNotifications.length,
       workplaceNotificationOverrides: data.workplaceNotificationOverrides.length,
+      calendarEvidenceIntervals: data.calendarEvidenceIntervals.length,
+      weeklyRestSchedules: data.weeklyRestSchedules.length,
       exportPresets: data.exportPresets.length,
       exportHistory: data.exportHistory.length,
       appSettings: data.appSettings.length,
@@ -110,6 +121,9 @@ export class BackupOrchestrator {
     const templateIds = new Set(data.shiftTemplates.map((template) => template.id));
     const seriesIds = new Set(data.recurrenceSeries.map((series) => series.id));
     const breakIds = new Set(data.breakSessions.map((session) => session.id));
+    const evidenceIds = new Set(data.calendarEvidenceIntervals.map((interval) => interval.id));
+    const scheduleIds = new Set(data.weeklyRestSchedules.map((schedule) => schedule.id));
+    const schedulesById = new Map(data.weeklyRestSchedules.map((schedule) => [schedule.id, schedule]));
 
     // Validations: Unique IDs
     if (wpIds.size !== data.workplaces.length) errors.push('Duplicate workplace IDs found');
@@ -119,6 +133,9 @@ export class BackupOrchestrator {
     if (templateIds.size !== data.shiftTemplates.length) errors.push('Duplicate shift template IDs found');
     if (seriesIds.size !== data.recurrenceSeries.length) errors.push('Duplicate recurrence series IDs found');
     if (breakIds.size !== data.breakSessions.length) errors.push('Duplicate break session IDs found');
+    if (evidenceIds.size !== data.calendarEvidenceIntervals.length) errors.push('Duplicate evidence interval IDs found');
+    if (scheduleIds.size !== data.weeklyRestSchedules.length) errors.push('Duplicate weekly-rest schedule IDs found');
+    if (new Set(data.weeklyRestSchedules.map((schedule) => schedule.salaryProfileId)).size !== data.weeklyRestSchedules.length) errors.push('Multiple weekly-rest schedules reference the same salary profile');
     if (new Set(data.scheduledNotifications.map((item) => item.logicalKey)).size !== data.scheduledNotifications.length) errors.push('Duplicate scheduled notification keys found');
     if (new Set(data.appSettings.map((item) => item.key)).size !== data.appSettings.length) errors.push('Duplicate app setting keys found');
 
@@ -176,6 +193,20 @@ export class BackupOrchestrator {
     for (const override of data.workplaceNotificationOverrides) {
       if (!wpIds.has(override.workplaceId)) errors.push(`Notification override references missing workplace ${override.workplaceId}`);
     }
+    for (const interval of data.calendarEvidenceIntervals) {
+      if (!wpIds.has(interval.workplaceId)) errors.push(`Evidence interval ${interval.id} references missing workplace ${interval.workplaceId}`);
+      if (interval.salaryProfileId && !profileIds.has(interval.salaryProfileId)) errors.push(`Evidence interval ${interval.id} references missing salary profile ${interval.salaryProfileId}`);
+      if (interval.salaryProfileId && profileWorkplaces.get(interval.salaryProfileId) !== interval.workplaceId) errors.push(`Evidence interval ${interval.id} references a salary profile from another workplace`);
+      if (interval.scheduleId && !scheduleIds.has(interval.scheduleId)) errors.push(`Evidence interval ${interval.id} references missing weekly-rest schedule ${interval.scheduleId}`);
+      const linkedSchedule = interval.scheduleId ? schedulesById.get(interval.scheduleId) : undefined;
+      if (linkedSchedule && linkedSchedule.workplaceId !== interval.workplaceId) errors.push(`Evidence interval ${interval.id} references a weekly-rest schedule from another workplace`);
+      if (linkedSchedule && linkedSchedule.salaryProfileId !== interval.salaryProfileId) errors.push(`Evidence interval ${interval.id} references a weekly-rest schedule from another salary profile`);
+    }
+    for (const schedule of data.weeklyRestSchedules) {
+      if (!wpIds.has(schedule.workplaceId)) errors.push(`Weekly-rest schedule ${schedule.id} references missing workplace ${schedule.workplaceId}`);
+      if (!profileIds.has(schedule.salaryProfileId)) errors.push(`Weekly-rest schedule ${schedule.id} references missing salary profile ${schedule.salaryProfileId}`);
+      if (profileWorkplaces.get(schedule.salaryProfileId) !== schedule.workplaceId) errors.push(`Weekly-rest schedule ${schedule.id} references a salary profile from another workplace`);
+    }
 
     // Active shift rules
     const activeShifts = data.shifts.filter(s => s.status === 'active');
@@ -229,6 +260,8 @@ export class BackupOrchestrator {
         await this.db.runAsync('DELETE FROM recurrence_series');
         await this.db.runAsync('DELETE FROM shift_templates');
         await this.db.runAsync('DELETE FROM roles');
+        await this.db.runAsync('DELETE FROM calendar_evidence_intervals');
+        await this.db.runAsync('DELETE FROM weekly_rest_schedules');
         // Due to circular FKs, we must clear workplaces' salary_profile_id first
         await this.db.runAsync('UPDATE workplaces SET salary_profile_id = NULL');
         await this.db.runAsync('DELETE FROM pay_rules');
@@ -255,7 +288,13 @@ export class BackupOrchestrator {
           await this.db.runAsync('INSERT INTO salary_profiles (id, workplace_id, name, currency, standard_hourly_rate_minor, break_policy, timezone, default_travel_reimbursement_minor, default_shift_bonus_minor, calculation_rounding_mode, workweek_start_weekday, weekly_overtime_enabled, weekly_regular_minutes, weekly_overtime_multiplier_basis_points, weekly_overtime_basis, effective_from, effective_to, is_active, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [sp.id, sp.workplaceId || null, sp.name, sp.currency, sp.baseHourlyRateMinor ?? null, sp.breakPolicy, sp.timezone, sp.defaultTravelReimbursementMinor ?? 0, sp.defaultShiftBonusMinor ?? 0, sp.calculationRoundingMode, sp.workweekStartWeekday, sp.weeklyOvertimeEnabled ? 1 : 0, sp.weeklyRegularMinutes ?? null, sp.weeklyOvertimeMultiplierBasisPoints ?? null, sp.weeklyOvertimeBasis, sp.effectiveFrom ?? null, sp.effectiveTo ?? null, sp.isActive ? 1 : 0, sp.isArchived ? 1 : 0, sp.createdAt, sp.updatedAt]);
         }
         for (const r of data.payRules) {
-          await this.db.runAsync('INSERT INTO pay_rules (id, salary_profile_id, name, priority, conditions_json, effect_json, can_stack, is_enabled, effective_from, effective_to, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [r.id, r.salaryProfileId, r.name, r.priority, JSON.stringify(r.conditions), JSON.stringify(r.effect), r.canStack ? 1 : 0, r.isEnabled ? 1 : 0, r.effectiveFrom || null, r.effectiveTo || null, r.createdAt, r.updatedAt]);
+          await this.db.runAsync('INSERT INTO pay_rules (id, salary_profile_id, name, priority, conditions_json, effect_json, can_stack, premium_family, is_enabled, effective_from, effective_to, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [r.id, r.salaryProfileId, r.name, r.priority, JSON.stringify(r.conditions), JSON.stringify(r.effect), r.canStack ? 1 : 0, r.premiumFamily ?? null, r.isEnabled ? 1 : 0, r.effectiveFrom || null, r.effectiveTo || null, r.createdAt, r.updatedAt]);
+        }
+        for (const schedule of data.weeklyRestSchedules) {
+          await this.insertWeeklyRestSchedule(schedule, schedule.id, schedule.workplaceId, schedule.salaryProfileId);
+        }
+        for (const interval of data.calendarEvidenceIntervals) {
+          await this.insertCalendarEvidenceInterval(interval, interval.id, interval.workplaceId, interval.salaryProfileId ?? null);
         }
         for (const w of data.workplaces) {
           if (w.salaryProfileId) {
@@ -337,9 +376,12 @@ export class BackupOrchestrator {
         await this.db.runAsync('PRAGMA defer_foreign_keys = ON');
 
         const idMap = new Map<string, string>();
+        const payRuleIdMap = new Map<string, string>();
+        const evidenceIdMap = new Map<string, string>();
+        const scheduleIdMap = new Map<string, string>();
         const insertedWorkplaceIds = new Set<string>();
         
-        const remapId = async (table: string, oldId: string, fieldsToCheck: any): Promise<{id: string, isNew: boolean, skip: boolean}> => {
+        const remapId = async (table: string, oldId: string, fieldsToCheck: any, registerGlobal = true): Promise<{id: string, isNew: boolean, skip: boolean}> => {
           const existing = await this.db.getFirstAsync<any>(`SELECT * FROM ${table} WHERE id = ?`, [oldId]);
           if (!existing) {
             return { id: oldId, isNew: true, skip: false }; // Insert with original ID
@@ -348,7 +390,7 @@ export class BackupOrchestrator {
             return { id: oldId, isNew: false, skip: true };
           }
           const newId = Crypto.randomUUID();
-          idMap.set(oldId, newId);
+          if (registerGlobal) idMap.set(oldId, newId);
           return { id: newId, isNew: true, skip: false };
         };
 
@@ -374,8 +416,93 @@ export class BackupOrchestrator {
           if (!skip) await this.db.runAsync('INSERT INTO salary_profiles (id, workplace_id, name, currency, standard_hourly_rate_minor, break_policy, timezone, default_travel_reimbursement_minor, default_shift_bonus_minor, calculation_rounding_mode, workweek_start_weekday, weekly_overtime_enabled, weekly_regular_minutes, weekly_overtime_multiplier_basis_points, weekly_overtime_basis, effective_from, effective_to, is_active, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, getMappedId(sp.workplaceId), sp.name, sp.currency, sp.baseHourlyRateMinor ?? null, sp.breakPolicy, sp.timezone, sp.defaultTravelReimbursementMinor ?? 0, sp.defaultShiftBonusMinor ?? 0, sp.calculationRoundingMode, sp.workweekStartWeekday, sp.weeklyOvertimeEnabled ? 1 : 0, sp.weeklyRegularMinutes ?? null, sp.weeklyOvertimeMultiplierBasisPoints ?? null, sp.weeklyOvertimeBasis, sp.effectiveFrom ?? null, sp.effectiveTo ?? null, sp.isActive ? 1 : 0, sp.isArchived ? 1 : 0, sp.createdAt, sp.updatedAt]);
         }
         for (const r of data.payRules) {
-          const { id, skip } = await remapId('pay_rules', r.id, r);
-          if (!skip) await this.db.runAsync('INSERT INTO pay_rules (id, salary_profile_id, name, priority, conditions_json, effect_json, can_stack, is_enabled, effective_from, effective_to, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, getMappedId(r.salaryProfileId), r.name, r.priority, JSON.stringify(r.conditions), JSON.stringify(r.effect), r.canStack ? 1 : 0, r.isEnabled ? 1 : 0, r.effectiveFrom || null, r.effectiveTo || null, r.createdAt, r.updatedAt]);
+          let { id, skip } = await remapId('pay_rules', r.id, r, false);
+          let mappedRule = payRuleSchema.parse({
+            ...r,
+            id,
+            salaryProfileId: getMappedId(r.salaryProfileId),
+          });
+          if (skip) {
+            const existing = await this.db.getFirstAsync<any>('SELECT * FROM pay_rules WHERE id = ?;', r.id);
+            const existingRule = existing
+              ? payRuleSchema.parse(this.stripNulls(this.mapPayRule(existing)))
+              : null;
+            if (!existingRule || JSON.stringify(existingRule) !== JSON.stringify(mappedRule)) {
+              id = Crypto.randomUUID();
+              skip = false;
+              mappedRule = payRuleSchema.parse({ ...mappedRule, id });
+            }
+          }
+          if (id !== r.id) payRuleIdMap.set(r.id, id);
+          if (!skip) {
+            const staleIds = await collectSpecialRuleAffectedShiftIds(this.db, null, mappedRule);
+            await this.db.runAsync('INSERT INTO pay_rules (id, salary_profile_id, name, priority, conditions_json, effect_json, can_stack, premium_family, is_enabled, effective_from, effective_to, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, mappedRule.salaryProfileId, r.name, r.priority, JSON.stringify(r.conditions), JSON.stringify(r.effect), r.canStack ? 1 : 0, r.premiumFamily ?? null, r.isEnabled ? 1 : 0, r.effectiveFrom || null, r.effectiveTo || null, r.createdAt, r.updatedAt]);
+            await markSalaryStaleMany(this.db, staleIds);
+          }
+        }
+        for (const schedule of data.weeklyRestSchedules) {
+          let { id, skip } = await remapId('weekly_rest_schedules', schedule.id, schedule, false);
+          const mappedSchedule = weeklyRestScheduleSchema.parse({
+            ...schedule,
+            id,
+            workplaceId: getMappedId(schedule.workplaceId),
+            salaryProfileId: getMappedId(schedule.salaryProfileId),
+          });
+          if (skip) {
+            const existing = await this.db.getFirstAsync<any>(
+              'SELECT * FROM weekly_rest_schedules WHERE id = ?;',
+              schedule.id,
+            );
+            const existingSchedule = existing
+              ? weeklyRestScheduleSchema.parse(this.stripNulls(this.mapWeeklyRestSchedule(existing)))
+              : null;
+            if (!existingSchedule || JSON.stringify(existingSchedule) !== JSON.stringify(mappedSchedule)) {
+              id = Crypto.randomUUID();
+              skip = false;
+            }
+          }
+          if (id !== schedule.id) scheduleIdMap.set(schedule.id, id);
+          const mappedWorkplaceId = getMappedId(schedule.workplaceId)!;
+          const mappedProfileId = getMappedId(schedule.salaryProfileId)!;
+          const profileConflict = await this.db.getFirstAsync<{ id: string }>(
+            'SELECT id FROM weekly_rest_schedules WHERE salary_profile_id = ? AND id != ?;',
+            mappedProfileId,
+            id,
+          );
+          if (profileConflict) throw new Error(`Weekly-rest schedule conflict for salary profile ${mappedProfileId}`);
+          if (!skip) await this.insertWeeklyRestSchedule(schedule, id, mappedWorkplaceId, mappedProfileId);
+        }
+        for (const interval of data.calendarEvidenceIntervals) {
+          let { id, skip } = await remapId('calendar_evidence_intervals', interval.id, interval, false);
+          const mappedInterval = calendarEvidenceIntervalSchema.parse({
+            ...interval,
+            id,
+            scheduleId: interval.scheduleId
+              ? scheduleIdMap.get(interval.scheduleId) ?? interval.scheduleId
+              : undefined,
+            workplaceId: getMappedId(interval.workplaceId),
+            salaryProfileId: getMappedId(interval.salaryProfileId) ?? undefined,
+          });
+          if (skip) {
+            const existing = await this.db.getFirstAsync<any>(
+              'SELECT * FROM calendar_evidence_intervals WHERE id = ?;',
+              interval.id,
+            );
+            const existingInterval = existing
+              ? calendarEvidenceIntervalSchema.parse(this.stripNulls(this.mapCalendarEvidenceInterval(existing)))
+              : null;
+            if (!existingInterval || JSON.stringify(existingInterval) !== JSON.stringify(mappedInterval)) {
+              id = Crypto.randomUUID();
+              skip = false;
+            }
+          }
+          if (id !== interval.id) evidenceIdMap.set(interval.id, id);
+          if (!skip) await this.insertCalendarEvidenceInterval(
+            mappedInterval,
+            id,
+            getMappedId(interval.workplaceId)!,
+            getMappedId(interval.salaryProfileId),
+          );
         }
         for (const w of data.workplaces) {
           if (w.salaryProfileId) {
@@ -430,8 +557,45 @@ export class BackupOrchestrator {
           if (!skip) await this.db.runAsync('INSERT INTO break_sessions (id, shift_id, start_at, end_at, is_paid, source, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, getMappedId(b.shiftId), b.start, b.end ?? null, b.isPaid ? 1 : 0, b.source, b.notes ?? null, b.createdAt, b.updatedAt]);
         }
         for (const ss of data.salarySnapshots) {
-          const { id, skip } = await remapId('salary_calculation_snapshots', ss.id, ss);
-          if (!skip) await this.db.runAsync('INSERT INTO salary_calculation_snapshots (id, shift_id, version, status, context, salary_profile_id, resolved_rate_minor, payable_minutes, regular_minutes, special_rate_minutes, base_pay_minor, premium_pay_minor, fixed_bonuses_minor, reimbursements_minor, total_gross_pay_minor, result_json, engine_version, calculated_at, is_current, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, getMappedId(ss.shiftId), ss.version, ss.status, ss.result.context, getMappedId(ss.salaryProfileId), ss.result.resolvedBaseHourlyRateMinor ?? null, ss.result.payableMinutes, ss.result.regularMinutes, ss.result.specialRateMinutes, ss.result.basePayMinor, ss.result.premiumPayMinor, ss.result.fixedBonusesMinor, ss.result.reimbursementsMinor, ss.result.totalGrossPayMinor ?? null, JSON.stringify(ss.result), ss.result.engineVersion, ss.result.calculatedAt, 0, ss.createdAt]); // is_current = 0 on merge to be safe
+          const mappedShiftId = getMappedId(ss.shiftId)!;
+          const mappedResult = this.remapSnapshotEvidence(ss.result, evidenceIdMap, scheduleIdMap, payRuleIdMap);
+          const mappedSnapshot = salaryCalculationSnapshotSchema.parse({
+            ...ss,
+            shiftId: mappedShiftId,
+            salaryProfileId: getMappedId(ss.salaryProfileId) ?? undefined,
+            result: mappedResult,
+          });
+          const existingById = await this.db.getFirstAsync<any>(
+            'SELECT * FROM salary_calculation_snapshots WHERE id = ?;',
+            ss.id,
+          );
+          const existingSnapshot = existingById
+            ? salaryCalculationSnapshotSchema.parse(this.stripNulls(this.mapSalarySnapshot(existingById)))
+            : null;
+          if (existingSnapshot && JSON.stringify(existingSnapshot) === JSON.stringify(mappedSnapshot)) continue;
+          const id = existingSnapshot ? Crypto.randomUUID() : ss.id;
+          const versionConflict = await this.db.getFirstAsync<any>(
+            'SELECT * FROM salary_calculation_snapshots WHERE shift_id = ? AND version = ? LIMIT 1;',
+            mappedShiftId,
+            ss.version,
+          );
+          if (versionConflict) {
+            const conflictingSnapshot = salaryCalculationSnapshotSchema.parse(
+              this.stripNulls(this.mapSalarySnapshot(versionConflict)),
+            );
+            const sameVersionSnapshot = salaryCalculationSnapshotSchema.parse({
+              ...mappedSnapshot,
+              id: conflictingSnapshot.id,
+            });
+            if (JSON.stringify(conflictingSnapshot) === JSON.stringify(sameVersionSnapshot)) continue;
+            throw new Error(`Salary snapshot version conflict for shift ${mappedShiftId}, version ${ss.version}`);
+          }
+          const existingCurrent = await this.db.getFirstAsync<{ id: string }>(
+            'SELECT id FROM salary_calculation_snapshots WHERE shift_id = ? AND is_current = 1 LIMIT 1;',
+            mappedShiftId,
+          );
+          const preserveCurrent = ss.isCurrent && !existingCurrent;
+          await this.db.runAsync('INSERT INTO salary_calculation_snapshots (id, shift_id, version, status, context, salary_profile_id, resolved_rate_minor, payable_minutes, regular_minutes, special_rate_minutes, base_pay_minor, premium_pay_minor, fixed_bonuses_minor, reimbursements_minor, total_gross_pay_minor, result_json, engine_version, calculated_at, is_current, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, mappedShiftId, ss.version, ss.status, mappedResult.context, getMappedId(ss.salaryProfileId), mappedResult.resolvedBaseHourlyRateMinor ?? null, mappedResult.payableMinutes, mappedResult.regularMinutes, mappedResult.specialRateMinutes, mappedResult.basePayMinor, mappedResult.premiumPayMinor, mappedResult.fixedBonusesMinor, mappedResult.reimbursementsMinor, mappedResult.totalGrossPayMinor ?? null, JSON.stringify(mappedResult), mappedResult.engineVersion, mappedResult.calculatedAt, preserveCurrent ? 1 : 0, ss.createdAt]);
         }
 
         for (const feedback of data.predictionFeedback) {
@@ -476,6 +640,8 @@ export class BackupOrchestrator {
           DELETE FROM recurrence_series;
           DELETE FROM shift_templates;
           DELETE FROM pay_rules;
+          DELETE FROM calendar_evidence_intervals;
+          DELETE FROM weekly_rest_schedules;
           DELETE FROM roles;
           DELETE FROM workplaces;
           DELETE FROM salary_profiles;
@@ -516,6 +682,129 @@ export class BackupOrchestrator {
     ]);
   }
 
+  private async insertCalendarEvidenceInterval(
+    interval: BackupDataV1['calendarEvidenceIntervals'][number],
+    id: string,
+    workplaceId: string,
+    salaryProfileId: string | null,
+  ): Promise<void> {
+    await this.db.runAsync(`INSERT INTO calendar_evidence_intervals (
+      id, schedule_id, workplace_id, salary_profile_id, interval_type, name, start_at, end_at, timezone,
+      source_kind, source_title, source_url, preset_id, preset_version, confirmed_at,
+      is_archived, archived_at, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+      id, interval.scheduleId ?? null, workplaceId, salaryProfileId, interval.type, interval.name, interval.start,
+      interval.end, interval.timezone, interval.sourceKind, interval.sourceTitle ?? null,
+      interval.sourceUrl ?? null, interval.presetId ?? null, interval.presetVersion ?? null,
+      interval.confirmedAt, interval.isArchived ? 1 : 0, interval.archivedAt ?? null,
+      interval.createdAt, interval.updatedAt,
+    ]);
+  }
+
+  private async insertWeeklyRestSchedule(
+    schedule: BackupDataV1['weeklyRestSchedules'][number],
+    id: string,
+    workplaceId: string,
+    salaryProfileId: string,
+  ): Promise<void> {
+    await this.db.runAsync(`INSERT INTO weekly_rest_schedules (
+      id, workplace_id, salary_profile_id, label, start_weekday, start_time, end_weekday,
+      end_time, enabled, confirmed_at, source_kind, source_title, source_url, preset_id,
+      preset_version, is_archived, archived_at, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+      id, workplaceId, salaryProfileId, schedule.label, schedule.startWeekday,
+      schedule.startTime, schedule.endWeekday, schedule.endTime, schedule.enabled ? 1 : 0,
+      schedule.confirmedAt ?? null, schedule.sourceKind, schedule.sourceTitle ?? null,
+      schedule.sourceUrl ?? null, schedule.presetId ?? null, schedule.presetVersion ?? null,
+      schedule.isArchived ? 1 : 0, schedule.archivedAt ?? null, schedule.createdAt,
+      schedule.updatedAt,
+    ]);
+    await this.markScheduleAffectedShiftsStale(weeklyRestScheduleSchema.parse({
+      ...schedule,
+      id,
+      workplaceId,
+      salaryProfileId,
+    }));
+  }
+
+  private async markScheduleAffectedShiftsStale(schedule: WeeklyRestSchedule): Promise<void> {
+    if (!schedule.enabled || schedule.isArchived || !schedule.confirmedAt) return;
+    const candidates = await this.db.getAllAsync<{
+      id: string;
+      start_at: string;
+      end_at: string;
+      timezone: string;
+    }>(`SELECT shift_record.id,
+        COALESCE(shift_record.payable_start, shift_record.actual_start, shift_record.scheduled_start) AS start_at,
+        COALESCE(shift_record.payable_end, shift_record.actual_end, shift_record.scheduled_end) AS end_at,
+        profile.timezone
+      FROM shifts shift_record
+      JOIN salary_calculation_snapshots snapshot
+        ON snapshot.shift_id = shift_record.id AND snapshot.is_current = 1
+        AND snapshot.status = 'finalized' AND snapshot.salary_profile_id = ?
+      JOIN salary_profiles profile ON profile.id = snapshot.salary_profile_id
+      WHERE shift_record.workplace_id = ? AND shift_record.status = 'completed'
+        AND shift_record.salary_calculation_status = 'finalized';`,
+    schedule.salaryProfileId, schedule.workplaceId);
+    const affected = candidates
+      .filter((candidate) => candidate.start_at && candidate.end_at
+        && resolveWeeklyRestOccurrences(
+          schedule,
+          candidate.start_at,
+          candidate.end_at,
+          candidate.timezone,
+        ).length > 0)
+      .map((candidate) => candidate.id);
+    if (!affected.length) return;
+    await this.db.runAsync(
+      `UPDATE shifts SET salary_calculation_status='stale'
+       WHERE salary_calculation_status='finalized'
+         AND id IN (${affected.map(() => '?').join(', ')})`,
+      ...affected,
+    );
+  }
+
+  private remapSnapshotEvidence(
+    result: BackupDataV1['salarySnapshots'][number]['result'],
+    evidenceIds: ReadonlyMap<string, string>,
+    scheduleIds: ReadonlyMap<string, string>,
+    payRuleIds: ReadonlyMap<string, string>,
+  ): BackupDataV1['salarySnapshots'][number]['result'] {
+    const mapRule = (id: string) => payRuleIds.get(id) ?? id;
+    const mapInterval = (id: string) => {
+      const mappedEvidenceId = evidenceIds.get(id);
+      if (mappedEvidenceId) return mappedEvidenceId;
+      for (const [oldScheduleId, newScheduleId] of scheduleIds) {
+        const prefix = `weekly-rest:${oldScheduleId}:`;
+        if (id.startsWith(prefix)) return `weekly-rest:${newScheduleId}:${id.slice(prefix.length)}`;
+      }
+      return id;
+    };
+    return {
+      ...result,
+      appliedRuleIds: result.appliedRuleIds.map(mapRule),
+      segments: result.segments.map((segment) => ({
+        ...segment,
+        appliedRuleIds: segment.appliedRuleIds.map(mapRule),
+        ...(segment.specialIntervalIds
+          ? { specialIntervalIds: segment.specialIntervalIds.map(mapInterval) }
+          : {}),
+      })),
+      ...(result.specialIntervalEvaluations
+        ? {
+          specialIntervalEvaluations: result.specialIntervalEvaluations.map((evaluation) => ({
+            ...evaluation,
+            intervalId: mapInterval(evaluation.intervalId),
+            ...(evaluation.scheduleId
+              ? { scheduleId: scheduleIds.get(evaluation.scheduleId) ?? evaluation.scheduleId }
+              : {}),
+            appliedRuleIds: evaluation.appliedRuleIds.map(mapRule),
+          })),
+        }
+        : {}),
+    };
+  }
+
   private async assertDatabaseIntegrity(): Promise<void> {
     const fkIssues = await this.db.getAllAsync<Record<string, unknown>>('PRAGMA foreign_key_check');
     if (fkIssues.length > 0) throw new Error('Foreign key constraint violation after restore');
@@ -538,6 +827,8 @@ export class BackupOrchestrator {
       ['prediction_feedback', data.predictionFeedback.length],
       ['scheduled_notification_records', data.scheduledNotifications.length],
       ['workplace_notification_overrides', data.workplaceNotificationOverrides.length],
+      ['calendar_evidence_intervals', data.calendarEvidenceIntervals.length],
+      ['weekly_rest_schedules', data.weeklyRestSchedules.length],
       ['export_presets', data.exportPresets.length],
       ['export_history', data.exportHistory.length],
       ['app_settings', data.appSettings.length],
@@ -586,7 +877,7 @@ export class BackupOrchestrator {
   private mapPayRule = (row: any) => ({
     id: row.id, salaryProfileId: row.salary_profile_id, name: row.name, priority: row.priority,
     conditions: JSON.parse(row.conditions_json), effect: JSON.parse(row.effect_json),
-    canStack: row.can_stack === 1, isEnabled: row.is_enabled === 1, effectiveFrom: row.effective_from,
+    canStack: row.can_stack === 1, premiumFamily: row.premium_family, isEnabled: row.is_enabled === 1, effectiveFrom: row.effective_from,
     effectiveTo: row.effective_to, createdAt: row.created_at, updatedAt: row.updated_at
   });
 
@@ -674,6 +965,25 @@ export class BackupOrchestrator {
     longUnpaidBreakThresholdMinutes: row.long_unpaid_break_threshold_minutes,
     longPaidBreakThresholdMinutes: row.long_paid_break_threshold_minutes,
     updatedAt: row.updated_at,
+  });
+
+  private mapCalendarEvidenceInterval = (row: any) => ({
+    id: row.id, scheduleId: row.schedule_id, workplaceId: row.workplace_id, salaryProfileId: row.salary_profile_id,
+    type: row.interval_type, name: row.name, start: row.start_at, end: row.end_at,
+    timezone: row.timezone, sourceKind: row.source_kind, sourceTitle: row.source_title,
+    sourceUrl: row.source_url, presetId: row.preset_id, presetVersion: row.preset_version,
+    confirmedAt: row.confirmed_at, isArchived: row.is_archived === 1,
+    archivedAt: row.archived_at, createdAt: row.created_at, updatedAt: row.updated_at,
+  });
+
+  private mapWeeklyRestSchedule = (row: any) => ({
+    id: row.id, workplaceId: row.workplace_id, salaryProfileId: row.salary_profile_id,
+    label: row.label, startWeekday: row.start_weekday, startTime: row.start_time,
+    endWeekday: row.end_weekday, endTime: row.end_time, enabled: row.enabled === 1,
+    confirmedAt: row.confirmed_at, sourceKind: row.source_kind,
+    sourceTitle: row.source_title, sourceUrl: row.source_url, presetId: row.preset_id,
+    presetVersion: row.preset_version, isArchived: row.is_archived === 1,
+    archivedAt: row.archived_at, createdAt: row.created_at, updatedAt: row.updated_at,
   });
 
   private mapExportPreset = (row: any) => ({

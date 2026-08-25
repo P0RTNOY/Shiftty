@@ -7,12 +7,12 @@ const { join } = require('node:path');
 const source = readFileSync(join(__dirname, '..', 'src', 'data', 'database', 'migrations.ts'), 'utf8');
 const migrations = [...source.matchAll(/version:\s*(\d+),\s*name:\s*'([^']+)',\s*sql:\s*`([\s\S]*?)`/g)]
   .map((match) => ({ version: Number(match[1]), name: match[2], sql: match[3] }));
-if (migrations.length !== 8) throw new Error(`Expected eight migrations, found ${migrations.length}.`);
+if (migrations.length !== 9) throw new Error(`Expected nine migrations, found ${migrations.length}.`);
 
 const directory = mkdtempSync(join(tmpdir(), 'shifty-migrations-'));
 try {
-  for (const startingVersion of [0, 1, 2, 3, 4, 5, 6, 7, 8]) validateUpgrade(startingVersion);
-  process.stdout.write('Migration 8 smoke tests passed for empty, v1, v2, v3, v4, v5, v6, v7, and current v8 databases.\n');
+  for (const startingVersion of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) validateUpgrade(startingVersion);
+  process.stdout.write('Migration 9 smoke tests passed for empty, v1, v2, v3, v4, v5, v6, v7, v8, and current v9 databases.\n');
 } finally {
   rmSync(directory, { recursive: true, force: true });
 }
@@ -38,6 +38,10 @@ function validateUpgrade(startingVersion) {
   if (shiftTypeColumns !== '2') throw new Error(`Shift type snapshot columns missing after v${startingVersion} upgrade.`);
   const workweekColumns = sqlite(database, "SELECT count(*) FROM pragma_table_info('salary_profiles') WHERE name IN ('workweek_start_weekday', 'weekly_overtime_enabled', 'weekly_regular_minutes', 'weekly_overtime_multiplier_basis_points', 'weekly_overtime_basis');");
   if (workweekColumns !== '5') throw new Error(`Workweek salary columns missing after v${startingVersion} upgrade.`);
+  const evidenceTables = sqlite(database, "SELECT count(*) FROM sqlite_master WHERE type='table' AND name IN ('calendar_evidence_intervals', 'weekly_rest_schedules');");
+  if (evidenceTables !== '2') throw new Error(`Evidence-aware salary tables missing after v${startingVersion} upgrade.`);
+  const premiumFamily = sqlite(database, "SELECT count(*) FROM pragma_table_info('pay_rules') WHERE name='premium_family';");
+  if (premiumFamily !== '1') throw new Error(`Pay-rule premium family missing after v${startingVersion} upgrade.`);
   if (startingVersion > 0) {
     const neutralMultiplier = sqlite(database, "SELECT shift_type_pay_multiplier_basis_points FROM shifts WHERE id='seed-shift';");
     if (neutralMultiplier !== '10000') throw new Error(`Legacy shift multiplier was not neutral after v${startingVersion}: ${neutralMultiplier}`);
@@ -45,6 +49,10 @@ function validateUpgrade(startingVersion) {
     if (templateMultiplier !== '10000') throw new Error(`Legacy shift type multiplier was not neutral after v${startingVersion}: ${templateMultiplier}`);
     const weeklyDefaults = sqlite(database, "SELECT workweek_start_weekday || '|' || weekly_overtime_enabled || '|' || weekly_overtime_basis || '|' || (weekly_regular_minutes IS NULL) || '|' || (weekly_overtime_multiplier_basis_points IS NULL) FROM salary_profiles WHERE id='seed-profile';");
     if (weeklyDefaults !== '0|0|net|1|1') throw new Error(`Legacy weekly salary settings were not neutral after v${startingVersion}: ${weeklyDefaults}`);
+    const evidenceCount = sqlite(database, 'SELECT (SELECT count(*) FROM calendar_evidence_intervals) + (SELECT count(*) FROM weekly_rest_schedules);');
+    if (evidenceCount !== '0') throw new Error(`Migration invented evidence configuration after v${startingVersion}.`);
+    const legacyFamily = sqlite(database, "SELECT premium_family IS NULL FROM pay_rules WHERE id='seed-rule';");
+    if (legacyFamily !== '1') throw new Error(`Legacy pay-rule family was not neutral after v${startingVersion}.`);
   }
   if (startingVersion > 0 && startingVersion < 4) {
     const state = sqlite(database, "SELECT status || '|' || salary_calculation_status FROM shifts WHERE id='seed-shift';");

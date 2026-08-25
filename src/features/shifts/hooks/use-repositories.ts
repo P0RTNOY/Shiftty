@@ -3,6 +3,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 
 import {
   SqliteActiveShiftRepository,
+  SqliteCalendarEvidenceIntervalRepository,
   SqliteNotificationSettingsRepository,
   SqlitePayRuleRepository,
   SqlitePredictionFeedbackRepository,
@@ -12,6 +13,7 @@ import {
   SqliteScheduledNotificationRepository,
   SqliteShiftRepository,
   SqliteShiftTemplateRepository,
+  SqliteWeeklyRestScheduleRepository,
   SqliteWorkplaceRepository,
 } from '@/data/repositories';
 
@@ -20,6 +22,7 @@ export function useRepositories() {
   return useMemo(() => ({
     shifts: new SqliteShiftRepository(database),
     activeShifts: new SqliteActiveShiftRepository(database),
+    calendarEvidenceIntervals: new SqliteCalendarEvidenceIntervalRepository(database),
     shiftTemplates: new SqliteShiftTemplateRepository(database),
     recurrence: new SqliteRecurrenceRepository(database),
     workplaces: new SqliteWorkplaceRepository(database),
@@ -29,5 +32,6 @@ export function useRepositories() {
     notificationSettings: new SqliteNotificationSettingsRepository(database),
     predictionFeedback: new SqlitePredictionFeedbackRepository(database),
     scheduledNotifications: new SqliteScheduledNotificationRepository(database),
+    weeklyRestSchedules: new SqliteWeeklyRestScheduleRepository(database),
   }), [database]);
 }

@@ -12,6 +12,7 @@ import { scheduledNotificationRecordSchema } from './scheduled-notification';
 import { workplaceNotificationOverrideSchema } from './notification-preferences';
 import { ExportPresetSchema } from './export-preset';
 import { ExportHistorySchema } from './export-history';
+import { calendarEvidenceIntervalSchema, weeklyRestScheduleSchema } from './calendar-evidence';
 
 export const AppSettingSchema = z.object({
   key: z.string(),
@@ -34,6 +35,8 @@ export const BackupDataSchemaV1 = z.object({
   predictionFeedback: z.array(predictionFeedbackSchema),
   scheduledNotifications: z.array(scheduledNotificationRecordSchema),
   workplaceNotificationOverrides: z.array(workplaceNotificationOverrideSchema).default([]),
+  calendarEvidenceIntervals: z.array(calendarEvidenceIntervalSchema).default([]),
+  weeklyRestSchedules: z.array(weeklyRestScheduleSchema).default([]),
   exportPresets: z.array(ExportPresetSchema),
   exportHistory: z.array(ExportHistorySchema),
   appSettings: z.array(AppSettingSchema),
@@ -53,6 +56,8 @@ export const BackupCountsSchema = z.object({
   predictionFeedback: z.number().int().nonnegative(),
   scheduledNotifications: z.number().int().nonnegative(),
   workplaceNotificationOverrides: z.number().int().nonnegative().default(0),
+  calendarEvidenceIntervals: z.number().int().nonnegative().default(0),
+  weeklyRestSchedules: z.number().int().nonnegative().default(0),
   exportPresets: z.number().int().nonnegative(),
   exportHistory: z.number().int().nonnegative(),
   appSettings: z.number().int().nonnegative(),

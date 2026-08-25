@@ -43,9 +43,10 @@ describe('SQLite salary repositories', () => {
     const next = createSalaryProfile({ id: 'new', effectiveFrom: '2026-08-01', baseHourlyRateMinor: 6000, workweekStartWeekday: 1, weeklyOvertimeEnabled: true, weeklyRegularMinutes: 2400, weeklyOvertimeMultiplierBasisPoints: 15000, weeklyOvertimeBasis: 'gross' });
     await repository.createVersion(previous, next);
     expect(database.withTransactionAsync).toHaveBeenCalledTimes(1);
-    expect(database.runAsync).toHaveBeenCalledTimes(4);
+    expect(database.runAsync).toHaveBeenCalledTimes(5);
     expect(database.runAsync.mock.calls[2]?.[0]).toContain('INSERT INTO pay_rules');
-    expect(database.runAsync.mock.calls[3]?.[0]).toContain('UPDATE workplaces');
+    expect(database.runAsync.mock.calls[3]?.[0]).toContain('INSERT INTO weekly_rest_schedules');
+    expect(database.runAsync.mock.calls[4]?.[0]).toContain('UPDATE workplaces');
     expect(database.runAsync.mock.calls[1]?.slice(1)).toEqual(expect.arrayContaining([1, 1, 2400, 15000, 'gross']));
   });
 
@@ -60,7 +61,12 @@ describe('SQLite salary repositories', () => {
 
   it('round-trips typed rule JSON and orders by priority', async () => {
     const rule = createPayRule({ id: 'night', priority: 20, conditions: [{ type: 'timeWindow', startTime: '22:00', endTime: '06:00' }], effect: { type: 'multiplier', basisPoints: 12500 } });
-    const database = { runAsync: jest.fn().mockResolvedValue({ changes: 1 }), getAllAsync: jest.fn().mockResolvedValue([{ id: rule.id, salary_profile_id: rule.salaryProfileId, name: rule.name, priority: rule.priority, conditions_json: JSON.stringify(rule.conditions), effect_json: JSON.stringify(rule.effect), can_stack: 0, is_enabled: 1, effective_from: null, effective_to: null, created_at: rule.createdAt, updated_at: rule.updatedAt }]) };
+    const database = {
+      runAsync: jest.fn().mockResolvedValue({ changes: 1 }),
+      getFirstAsync: jest.fn().mockResolvedValue(null),
+      getAllAsync: jest.fn().mockResolvedValue([{ id: rule.id, salary_profile_id: rule.salaryProfileId, name: rule.name, priority: rule.priority, conditions_json: JSON.stringify(rule.conditions), effect_json: JSON.stringify(rule.effect), can_stack: 0, premium_family: null, is_enabled: 1, effective_from: null, effective_to: null, created_at: rule.createdAt, updated_at: rule.updatedAt }]),
+      withTransactionAsync: jest.fn(async (operation: () => Promise<void>) => operation()),
+    };
     const repository = new SqlitePayRuleRepository(database as unknown as SQLiteDatabase);
     await repository.save(rule);
     await expect(repository.listForProfile(rule.salaryProfileId)).resolves.toEqual([rule]);
