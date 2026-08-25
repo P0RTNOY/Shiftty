@@ -1,6 +1,41 @@
 # Shiftty Project Status
 
-Last updated: 2026-08-24
+Last updated: 2026-08-25
+
+## Evidence-Aware Holiday and Rest-Day Rules Foundation — 2026-08-25
+
+Salary engine `1.5.0` now evaluates explicitly confirmed holiday, weekly-rest, and custom intervals offline while keeping calendar evidence independent from pay rules. An interval by itself records and explains a calendar assumption but does not change the gross estimate.
+
+- `CalendarEvidenceInterval` stores exact half-open instants, IANA timezone, workplace/optional effective-profile scope, localized or user-defined name, `manual`/`confirmed_preset`/`imported` provenance, optional source title/URL and preset ID/version, confirmation time, and archive history. Validation bounds metadata, rejects invalid or zero-length ranges and unsafe URLs, and enforces workplace/profile isolation.
+- A salary profile can own one disabled-by-default recurring weekly-rest schedule with user-selected weekday/time boundaries. Enabling requires confirmation. Occurrences are resolved only for a bounded requested range in the profile timezone; spring-forward gaps and fall-back ambiguity have fixed deterministic behavior, and no future occurrence rows are materialized.
+- The advanced **חגים ומנוחה שבועית / Holidays & weekly rest** flow provides exact previews, source inspection, a single versioned date-only Independence Day 2026 fixture, manual profile/workplace intervals, rule-effect status, direct rule configuration, archive/restore, and confirmed deletion. It does not infer religion, a rest weekday, entitlement, permission, or a multiplier.
+- New rules use `specialInterval` with selected `holiday`, `weekly_rest`, and/or `custom` types. Legacy `holiday` and `weekend` conditions remain readable; legacy holiday rules also recognize new holiday evidence, while legacy weekend windows are not relabeled as user-confirmed weekly rest.
+- Explicit `ordinary`, `overtime`, and `special_interval` premium families make composition deterministic. The strongest non-stacking special rule wins, stacking special rules add only their premium above 100%, and the Milestone 2 strongest-single-overtime contract remains unchanged. Shift-type composition remains additive by premium; fixed bonuses, reimbursements, and minimum-duration adjustments remain single-application.
+- Engine boundaries include every evidence start/end, including partial, midnight-crossing, and overlapping intervals. Results freeze interval/schedule identity, name/type, exact range/timezone, bounded source provenance, confirmation and preset metadata, applied rule IDs, contribution status, segment interval IDs, and the combined multiplier needed for later explanation.
+- Salary Trust promotes a complete result on this path only when a configured special-interval rule actually contributed. Confirmed evidence with no matching rule stays an explained input with no pay effect. Missing, incomplete, erroneous, and stale salary remains non-numeric; a finalized legitimate zero remains zero.
+- Migration 9 adds nullable pay-rule premium families plus indexed evidence/schedule tables, integrity constraints, workplace/profile guards, and targeted staleness triggers. It inserts no default evidence or schedule, changes no existing total, and rewrites no historical snapshot.
+- Evidence insert/update/archive/delete, schedule changes, special-rule changes, and normal salary-sensitive shift edits mark compatible overlapping or frozen-provenance calculations stale without deleting their prior result. Explicit recalculation creates the next snapshot version.
+- Backup envelope V1 remains readable. Current export/replace/merge includes active and archived evidence, recurring schedules, premium-family fields, and frozen provenance; legacy V1 restores empty/disabled neutral defaults. Merge remaps evidence, schedule, rule, and snapshot IDs and fails invalid or conflicting evidence instead of silently discarding it.
+- `MonthlyReport`, PDF, and CSV show concise labels only for contributing frozen intervals and keep one estimate/provenance note. Full source URLs stay in detailed disclosure. Evidence never becomes a fake shift, CSV remains formula-safe, and ICS remains free of salary, source, rule, multiplier, and entitlement data.
+
+Primary-source provenance and the complete behavior/limitation contract are recorded in `docs/evidence-aware-holiday-rest.md`. The representative preset uses Civil Service Commission circular 26/2025 only for the named civil date and explicitly discloses its midnight-boundary assumption and public-service/shift-worker scope limitation. The Ministry of Labor source is used for terminology and safety rationale, not for an inferred rest day or entitlement.
+
+Fresh repository verification:
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed with zero errors/warnings |
+| `npm test -- --runInBand` | Passed; 131 suites, 652 tests, 0 failures |
+| `npm run validate:migrations` | Passed for empty and every supported v1–v9 database, including SQLite integrity and foreign-key checks |
+| `npm run validate:expo` | Passed; web export produced 37 static routes |
+| `npx expo install --check` | Reports the accepted baseline of eight SDK 57 patch-level dependency notices; dependencies were intentionally left unchanged |
+| `npx expo config --type public` | Passed; public SDK 57 configuration generated for iOS, Android, and web |
+| `git diff --check` | Passed after the Milestone 3 documentation update |
+
+Native verification used the booted iPhone 17 Pro simulator on iOS 26.5. A fresh Debug development client for `com.omerportnoy.shifty` built with 0 errors and 2 existing non-blocking Xcode warnings, installed, launched, migrated a representative profile database to Migration 9, and rendered the new Holidays & weekly rest route in Hebrew and English. The Hebrew RTL settings, disabled recurring-rest state, no-entitlement copy, and progressive-disclosure cards were visually inspected; English localized copy was also inspected. The dev-client session became unstable during deeper interaction, so manual interval creation, configured-rule results, Shift Details, Reports, Dynamic Type extremes, and the accessibility tree are not claimed as native passes. No Android runtime or physical-device verification was performed. Automated coverage includes those interaction states plus the neutral migration, domain validation, manual/preset evidence, recurring rest and alternative weekdays, both DST transitions, exact segmentation, no-rule neutrality, premium-family money math, rule-order independence, overtime and shift-type interaction, scope isolation, targeted staleness, explicit snapshot versioning, deleted-row historical provenance, backup V1 replace/merge/remapping, Hebrew/English RTL/LTR and accessibility states, MonthlyReport/PDF/CSV behavior, calendar-only ICS, unavailable/stale salary, and finalized zero.
+
+This remains a configurable gross-pay estimator. It does not determine holiday or weekly-rest entitlement, employer permits, religious identity, agreement coverage, statutory boundaries, mandatory multipliers, tax, National Insurance, pension, deductions, benefits, or net pay. A recommended follow-up is a user-driven evidence review/import workflow with conflict visibility and source-version reconciliation—not automatic legal or religious classification.
 
 ## Workweek-Aware Salary Engine — 2026-08-24
 

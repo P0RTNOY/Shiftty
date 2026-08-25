@@ -4,7 +4,7 @@ Implemented: 2026-08-24
 
 ## Purpose and product boundary
 
-Salary engine `1.4.0` adds opt-in weekly accumulation to Shiftty's deterministic gross-pay estimate. It does not install a statutory Israeli workweek, infer an employment agreement, or turn an estimate into payroll truth. The worker chooses the workweek start, threshold, multiplier, and whether the threshold accumulates net or gross minutes.
+Salary engine `1.4.0` introduced opt-in weekly accumulation to Shiftty's deterministic gross-pay estimate, and engine `1.5.0` preserves that contract while adding evidence-aware special intervals. It does not install a statutory Israeli workweek, infer an employment agreement, or turn an estimate into payroll truth. The worker chooses the workweek start, threshold, multiplier, and whether the threshold accumulates net or gross minutes.
 
 Weekly overtime is disabled for existing and new profiles until the user enables or configures it. When it is disabled and there is no generic week-scoped rule, calculations retain the established per-shift default overtime model and all earlier salary behavior.
 
@@ -30,7 +30,7 @@ A workweek is keyed by the profile-local calendar date on which it begins. The e
 
 For example, with a Sunday start in `Asia/Jerusalem`, an overnight shift from Saturday 23:00 to Sunday 02:00 allocates 60 minutes to the week that began on the prior Sunday and 120 minutes to the newly started week. The equivalent absolute instants may have different UTC dates; the profile-local dates remain authoritative. DST duration still comes from absolute instants, while week membership comes from local calendar boundaries.
 
-Every engine `1.4.0` result records optional `workweekAllocations` containing the local workweek start plus net and gross minutes. These allocations are calculation provenance and are also used to identify exact downstream snapshot dependencies. The field is optional so result JSON from engines `1.0.0` through `1.3.0` remains readable.
+Every engine result from `1.4.0` onward records optional `workweekAllocations` containing the local workweek start plus net and gross minutes. These allocations are calculation provenance and are also used to identify exact downstream snapshot dependencies. The field is optional so result JSON from engines `1.0.0` through `1.3.0` remains readable.
 
 The basis has the following meaning:
 
@@ -99,7 +99,7 @@ Earlier compatible shifts contributed 2,460 net and gross minutes. A two-hour 08
 
 ## Snapshots, staleness, and recalculation
 
-Completed calculations remain immutable, versioned snapshots. Enabling weekly overtime or changing the hourly rate, workweek start, weekly threshold, multiplier, or basis creates a new effective-dated salary-profile version in the salary settings flow. It does not rewrite or automatically recalculate a finalized snapshot. Explicit recalculation archives the previous current snapshot and writes a new engine `1.4.0` version.
+Completed calculations remain immutable, versioned snapshots. Enabling weekly overtime or changing the hourly rate, workweek start, weekly threshold, multiplier, or basis creates a new effective-dated salary-profile version in the salary settings flow. It does not rewrite or automatically recalculate a finalized snapshot. Explicit recalculation archives the previous current snapshot and writes a result using the current engine version.
 
 Editing a persisted generic week-scoped Pay Rule likewise affects future calculations and explicit recalculations; it does not mutate a frozen result. The dependency triggers described below respond to changes in recorded shifts and breaks. They do not rewrite snapshot JSON merely because configuration was edited.
 
@@ -133,3 +133,9 @@ The trust label does not certify the chosen weekly values. Every numeric result 
 This milestone does not determine which weekly threshold or workweek applies to a worker. It does not infer statutory classifications, shortened weeks, employer-specific agreements, collective agreements, split employment, absence treatment, holiday entitlement, rest-day rules, or interactions that require facts outside the recorded shifts and settings. Automatic Israeli holiday determination remains unsupported, and deductions, tax, National Insurance, pension, benefits, and other net-pay components remain outside the gross engine.
 
 Accordingly, Shiftty does not claim that engine `1.4.0` is legally accurate, verified, compliant, or a substitute for an employer payslip or professional advice. It provides a deterministic, inspectable estimate from the configuration and work records available on the device.
+
+## Evidence-aware extension in engine 1.5.0
+
+Milestone 3 adds a separate, optional weekly-rest schedule and `weekly_rest` evidence type. They do not alter the workweek boundary or weekly-overtime counter described in this document. The coordinator resolves a confirmed rest schedule only for the requested salary range and passes the resulting intervals to the same calculation; salary changes only if a separate `specialInterval` pay rule targets `weekly_rest`.
+
+Daily/weekly overtime still contributes only its strongest single overtime premium. A matching holiday/rest/custom rule belongs to the separate special-interval family, so its documented stacking choice can compose without duplicating overtime. Workweek allocations, cross-month context, downstream weekly staleness, and frozen weekly snapshot provenance remain unchanged. See [`evidence-aware-holiday-rest.md`](evidence-aware-holiday-rest.md) for interval sources, DST occurrence semantics, premium-family interaction, and legal-safety limits.
