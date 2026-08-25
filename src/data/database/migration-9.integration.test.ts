@@ -60,6 +60,13 @@ async function seedFinalizedShift(
     6000, '{}', 'test', ?, 1, ?)`, `snapshot-${id}`, id, profileId, timestamp, timestamp);
 }
 
+async function shiftStatuses(db: SQLite.SQLiteDatabase): Promise<Record<string, string>> {
+  const rows = await db.getAllAsync<{ id: string; salary_calculation_status: string }>(
+    'SELECT id, salary_calculation_status FROM shifts ORDER BY id',
+  );
+  return Object.fromEntries(rows.map((row) => [row.id, row.salary_calculation_status]));
+}
+
 describe('Migration 9 evidence-aware holiday/rest persistence', () => {
   let db: SQLite.SQLiteDatabase;
 
@@ -191,6 +198,41 @@ describe('Migration 9 evidence-aware holiday/rest persistence', () => {
     expect(await db.getFirstAsync('PRAGMA integrity_check')).toEqual({ integrity_check: 'ok' });
   });
 
+  it('prevents moving a weekly-rest schedule away from linked evidence scope', async () => {
+    await runUpToVersion(db, 9);
+    await seedWorkplaceAndProfile(db, 'wp-a', 'profile-a');
+    await seedWorkplaceAndProfile(db, 'wp-b', 'profile-b');
+    await db.runAsync(`INSERT INTO salary_profiles (
+      id, workplace_id, name, currency, standard_hourly_rate_minor, break_policy, timezone,
+      created_at, updated_at
+    ) VALUES ('profile-alt', 'wp-a', 'Alternate', 'ILS', 6000, 'perBreak',
+      'Asia/Jerusalem', ?, ?)`, timestamp, timestamp);
+    await db.runAsync(`INSERT INTO weekly_rest_schedules (
+      id, workplace_id, salary_profile_id, label, start_weekday, start_time, end_weekday,
+      end_time, enabled, source_kind, created_at, updated_at
+    ) VALUES ('linked-schedule', 'wp-a', 'profile-a', 'Rest', 5, '18:00', 6, '18:00',
+      0, 'manual', ?, ?)`, timestamp, timestamp);
+    await db.runAsync(`INSERT INTO calendar_evidence_intervals (
+      id, schedule_id, workplace_id, salary_profile_id, interval_type, name, start_at, end_at,
+      timezone, source_kind, confirmed_at, created_at, updated_at
+    ) VALUES ('linked-occurrence', 'linked-schedule', 'wp-a', 'profile-a', 'weekly_rest',
+      'Rest occurrence', '2026-08-28T15:00:00Z', '2026-08-29T15:00:00Z',
+      'Asia/Jerusalem', 'manual', ?, ?, ?)`, timestamp, timestamp, timestamp);
+
+    await expect(db.runAsync(`UPDATE weekly_rest_schedules SET salary_profile_id='profile-alt'
+      WHERE id='linked-schedule'`))
+      .rejects.toThrow('weekly-rest schedule move would strand linked evidence');
+    await expect(db.runAsync(`UPDATE weekly_rest_schedules
+      SET workplace_id='wp-b', salary_profile_id='profile-b' WHERE id='linked-schedule'`))
+      .rejects.toThrow('weekly-rest schedule move would strand linked evidence');
+
+    expect(await db.getFirstAsync(`SELECT workplace_id, salary_profile_id
+      FROM weekly_rest_schedules WHERE id='linked-schedule'`))
+      .toEqual({ workplace_id: 'wp-a', salary_profile_id: 'profile-a' });
+    expect(await db.getAllAsync('PRAGMA foreign_key_check')).toEqual([]);
+    expect(await db.getFirstAsync('PRAGMA integrity_check')).toEqual({ integrity_check: 'ok' });
+  });
+
   it('stales only finalized shifts in the exact half-open interval and compatible profile', async () => {
     await runUpToVersion(db, 9);
     await seedWorkplaceAndProfile(db, 'wp-a', 'profile-a');
@@ -259,6 +301,47 @@ describe('Migration 9 evidence-aware holiday/rest persistence', () => {
     expect(Object.fromEntries(statuses.map((row) => [row.id, row.salary_calculation_status]))).toEqual({
       both: 'stale', 'new-only': 'stale', 'old-only': 'stale', 'other-profile': 'finalized', outside: 'finalized',
     });
+    expect(await db.getAllAsync('SELECT id, result_json FROM salary_calculation_snapshots ORDER BY id'))
+      .toEqual(snapshotsBefore);
+    expect(await db.getAllAsync('PRAGMA foreign_key_check')).toEqual([]);
+    expect(await db.getFirstAsync('PRAGMA integrity_check')).toEqual({ integrity_check: 'ok' });
+  });
+
+  it('stales exact range and frozen dependencies when evidence is linked or unlinked from a schedule', async () => {
+    await runUpToVersion(db, 9);
+    await seedWorkplaceAndProfile(db, 'wp', 'profile');
+    await db.runAsync(`INSERT INTO weekly_rest_schedules (
+      id, workplace_id, salary_profile_id, label, start_weekday, start_time, end_weekday,
+      end_time, enabled, source_kind, created_at, updated_at
+    ) VALUES ('rest', 'wp', 'profile', 'Rest', 5, '18:00', 6, '18:00',
+      0, 'manual', ?, ?)`, timestamp, timestamp);
+    await seedFinalizedShift(db, 'overlap', 'wp', 'profile',
+      '2026-08-24T08:00:00Z', '2026-08-24T10:00:00Z');
+    await seedFinalizedShift(db, 'frozen', 'wp', 'profile',
+      '2026-08-24T12:00:00Z', '2026-08-24T13:00:00Z');
+    await seedFinalizedShift(db, 'unrelated', 'wp', 'profile',
+      '2026-08-24T14:00:00Z', '2026-08-24T15:00:00Z');
+    await db.runAsync(`UPDATE salary_calculation_snapshots SET result_json=? WHERE shift_id='frozen'`,
+      JSON.stringify({ specialIntervalEvaluations: [{ intervalId: 'rest-occurrence', scheduleId: 'rest' }] }));
+    await db.runAsync(`INSERT INTO calendar_evidence_intervals (
+      id, schedule_id, workplace_id, salary_profile_id, interval_type, name, start_at, end_at,
+      timezone, source_kind, confirmed_at, created_at, updated_at
+    ) VALUES ('rest-occurrence', 'rest', 'wp', 'profile', 'weekly_rest', 'Rest occurrence',
+      '2026-08-24T08:30:00Z', '2026-08-24T09:30:00Z', 'Asia/Jerusalem', 'manual', ?, ?, ?)`,
+    timestamp, timestamp, timestamp);
+    await db.runAsync("UPDATE shifts SET salary_calculation_status='finalized'");
+    const snapshotsBefore = await db.getAllAsync<{ id: string; result_json: string }>(
+      'SELECT id, result_json FROM salary_calculation_snapshots ORDER BY id',
+    );
+
+    await db.runAsync("UPDATE calendar_evidence_intervals SET schedule_id=NULL WHERE id='rest-occurrence'");
+    expect(await shiftStatuses(db)).toEqual({ frozen: 'stale', overlap: 'stale', unrelated: 'finalized' });
+    expect(await db.getAllAsync('SELECT id, result_json FROM salary_calculation_snapshots ORDER BY id'))
+      .toEqual(snapshotsBefore);
+
+    await db.runAsync("UPDATE shifts SET salary_calculation_status='finalized'");
+    await db.runAsync("UPDATE calendar_evidence_intervals SET schedule_id='rest' WHERE id='rest-occurrence'");
+    expect(await shiftStatuses(db)).toEqual({ frozen: 'stale', overlap: 'stale', unrelated: 'finalized' });
     expect(await db.getAllAsync('SELECT id, result_json FROM salary_calculation_snapshots ORDER BY id'))
       .toEqual(snapshotsBefore);
     expect(await db.getAllAsync('PRAGMA foreign_key_check')).toEqual([]);

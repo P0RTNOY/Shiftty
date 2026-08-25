@@ -119,6 +119,7 @@ describe('database migrations', () => {
     expect(migration?.sql).toContain('prevent_cross_workplace_evidence_profile_insert');
     expect(migration?.sql).toContain('prevent_profile_move_stranding_evidence');
     expect(migration?.sql).toContain('prevent_mismatched_evidence_schedule_insert');
+    expect(migration?.sql).toContain('prevent_weekly_rest_move_stranding_evidence');
     expect(migration?.sql).toContain("schedule_id TEXT REFERENCES weekly_rest_schedules(id) ON DELETE SET NULL");
     expect(migration?.sql).toContain("start_time GLOB '[0-2][0-9]:[0-5][0-9]'");
     expect(migration?.sql).toContain('mark_salary_stale_after_evidence_insert');

@@ -380,6 +380,7 @@ export class BackupOrchestrator {
         const evidenceIdMap = new Map<string, string>();
         const scheduleIdMap = new Map<string, string>();
         const insertedWorkplaceIds = new Set<string>();
+        const insertedShiftSalaryStatuses = new Map<string, string>();
         
         const remapId = async (table: string, oldId: string, fieldsToCheck: any, registerGlobal = true): Promise<{id: string, isNew: boolean, skip: boolean}> => {
           const existing = await this.db.getFirstAsync<any>(`SELECT * FROM ${table} WHERE id = ?`, [oldId]);
@@ -544,9 +545,12 @@ export class BackupOrchestrator {
               idMap.set(s.id, String((semanticMatch as { id: string }).id));
             }
           }
-          if (!skip) await this.db.runAsync('INSERT INTO shifts (id, workplace_id, role_id, salary_profile_id, title, notes, scheduled_start, scheduled_end, actual_start, actual_end, payable_start, payable_end, expected_break_minutes, actual_break_minutes, payable_break_minutes, status, hourly_rate_snapshot_minor, expected_gross_pay_minor, actual_gross_pay_minor, payable_gross_pay_minor, shift_template_id, shift_type_name_snapshot, shift_type_pay_multiplier_basis_points, recurrence_group_id, recurrence_original_start, recurrence_exception_type, cancelled_at, expected_end, active_origin, payable_source, completed_at, timezone, hourly_rate_override_minor, fixed_bonus_override_minor, travel_reimbursement_override_minor, salary_calculation_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-            id, getMappedId(s.workplaceId), getMappedId(s.roleId), getMappedId(s.salaryProfileId), s.title ?? null, s.notes ?? null, s.scheduledStart ?? null, s.scheduledEnd ?? null, s.actualStart ?? null, s.actualEnd ?? null, s.payableStart ?? null, s.payableEnd ?? null, s.expectedBreakMinutes, s.actualBreakMinutes ?? null, s.payableBreakMinutes ?? null, s.status, s.hourlyRateSnapshotMinor, s.expectedGrossPayMinor ?? null, s.actualGrossPayMinor ?? null, s.payableGrossPayMinor ?? null, getMappedId(s.shiftTemplateId), s.shiftTypeNameSnapshot ?? null, s.shiftTypePayMultiplierBasisPoints ?? 10_000, getMappedId(s.recurrenceGroupId), s.recurrenceOriginalStart ?? null, s.recurrenceExceptionType ?? null, s.cancelledAt ?? null, s.expectedEnd ?? null, s.activeOrigin ?? null, s.payableSource ?? null, s.completedAt ?? null, s.timezone, s.hourlyRateOverrideMinor ?? null, s.fixedBonusOverrideMinor ?? null, s.travelReimbursementOverrideMinor ?? null, s.salaryCalculationStatus, s.createdAt, s.updatedAt
-          ]);
+          if (!skip) {
+            await this.db.runAsync('INSERT INTO shifts (id, workplace_id, role_id, salary_profile_id, title, notes, scheduled_start, scheduled_end, actual_start, actual_end, payable_start, payable_end, expected_break_minutes, actual_break_minutes, payable_break_minutes, status, hourly_rate_snapshot_minor, expected_gross_pay_minor, actual_gross_pay_minor, payable_gross_pay_minor, shift_template_id, shift_type_name_snapshot, shift_type_pay_multiplier_basis_points, recurrence_group_id, recurrence_original_start, recurrence_exception_type, cancelled_at, expected_end, active_origin, payable_source, completed_at, timezone, hourly_rate_override_minor, fixed_bonus_override_minor, travel_reimbursement_override_minor, salary_calculation_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+              id, getMappedId(s.workplaceId), getMappedId(s.roleId), getMappedId(s.salaryProfileId), s.title ?? null, s.notes ?? null, s.scheduledStart ?? null, s.scheduledEnd ?? null, s.actualStart ?? null, s.actualEnd ?? null, s.payableStart ?? null, s.payableEnd ?? null, s.expectedBreakMinutes, s.actualBreakMinutes ?? null, s.payableBreakMinutes ?? null, s.status, s.hourlyRateSnapshotMinor, s.expectedGrossPayMinor ?? null, s.actualGrossPayMinor ?? null, s.payableGrossPayMinor ?? null, getMappedId(s.shiftTemplateId), s.shiftTypeNameSnapshot ?? null, s.shiftTypePayMultiplierBasisPoints ?? 10_000, getMappedId(s.recurrenceGroupId), s.recurrenceOriginalStart ?? null, s.recurrenceExceptionType ?? null, s.cancelledAt ?? null, s.expectedEnd ?? null, s.activeOrigin ?? null, s.payableSource ?? null, s.completedAt ?? null, s.timezone, s.hourlyRateOverrideMinor ?? null, s.fixedBonusOverrideMinor ?? null, s.travelReimbursementOverrideMinor ?? null, s.salaryCalculationStatus, s.createdAt, s.updatedAt
+            ]);
+            insertedShiftSalaryStatuses.set(id, s.salaryCalculationStatus);
+          }
         }
         for (const re of data.recurrenceExceptions) {
           const { id, skip } = await remapId('recurrence_exceptions', re.id, re);
@@ -596,6 +600,16 @@ export class BackupOrchestrator {
           );
           const preserveCurrent = ss.isCurrent && !existingCurrent;
           await this.db.runAsync('INSERT INTO salary_calculation_snapshots (id, shift_id, version, status, context, salary_profile_id, resolved_rate_minor, payable_minutes, regular_minutes, special_rate_minutes, base_pay_minor, premium_pay_minor, fixed_bonuses_minor, reimbursements_minor, total_gross_pay_minor, result_json, engine_version, calculated_at, is_current, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, mappedShiftId, ss.version, ss.status, mappedResult.context, getMappedId(ss.salaryProfileId), mappedResult.resolvedBaseHourlyRateMinor ?? null, mappedResult.payableMinutes, mappedResult.regularMinutes, mappedResult.specialRateMinutes, mappedResult.basePayMinor, mappedResult.premiumPayMinor, mappedResult.fixedBonusesMinor, mappedResult.reimbursementsMinor, mappedResult.totalGrossPayMinor ?? null, JSON.stringify(mappedResult), mappedResult.engineVersion, mappedResult.calculatedAt, preserveCurrent ? 1 : 0, ss.createdAt]);
+        }
+        // Snapshot insertion intentionally runs dependency invalidation. A merge
+        // must still reproduce each newly imported shift's backed-up status
+        // regardless of snapshot payload order, without changing local shifts.
+        for (const [shiftId, salaryStatus] of insertedShiftSalaryStatuses) {
+          await this.db.runAsync(
+            'UPDATE shifts SET salary_calculation_status = ? WHERE id = ?;',
+            salaryStatus,
+            shiftId,
+          );
         }
 
         for (const feedback of data.predictionFeedback) {
@@ -771,6 +785,15 @@ export class BackupOrchestrator {
     payRuleIds: ReadonlyMap<string, string>,
   ): BackupDataV1['salarySnapshots'][number]['result'] {
     const mapRule = (id: string) => payRuleIds.get(id) ?? id;
+    const mapExplanation = (explanation: string) => {
+      for (const [oldRuleId, newRuleId] of payRuleIds) {
+        const prefix = `salary.explanations.weekly_overtime:${oldRuleId}:`;
+        if (explanation.startsWith(prefix)) {
+          return `salary.explanations.weekly_overtime:${newRuleId}:${explanation.slice(prefix.length)}`;
+        }
+      }
+      return explanation;
+    };
     const mapInterval = (id: string) => {
       const mappedEvidenceId = evidenceIds.get(id);
       if (mappedEvidenceId) return mappedEvidenceId;
@@ -783,6 +806,7 @@ export class BackupOrchestrator {
     return {
       ...result,
       appliedRuleIds: result.appliedRuleIds.map(mapRule),
+      explanations: result.explanations.map(mapExplanation),
       segments: result.segments.map((segment) => ({
         ...segment,
         appliedRuleIds: segment.appliedRuleIds.map(mapRule),

@@ -1074,6 +1074,18 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       )
       BEGIN SELECT RAISE(ABORT, 'weekly-rest profile must belong to its workplace'); END;
 
+      CREATE TRIGGER prevent_weekly_rest_move_stranding_evidence
+      BEFORE UPDATE OF workplace_id, salary_profile_id ON weekly_rest_schedules
+      WHEN EXISTS (
+        SELECT 1 FROM calendar_evidence_intervals interval
+        WHERE interval.schedule_id = OLD.id
+          AND NOT (
+            interval.workplace_id IS NEW.workplace_id
+            AND interval.salary_profile_id IS NEW.salary_profile_id
+          )
+      )
+      BEGIN SELECT RAISE(ABORT, 'weekly-rest schedule move would strand linked evidence'); END;
+
       CREATE TRIGGER prevent_cross_workplace_evidence_profile_update
       BEFORE UPDATE OF workplace_id, salary_profile_id ON calendar_evidence_intervals
       WHEN NEW.salary_profile_id IS NOT NULL AND NOT EXISTS (
@@ -1124,7 +1136,7 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       END;
 
       CREATE TRIGGER mark_salary_stale_after_evidence_update
-      AFTER UPDATE OF workplace_id, salary_profile_id, interval_type, name, start_at, end_at,
+      AFTER UPDATE OF schedule_id, workplace_id, salary_profile_id, interval_type, name, start_at, end_at,
         timezone, source_kind, source_title, source_url, preset_id, preset_version, confirmed_at,
         is_archived, archived_at ON calendar_evidence_intervals
       BEGIN

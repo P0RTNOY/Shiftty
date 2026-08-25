@@ -199,6 +199,45 @@ describe('Backup Merge Integration', () => {
     expect(importedWorkplace?.id).not.toBe('wp1');
     expect(JSON.parse(importedSeries!.template_json)).toMatchObject({ workplaceId: importedWorkplace?.id });
   });
+
+  it('restores newly imported finalized shift statuses independently of snapshot payload order', async () => {
+    const timestamp = '2026-08-04T00:00:00Z';
+    const earlyStart = '2026-08-03T06:00:00Z';
+    const earlyEnd = '2026-08-03T07:00:00Z';
+    const laterStart = '2026-08-04T06:00:00Z';
+    const laterEnd = '2026-08-04T07:00:00Z';
+    const profile = {
+      id: 'profile-week', workplaceId: 'wp-week', name: 'Weekly', currency: 'ILS',
+      baseHourlyRateMinor: 6000, breakPolicy: 'perBreak', timezone: 'Asia/Jerusalem',
+      defaultTravelReimbursementMinor: 0, defaultShiftBonusMinor: 0,
+      calculationRoundingMode: 'half_up', workweekStartWeekday: 0,
+      weeklyOvertimeEnabled: true, weeklyRegularMinutes: 2400,
+      weeklyOvertimeMultiplierBasisPoints: 15000, weeklyOvertimeBasis: 'net',
+      isActive: true, isArchived: false, createdAt: timestamp, updatedAt: timestamp,
+    };
+    const content = makeBackup({
+      workplaces: [workplace('wp-week', timestamp)],
+      salaryProfiles: [profile],
+      shifts: [
+        completedShift('shift-early', 'wp-week', 'profile-week', earlyStart, earlyEnd, timestamp),
+        completedShift('shift-later', 'wp-week', 'profile-week', laterStart, laterEnd, timestamp),
+      ],
+      // Reversed on purpose: inserting the earlier snapshot second exercises
+      // Migration 8's forward workweek-dependency trigger.
+      salarySnapshots: [
+        finalizedSnapshot('snapshot-later', 'shift-later', 'profile-week', laterStart, laterEnd, timestamp),
+        finalizedSnapshot('snapshot-early', 'shift-early', 'profile-week', earlyStart, earlyEnd, timestamp),
+      ],
+    });
+
+    await expect(orchestrator.restoreMerge(JSON.stringify(content))).resolves.toMatchObject({ success: true });
+    expect(await db.getAllAsync(
+      "SELECT id, salary_calculation_status FROM shifts ORDER BY id",
+    )).toEqual([
+      { id: 'shift-early', salary_calculation_status: 'finalized' },
+      { id: 'shift-later', salary_calculation_status: 'finalized' },
+    ]);
+  });
 });
 
 function makeBackup(overrides: Record<string, unknown>) {
@@ -236,4 +275,52 @@ function recurrenceSeries(timestamp: string) {
 
 function scheduledShift(id: string, workplaceId: string, scheduledStart: string, scheduledEnd: string, timestamp: string) {
   return { id, workplaceId, scheduledStart, scheduledEnd, expectedBreakMinutes: 0, status: 'scheduled', hourlyRateSnapshotMinor: 5000, recurrenceGroupId: 'series1', recurrenceOriginalStart: scheduledStart, salaryCalculationStatus: 'not_calculated', timezone: 'Asia/Jerusalem', createdAt: timestamp, updatedAt: timestamp };
+}
+
+function completedShift(
+  id: string,
+  workplaceId: string,
+  salaryProfileId: string,
+  start: string,
+  end: string,
+  timestamp: string,
+) {
+  return {
+    id, workplaceId, salaryProfileId, scheduledStart: start, scheduledEnd: end,
+    actualStart: start, actualEnd: end, payableStart: start, payableEnd: end,
+    expectedBreakMinutes: 0, payableBreakMinutes: 0, status: 'completed',
+    hourlyRateSnapshotMinor: 6000, payableSource: 'actual', completedAt: end,
+    salaryCalculationStatus: 'finalized', timezone: 'Asia/Jerusalem',
+    createdAt: timestamp, updatedAt: timestamp,
+  };
+}
+
+function finalizedSnapshot(
+  id: string,
+  shiftId: string,
+  salaryProfileId: string,
+  start: string,
+  end: string,
+  timestamp: string,
+) {
+  return {
+    id, shiftId, version: 1, status: 'finalized', salaryProfileId, isCurrent: true,
+    createdAt: timestamp,
+    result: {
+      context: 'completed', calculationTimezone: 'Asia/Jerusalem', sourceRange: { start, end },
+      workIntervals: [{ start, end, minutes: 60 }], grossMinutes: 60, paidBreakMinutes: 0,
+      unpaidBreakMinutes: 0, payableMinutes: 60, regularMinutes: 60, specialRateMinutes: 0,
+      workweekAllocations: [{ startLocalDate: '2026-08-02', netMinutes: 60, grossMinutes: 60 }],
+      segments: [{
+        start, end, localDate: start.slice(0, 10), minutes: 60, baseHourlyRateMinor: 6000,
+        multiplierBasisPoints: 10000, basePayMinor: 6000, premiumPayMinor: 0,
+        totalPayMinor: 6000, appliedRuleIds: [], labels: [],
+      }],
+      basePayMinor: 6000, premiumPayMinor: 0, minimumDurationAdjustmentMinutes: 0,
+      minimumDurationAdjustmentMinor: 0, fixedBonusesMinor: 0, reimbursementsMinor: 0,
+      totalGrossPayMinor: 6000, resolvedBaseHourlyRateMinor: 6000, appliedRuleIds: [],
+      issues: [], explanations: ['salary.explanations.weekly_overtime:weekly-rule:2400:15000:net'],
+      calculatedAt: timestamp, engineVersion: 'test',
+    },
+  };
 }

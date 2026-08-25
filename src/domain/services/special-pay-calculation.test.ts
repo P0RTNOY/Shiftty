@@ -178,6 +178,46 @@ describe('special-interval salary calculation', () => {
     expect(deriveSalaryTrustState(result)).toBe('basic_estimate');
   });
 
+  it('attributes an equivalent non-stacking special-rule cohort when removing the cohort changes pay', () => {
+    const primary = specialRule({ priority: 10 });
+    const fallback = specialRule({ id: 'holiday-pay-fallback', priority: 0 });
+    const result = calculate([fallback, primary]);
+
+    expect(result).toMatchObject({ premiumPayMinor: 6_000, totalGrossPayMinor: 30_000 });
+    expect(result.segments[1]).toEqual(expect.objectContaining({
+      multiplierBasisPoints: 15_000,
+      appliedRuleIds: ['holiday-pay'],
+    }));
+    expect(result.specialIntervalEvaluations).toEqual([expect.objectContaining({
+      appliedRuleIds: ['holiday-pay'],
+      contributedToEstimate: true,
+    })]);
+    expect(deriveSalaryTrustState(result)).toBe('configured_estimate');
+  });
+
+  it('attributes equivalent special rate overrides as one applicable cohort', () => {
+    const primary = createPayRule({
+      id: 'holiday-rate-primary',
+      priority: 10,
+      conditions: [{ type: 'specialInterval', intervalTypes: ['holiday'] }],
+      effect: { type: 'rateOverride', hourlyRateMinor: 7_000 },
+    });
+    const fallback = createPayRule({
+      id: 'holiday-rate-fallback',
+      priority: 0,
+      conditions: [{ type: 'specialInterval', intervalTypes: ['holiday'] }],
+      effect: { type: 'rateOverride', hourlyRateMinor: 7_000 },
+    });
+    const result = calculate([fallback, primary]);
+
+    expect(result).toMatchObject({ basePayMinor: 26_000, totalGrossPayMinor: 26_000 });
+    expect(result.specialIntervalEvaluations).toEqual([expect.objectContaining({
+      appliedRuleIds: ['holiday-rate-primary'],
+      contributedToEstimate: true,
+    })]);
+    expect(deriveSalaryTrustState(result)).toBe('configured_estimate');
+  });
+
   it('does not attribute a stacking multiplier with no premium above 100%', () => {
     const noEffectPremium = specialRule({
       id: 'zero-premium',
@@ -244,6 +284,33 @@ describe('special-interval salary calculation', () => {
       contributedToEstimate: false,
     })]);
     expect(deriveSalaryTrustState(result)).toBe('basic_estimate');
+  });
+
+  it('attributes redundant minimum-duration rules when their cohort adds an adjustment', () => {
+    const primary = createPayRule({
+      id: 'holiday-minimum-primary',
+      priority: 10,
+      conditions: [{ type: 'specialInterval', intervalTypes: ['holiday'] }],
+      effect: { type: 'minimumPaidDuration', minutes: 300 },
+    });
+    const fallback = createPayRule({
+      id: 'holiday-minimum-fallback',
+      priority: 0,
+      conditions: [{ type: 'specialInterval', intervalTypes: ['holiday'] }],
+      effect: { type: 'minimumPaidDuration', minutes: 300 },
+    });
+    const result = calculate([fallback, primary]);
+
+    expect(result).toMatchObject({
+      minimumDurationAdjustmentMinutes: 60,
+      minimumDurationAdjustmentMinor: 6_000,
+      totalGrossPayMinor: 30_000,
+    });
+    expect(result.specialIntervalEvaluations).toEqual([expect.objectContaining({
+      appliedRuleIds: ['holiday-minimum-fallback', 'holiday-minimum-primary'],
+      contributedToEstimate: true,
+    })]);
+    expect(deriveSalaryTrustState(result)).toBe('configured_estimate');
   });
 
   it('is rule-order independent and applies fixed components once', () => {

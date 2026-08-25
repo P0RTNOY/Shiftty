@@ -112,6 +112,8 @@ function calculateSalaryInternal(input: SalaryCalculationInput, analyzeSpecialCo
   let cumulativePremiumNumerator = 0n;
   let roundedBaseMinor = 0;
   let roundedPremiumMinor = 0;
+  const configuredRuleIds = new Set(input.rules.map((rule) => rule.id));
+  const applicableSpecialRuleIdsByIntervalId = new Map<string, Set<string>>();
 
   for (const work of workIntervals) {
     let cursor = new Date(work.start).getTime();
@@ -169,6 +171,13 @@ function calculateSalaryInternal(input: SalaryCalculationInput, analyzeSpecialCo
       );
       const appliedSegmentRules = [...(rateOverride ? [rateOverride] : []), ...multiplier.rules];
       const matchingSpecialIntervals = specialIntervals.filter((interval) => intervalContains(interval, midpoint));
+      for (const interval of matchingSpecialIntervals) {
+        const applicableRuleIds = applicableSpecialRuleIdsByIntervalId.get(interval.id) ?? new Set<string>();
+        for (const rule of matching) {
+          if (configuredRuleIds.has(rule.id) && ruleTargetsInterval(rule, interval)) applicableRuleIds.add(rule.id);
+        }
+        applicableSpecialRuleIdsByIntervalId.set(interval.id, applicableRuleIds);
+      }
       if (rateMinor) {
         cumulativeBaseNumerator += BigInt(rateMinor) * BigInt(segmentMinutes) * 10_000n;
         cumulativePremiumNumerator += BigInt(rateMinor) * BigInt(segmentMinutes) * BigInt(multiplier.basisPoints - 10_000);
@@ -237,18 +246,18 @@ function calculateSalaryInternal(input: SalaryCalculationInput, analyzeSpecialCo
   const allAppliedRules = [...new Set([...segments.flatMap((item) => item.appliedRuleIds), ...componentRules.map((rule) => rule.id)])];
   const hasError = issues.some((issue) => issue.severity === 'error');
   const totalGrossPayMinor = hasError ? undefined : basePayMinor + premiumPayMinor + minimumDurationAdjustmentMinor + fixedBonusesMinor + reimbursementsMinor;
-  const contributionByRuleId = new Map<string, boolean>();
-  const ruleChangesEstimate = (ruleId: string): boolean => {
+  const contributionByRuleCohort = new Map<string, boolean>();
+  const ruleCohortChangesEstimate = (ruleIds: readonly string[]): boolean => {
     if (!analyzeSpecialContributions) return false;
-    const cached = contributionByRuleId.get(ruleId);
+    const configuredCohort = [...new Set(ruleIds.filter((ruleId) => configuredRuleIds.has(ruleId)))].sort();
+    if (!configuredCohort.length) return false;
+    const cohortKey = JSON.stringify(configuredCohort);
+    const cached = contributionByRuleCohort.get(cohortKey);
     if (cached !== undefined) return cached;
-    if (!input.rules.some((rule) => rule.id === ruleId)) {
-      contributionByRuleId.set(ruleId, false);
-      return false;
-    }
+    const excludedRuleIds = new Set(configuredCohort);
     const counterfactual = calculateSalaryInternal({
       ...input,
-      rules: input.rules.filter((rule) => rule.id !== ruleId),
+      rules: input.rules.filter((rule) => !excludedRuleIds.has(rule.id)),
     }, false);
     const changed = monetaryFingerprint({
       basePayMinor,
@@ -258,10 +267,15 @@ function calculateSalaryInternal(input: SalaryCalculationInput, analyzeSpecialCo
       reimbursementsMinor,
       totalGrossPayMinor,
     }) !== monetaryFingerprint(counterfactual);
-    contributionByRuleId.set(ruleId, changed);
+    contributionByRuleCohort.set(cohortKey, changed);
     return changed;
   };
   const specialIntervalEvaluations = specialIntervals.map((interval) => {
+    const applicableComponentRuleIds = componentRules.filter((rule) => ruleTargetsInterval(rule, interval) && workIntervals.some((work) => {
+      const midpoint = new Date((Date.parse(work.start) + Date.parse(work.end)) / 2);
+      return intervalContains(interval, midpoint) && isRuleEffectiveAt(rule, midpoint, timezone)
+        && conditionsMatch(rule.conditions, midpoint, { ...componentContext, holidayIntervals: [], specialIntervals: [interval] });
+    })).map((rule) => rule.id);
     const appliedRuleIds = [...new Set([
       ...segments.flatMap((segment) => segment.specialIntervalIds?.includes(interval.id)
         ? segment.appliedRuleIds.filter((ruleId) => {
@@ -269,12 +283,12 @@ function calculateSalaryInternal(input: SalaryCalculationInput, analyzeSpecialCo
           return rule ? ruleTargetsInterval(rule, interval) : false;
         })
         : []),
-      ...componentRules.filter((rule) => ruleTargetsInterval(rule, interval) && workIntervals.some((work) => {
-        const midpoint = new Date((Date.parse(work.start) + Date.parse(work.end)) / 2);
-        return intervalContains(interval, midpoint) && isRuleEffectiveAt(rule, midpoint, timezone)
-          && conditionsMatch(rule.conditions, midpoint, { ...componentContext, holidayIntervals: [], specialIntervals: [interval] });
-      })).map((rule) => rule.id),
+      ...applicableComponentRuleIds,
     ])].sort();
+    const applicableRuleCohortIds = [
+      ...(applicableSpecialRuleIdsByIntervalId.get(interval.id) ?? []),
+      ...applicableComponentRuleIds,
+    ];
     return {
       intervalId: interval.id,
       scheduleId: interval.scheduleId,
@@ -290,7 +304,7 @@ function calculateSalaryInternal(input: SalaryCalculationInput, analyzeSpecialCo
       presetVersion: interval.presetVersion,
       confirmedAt: interval.confirmedAt,
       appliedRuleIds,
-      contributedToEstimate: appliedRuleIds.some(ruleChangesEstimate),
+      contributedToEstimate: appliedRuleIds.length > 0 && ruleCohortChangesEstimate(applicableRuleCohortIds),
     };
   });
 

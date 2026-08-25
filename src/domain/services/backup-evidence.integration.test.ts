@@ -151,6 +151,12 @@ describe('evidence-aware Backup V1 compatibility', () => {
       expect(snapshotResult.appliedRuleIds).toEqual([importedRule?.id]);
       expect(snapshotResult.specialIntervalEvaluations[0].appliedRuleIds).toEqual([importedRule?.id]);
       expect(snapshotResult.segments[0].appliedRuleIds).toEqual([importedRule?.id]);
+      expect(snapshotResult.explanations).toContain(
+        `salary.explanations.weekly_overtime:${importedRule?.id}:2400:15000:net`,
+      );
+      expect(snapshotResult.explanations.join(' ')).not.toContain(
+        'salary.explanations.weekly_overtime:rule-collision:',
+      );
       expect(await target.getFirstAsync(
         "SELECT shift_id FROM salary_calculation_snapshots WHERE id='snapshot-imported'",
       )).toEqual({ shift_id: 'local-shift' });
@@ -242,7 +248,9 @@ async function seedSnapshotWithEvidence(
     minimumDurationAdjustmentMinor: 0, fixedBonusesMinor: 0, reimbursementsMinor: 0,
     totalGrossPayMinor: 6000, resolvedBaseHourlyRateMinor: 6000,
     appliedRuleIds: ['rule-collision'],
-    issues: [], explanations: [], calculatedAt: timestamp, engineVersion: 'test',
+    issues: [],
+    explanations: ['salary.explanations.weekly_overtime:rule-collision:2400:15000:net'],
+    calculatedAt: timestamp, engineVersion: 'test',
   };
   await db.runAsync(`INSERT INTO salary_calculation_snapshots (
     id, shift_id, version, status, context, salary_profile_id, resolved_rate_minor,
