@@ -16,6 +16,8 @@ The Salary Trust Foundation labels every salary figure as unavailable, a basic e
 
 See [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the current evidence-based milestone and known gaps, and [`DOGFOODING.md`](DOGFOODING.md) for the frozen-candidate launch and daily-use checklist. The frontend audit and approved simplification sequence are in [`docs/frontend-audit.md`](docs/frontend-audit.md) and [`docs/frontend-simplification-plan.md`](docs/frontend-simplification-plan.md).
 
+Milestone 4 beta stabilization adds SDK-compatible Expo patch updates, deterministic release preflight and least-privilege CI, public `Shiftty / שיפטי` naming with stable legacy native identifiers, disposable Maestro journeys, bounded salary-coordinator repository work, serialized notification reconciliation, migration-history validation, and a privacy-minimal database recovery surface. The final source gate passed 137 suites / 685 tests, and a fresh standalone iOS Release passed 6/6 Maestro journeys in 11m 50s on an iOS 26.5 Simulator. PDF, CSV, ICS, and backup exports reached real iOS share sheets, but generated-file readback and an OS document-picker restore were not completed. The evidence-based verdict is `SOURCE_READY_NATIVE_BLOCKED`; physical-iPhone signing, Android runtime verification, hosted CI, and store distribution also remain explicit external/manual boundaries. See [`docs/BETA_READINESS.md`](docs/BETA_READINESS.md), [`docs/NATIVE_VERIFICATION_REPORT.md`](docs/NATIVE_VERIFICATION_REPORT.md), and [`docs/RELEASE_BUILD.md`](docs/RELEASE_BUILD.md).
+
 ## Development
 
 ```sh
@@ -33,6 +35,13 @@ npm run validate:migrations
 npm run validate:expo
 npx expo install --check
 npx expo config --type public
+```
+
+Release-candidate source preflight:
+
+```sh
+npm ci
+npm run release:preflight
 ```
 
 ## Architecture

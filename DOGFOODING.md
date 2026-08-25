@@ -1,21 +1,21 @@
 # Shiftty Dogfooding
 
-This guide is for the UX-consistency dogfooding candidate on branch `codex/initial-shifty-foundation`. Use the existing behavior and record findings; do not add features or begin another product phase during the freeze.
+This guide now supports the Milestone 4 beta-stabilization candidate on branch `codex/beta-stabilization`. Use only disposable Simulator/emulator state for destructive journeys. Preserve real device data before installation or restore testing, record findings without rewriting evidence, and do not treat a green source gate as a native pass. The authoritative readiness and platform-result documents are [`docs/BETA_READINESS.md`](docs/BETA_READINESS.md) and [`docs/NATIVE_VERIFICATION_REPORT.md`](docs/NATIVE_VERIFICATION_REPORT.md).
 
 ## How to start Shiftty locally
 
 Prerequisites: repository dependencies are already installed, Xcode includes the iOS 26.5 runtime, and EAS CLI is authenticated for `@oportnoy/shifty` when using a cloud build.
 
-The current application candidate is `f4f916a`, followed by documentation milestone `5dfa4ff` and this closeout. The iPhone 15 Pro Max now contains a standalone Release built from that application candidate, version `0.1.0` (`1`) with bundle identifier `com.oportnoy.shiftty.dogfood`. Launch it directly from the Shiftty Home Screen icon; it does not require Metro, a cable, or a Mac connection.
+The Milestone 4 source and iOS Simulator candidate passed its final gate on 2026-08-25: 137 suites / 685 tests, a fresh standalone arm64 Release build, and 6/6 Maestro journeys in 11 minutes 50 seconds. The readiness verdict remains `SOURCE_READY_NATIVE_BLOCKED` until generated exports are read back and a backup is selected and restored through the OS document picker. Do not reuse the historical `f4f916a` physical build as evidence for this candidate: it predates the salary, Expo dependency, release-config, recovery, and stabilization changes. A previously installed iPhone build may be used only after its bundle ID, version, source commit, signing status, and data-preservation plan are recorded.
 
-The replacement Release was signed and installed on 2026-08-13 after the login keychain was unlocked. Its Personal Team profile (`9R9UQ6GTQW`) expires on 2026-08-17, the signed-app CDHash is `eeb93d4d592a14c4f34325ecc1f43b4a1ff28af1`, and deep/strict signature verification passed before installation. Complete pre/post installation and DF-013 snapshots included the SQLite database, WAL, and SHM files; integrity and foreign-key checks passed, and the original data was restored byte-for-byte after the disposable notification test.
+Historical context only: the replacement Release signed on 2026-08-13 used a Personal Team profile that expired on 2026-08-17. Its signature and DF-013 notification evidence remain valid only for that old artifact. Complete pre/post snapshots included the SQLite database, WAL, and SHM files, and the original data was restored after the disposable notification test; use the same preservation standard for any new physical-device run.
 
-If the iPhone 17 Pro simulator is shut down, run:
+Use the named disposable clone for destructive journeys. If it is shut down, run:
 
 ```sh
-xcrun simctl boot "iPhone 17 Pro"
+xcrun simctl boot "Shiftty Beta Verification Clone"
 open -a Simulator
-xcrun simctl bootstatus "iPhone 17 Pro" -b
+xcrun simctl bootstatus "Shiftty Beta Verification Clone" -b
 ```
 
 If it is already booted, only `open -a Simulator` is needed. Confirm its state with:
@@ -31,7 +31,7 @@ cd /Users/portnoy/Documents/Shiftty
 npm run start -- --dev-client --lan --port 8081
 ```
 
-The verified configuration is an Expo development client using LAN hosting on port `8081`. Expo prints the Mac LAN URL; the device and Mac must be able to reach that host. `localhost` is valid for the simulator on the same Mac, while a physical device must use the printed LAN address.
+This development-client workflow uses LAN hosting on port `8081`. Expo prints the Mac LAN URL; the device and Mac must be able to reach that host. `localhost` is valid for the simulator on the same Mac, while a physical device must use the printed LAN address. The Milestone 4 beta verdict itself is based on a standalone Release that did not require Metro; development-client connectivity is not equivalent evidence.
 
 The previous EAS simulator development build remains usable for JavaScript-only checks, but it predates the corrected icon. Install it only when a quick existing-native-runtime check is sufficient:
 
@@ -56,10 +56,12 @@ npx expo run:ios --device "iPhone 17 Pro" --no-bundler
 The first clean native compilation can take several minutes. If Metro is already running and only the installed app needs relaunching, run:
 
 ```sh
-xcrun simctl launch booted com.shifty.app
+xcrun simctl launch booted com.omerportnoy.shifty
 ```
 
 ## Daily dogfooding flows
+
+For a repeatable disposable smoke run, install the current development build and execute the native flows in `.maestro/journeys` as described in `.maestro/README.md`, always passing the clone UDID with `--udid`. The iOS flows cross into share sheets and use Copy, but they do not read files back or select/restore a backup through the document picker, so they do not replace the manual matrix below.
 
 - [ ] **Clock in:** From Home, start a shift for the intended workplace and confirm exactly one active shift appears.
 - [ ] **Active timer:** Leave the active screen open and confirm elapsed time advances and the expected workplace is shown.
@@ -81,9 +83,14 @@ xcrun simctl launch booted com.shifty.app
 - [ ] **Overnight manual break:** On a disposable cross-midnight shift, add a second-day break such as 01:00–01:15 and confirm it appears after midnight and reduces the shift by exactly 15 minutes.
 - [ ] **Edit/delete:** Edit a disposable shift, verify the update everywhere, then delete it and confirm no stale copy remains on Home, Calendar, Reports, or Shift Details.
 - [ ] **Reports:** Open the relevant month and confirm completed-shift count, hours, finalized salary totals, and missing/stale salary messages match the recorded shifts.
+- [ ] **Weekly overtime:** Create a new effective-dated salary profile version, explicitly enable weekly overtime, cross the configured workweek threshold with deterministic completed shifts, and verify no minute receives duplicate daily/weekly overtime premium.
+- [ ] **Calendar evidence and pay rule:** Confirm a reviewable evidence interval and verify it has no pay effect by itself. Add a matching special-interval rule, explicitly recalculate the affected stale shift, and confirm the new snapshot explains the contributing interval while the older snapshot remains frozen.
+- [ ] **Salary trust states:** Verify unavailable, basic estimate, configured estimate, stale, incomplete, missing, and finalized-zero presentation. Confirm no missing or stale result appears as numeric zero.
 - [ ] **Exports:** From Reports, export PDF and CSV for the same month. Confirm the share sheet names the selected month, local dates/times match Reports, and missing/stale salary is not serialized as zero. Confirm ICS describes itself as calendar-only.
+- [ ] **Backup recovery:** Export a backup from disposable state, inspect the confirmation for replace and merge, restore through the OS picker, relaunch, and verify active/open-break state, zero values, archived records, and frozen salary provenance. Confirm malformed input leaves the current database unchanged.
+- [ ] **Startup recovery:** Against a disposable database only, verify an incompatible migration history shows localized non-destructive recovery guidance, retry remains available, and the exported diagnostic contains no paths, error message, workplaces, shifts, salary, or database content.
 - [x] **DF-013 notification retest:** On the physical `f4f916a` Release, iOS delivered `המשמרת שלך מתחילה בעוד 0 דקות.`; the numeric offset is present and no brace token remains.
-- [ ] **App restart:** Terminate and relaunch from the Shiftty icon; confirm persisted shifts remain, no deleted item returns, and any active/break state is coherent. The simulator uses `com.shifty.app`; the current Personal Team phone install uses `com.oportnoy.shiftty.dogfood`.
+- [ ] **App restart:** Terminate and relaunch from the Shiftty icon; confirm persisted shifts remain, no deleted item returns, and any active/break state is coherent. The iOS candidate uses `com.omerportnoy.shifty`; Android uses `com.shifty.app`. Record any separately signed dogfood bundle explicitly.
 
 ## What to record when something fails
 
@@ -99,9 +106,9 @@ Create an entry in `DOGFOODING_ISSUES.md` and include:
 
 Do not repair or rewrite affected data merely to make the report look clean. Preserve the evidence and record whether the issue is reproducible.
 
-## Physical Personal Team build workflow
+## Historical physical Personal Team build workflow
 
-Use this only after the full repository gate and Simulator walkthrough pass. The free Personal Team profile is Xcode-managed, so automatic signing must use the profile's actual `TeamIdentifier` (`9R9UQ6GTQW`). The suffix displayed in the Apple Development identity label is not the signing team identifier.
+The following records the 2026-08-13 process for reproducibility; its profile has expired and its identifiers do not authorize a current build. For Milestone 4, use this only as a preservation checklist after the full repository gate and Simulator walkthrough pass. Discover the currently eligible signing team without printing credentials, and do not copy the historical team or bundle overrides into a new release merely to make signing pass.
 
 1. Create the same clean temporary native copy described above and run Expo prebuild/CocoaPods by building the Simulator once.
 2. In the disposable copy only, remove `aps-environment` from `ios/Shifty/Shifty.entitlements`. Shiftty schedules local notifications and does not request remote push tokens.
@@ -135,18 +142,18 @@ xcodebuild -workspace "$SHIFTTY_NATIVE_DIR/ios/Shifty.xcworkspace" \
 
 ## Known limitations
 
-- Android has not been verified because no emulator, AVD, or physical Android device is currently available. This is an external verification gap, not an iOS RC failure.
-- The current physical-iPhone build is the locally signed `f4f916a` standalone Release, not an EAS Preview. The free Personal Team profile expires on 2026-08-17; there is no EAS build ID, install URL, or QR.
-- Paid EAS Preview/internal distribution remains unavailable until an active paid Apple Developer Program team exists. Do not purchase membership as part of dogfooding automation.
-- Physical local-notification permission, native scheduling, background delivery, and DF-013 interpolation passed on the current standalone build. iOS's delivered-notification store contained the numeric Hebrew body and no unresolved token.
+- Android has not been verified for Milestone 4 because no SDK/emulator/device was available. This is an external verification gap, not an Android pass; the current verdict is `SOURCE_READY_NATIVE_BLOCKED`.
+- No physical-iPhone build is claimed for Milestone 4. The paired iPhone 15 Pro Max already contains the legacy dogfood bundle and database, so it was preserved. A side-by-side `com.omerportnoy.shiftty.beta` build stopped before compilation because no provisioning profile existed and Xcode required explicit profile creation. The old locally signed `f4f916a` standalone Release is not an EAS Preview and its Personal Team profile expired on 2026-08-17.
+- EAS Preview/internal-distribution eligibility has not been reverified for Milestone 4. Treat Apple account membership, signing, and distribution access as external prerequisites; do not purchase membership as part of dogfooding automation.
+- Physical local-notification permission, native scheduling, background delivery, and DF-013 interpolation passed only on the historical standalone build. Reverify the current candidate before using that result for beta readiness.
 - Remote push/APNs is not used by the current Shiftty notification flow and is not enabled in the Personal Team build. Focus-mode variations, prolonged power-management behavior, calendar import interoperability, native share targets, keyboard avoidance, and dynamic-text extremes remain unverified.
-- Simulator development-client checks still require Metro on LAN port `8081`; the installed physical Release build does not.
+- Simulator development-client checks still require Metro on LAN port `8081`; the verified Milestone 4 Simulator Release did not.
 
-When a paid Apple Developer Program team or valid internal-distribution `credentials.json` becomes available, the intended EAS build command remains:
+When eligible Apple signing and internal-distribution access are confirmed, the intended EAS build command is:
 
 ```sh
 cd /Users/portnoy/Documents/Shiftty
-eas build --platform ios --profile preview
+npx eas-cli@22.4.0 build --platform ios --profile preview
 ```
 
 Do not use `development-simulator` for a physical iPhone.

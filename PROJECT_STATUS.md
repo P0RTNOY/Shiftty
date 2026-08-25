@@ -2,6 +2,20 @@
 
 Last updated: 2026-08-25
 
+## Beta Stabilization and Release Readiness — 2026-08-25
+
+Milestone 4 implementation is complete; release readiness remains evidence-scoped and blocked on native file readback/restore verification. The source candidate resolves Expo SDK 57's eight patch compatibility notices, exposes the public name **Shiftty / שיפטי** while preserving stable legacy bundle/package/project identifiers, defines credible EAS development/preview/production profiles, adds a deterministic release preflight and least-privilege CI, and provides six disposable Maestro production-UI journeys.
+
+Stability and recovery work is evidence-driven. Notification mutations are serialized to prevent duplicate native scheduling under concurrent foreground/navigation/shift requests. Salary evidence and recurring-rest reads are batched by workplace/profile context and filtered back to exact shift ranges; in a 365-shift/250-unrelated-workplace scenario, role reads fell from 251 to 1, unrelated profile reads from 250 to 0, evidence reads from 365 to 1, and weekly-rest reads from 365 to 1. The isolated Jest body took approximately 5.6 seconds with approximately 163 MB maximum process RSS, which is query-bound evidence rather than a native benchmark. Database initialization validates the complete migration-history prefix. Disposable SQLite tests cover empty and v1-v9 upgrades, interrupted rollback/retry, missing and future history rejection, malformed/invalid backups, transactional replace rollback, merge collisions, active/open-break constraints, legacy data, and a 250-shift zero-rate round-trip. A localized startup recovery boundary offers retry and a privacy-minimal diagnostic that excludes database paths, messages, and user records.
+
+The product copy and route modules have been audited for the public spelling, Hebrew/English translation coverage, RTL/LTR structure, logical weekdays, currency/percentage directionality, font scaling, and accessible action/state metadata. The CI workflow performs a locked install, typecheck, lint, full Jest suite, migration validation, Expo web export, Expo compatibility/public-config checks, and patch-whitespace validation with read-only permissions and no deploy step. Release configuration, rollback boundaries, privacy limits, exact build commands, and external prerequisites are documented in `docs/BETA_READINESS.md`, `docs/NATIVE_VERIFICATION_REPORT.md`, and `docs/RELEASE_BUILD.md`.
+
+The complete post-review source gate passed with **137 suites / 685 tests**, plus typecheck, lint, empty and v1-v9 migration validation, Expo export of all 37 routes, clean Expo dependency compatibility, public-config resolution, and `git diff --check`. `npm run release:preflight` reran the same source checks successfully and listed external release prerequisites separately. A hosted GitHub Actions run is not claimed.
+
+A fresh arm64 iOS Release built with Xcode 26.6, installed, and launched standalone on an iOS 26.5 disposable iPhone 17 Pro-class Simulator. Maestro then passed all six final flows in 11 minutes 50 seconds, including cold relaunch, active/open-break restoration, archived shift-type snapshots, effective-dated weekly overtime, evidence neutrality/selective staleness/recalculation, finalized zero, and PDF/CSV/ICS/backup share-sheet presentation. Hebrew RTL/dark and English LTR/light surfaces were inspected. The native SQLite database reached exact Migration 9, passed integrity and foreign-key checks, and a controlled migration-history mismatch showed the non-destructive recovery screen before clean restoration. Report-row width and iOS picker accessibility defects found during the walkthrough were fixed, regression-tested, rebuilt, and included in the 6/6 rerun.
+
+The verdict is **`SOURCE_READY_NATIVE_BLOCKED`**. Real iOS share sheets were exercised, but the generated PDF/CSV/ICS/backup files were not read back and no backup was selected and restored through the OS document picker. It does not claim a physical-iPhone, iPad, Android, TestFlight, App Store, or hosted-CI pass. The connected iPhone 15 Pro Max retains an older dogfood app/database and was not overwritten; a safe side-by-side physical build stopped because no provisioning profile existed and profile creation was outside scope. No Android SDK/emulator/device was available. Exact evidence and external blockers are recorded in `docs/NATIVE_VERIFICATION_REPORT.md`.
+
 ## Evidence-Aware Holiday and Rest-Day Rules Foundation — 2026-08-25
 
 Salary engine `1.5.0` now evaluates explicitly confirmed holiday, weekly-rest, and custom intervals offline while keeping calendar evidence independent from pay rules. An interval by itself records and explains a calendar assumption but does not change the gross estimate.
@@ -269,9 +283,9 @@ The native Simulator then generated a real 27 KB monthly PDF and 698-byte CSV an
 
 The overnight 01:00 manual-break instant resolution is regression-tested at the service boundary. The native screen and empty picker fields were inspected, but the historical salary fixture was not mutated merely to repeat the automated assertion.
 
-## Physical-iPhone build status
+## Historical physical-iPhone build status
 
-The connected iPhone 15 Pro Max contains the `f4f916a` application candidate as `com.oportnoy.shiftty.dogfood` 0.1.0 (1). The standalone Release was built with automatic signing for Personal Team `9R9UQ6GTQW`, and deep/strict verification passed with CDHash `eeb93d4d592a14c4f34325ecc1f43b4a1ff28af1`. Its provisioning profile expires on 2026-08-17 and contains the one intended device; APNs is absent because the app uses local notifications.
+On 2026-08-13, the iPhone 15 Pro Max contained the `f4f916a` application candidate as `com.oportnoy.shiftty.dogfood` 0.1.0 (1). That historical standalone Release was built with automatic signing for Personal Team `9R9UQ6GTQW`, and deep/strict verification passed with CDHash `eeb93d4d592a14c4f34325ecc1f43b4a1ff28af1`. Its provisioning profile expired on 2026-08-17 and contained the one intended device; APNs was absent because the app used local notifications. This section is historical evidence and does not verify Milestone 4.
 
 Build, installation, launch, and persistence checks passed. The final restored physical snapshot contains four completed shifts, zero active shifts, and zero open breaks, with `PRAGMA integrity_check = ok` and zero foreign-key violations. Database, WAL, and SHM match the complete pre-test snapshot byte-for-byte.
 
@@ -279,12 +293,12 @@ DF-013 was retested with a disposable zero-minute reminder. The application stor
 
 ## Remaining manual/platform limitations
 
-- Android execution is pending because no Android runtime/device exists locally.
-- The installed Personal Team profile expires on 2026-08-17.
+- Android execution remains unverified because no Android SDK/runtime/device exists locally.
+- The historical Personal Team profile expired on 2026-08-17.
 - The extended picker/report/export/share-target sweep was completed on Simulator; it was not repeated end-to-end on the physical phone during the focused DF-013 delivery retest.
 - Paid EAS Preview/internal distribution remains unavailable without an active paid Apple Developer Program team; no purchase was made.
 - Remote push/APNs is not used by the current local-notification flow. Focus-mode variations, prolonged power-management behavior, calendar import interoperability, native share targets on a physical phone, keyboard avoidance, and dynamic-text extremes remain unverified.
-- Product/UI copy uses **Shiftty / שיפטי** while Expo's native `name`/`slug` remain **Shifty / shifty**. This remains a documented P3 naming task.
+- Product/UI/native display copy now uses **Shiftty / שיפטי**. The Expo slug/scheme, bundle/package identifiers, EAS project, and Xcode target names intentionally retain legacy `shifty`/`Shifty` values for upgrade and data continuity.
 
 ## Android checklist
 
