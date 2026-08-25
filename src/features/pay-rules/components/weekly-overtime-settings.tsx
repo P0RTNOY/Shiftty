@@ -36,6 +36,7 @@ export function WeeklyOvertimeSettings({ value, onChange }: WeeklyOvertimeSettin
         accessibilityLabel={t('salary.weeklyOvertimeEnabled')}
         accessibilityRole="switch"
         accessibilityState={{ checked: value.enabled }}
+        testID="e2e-weekly-overtime-enabled"
         value={value.enabled}
         onValueChange={(enabled) => onChange({ ...value, enabled })}
       />
@@ -53,6 +54,7 @@ export function WeeklyOvertimeSettings({ value, onChange }: WeeklyOvertimeSettin
         label={t('salary.weeklyThresholdHours')}
         value={value.regularHours}
         onChangeText={(regularHours) => onChange({ ...value, regularHours })}
+        testID="e2e-weekly-overtime-hours"
       />
       <FormField
         accessibilityHint={t('salary.weeklyMultiplierHint')}
@@ -60,6 +62,7 @@ export function WeeklyOvertimeSettings({ value, onChange }: WeeklyOvertimeSettin
         label={t('salary.weeklyMultiplier')}
         value={value.multiplierPercent}
         onChangeText={(multiplierPercent) => onChange({ ...value, multiplierPercent })}
+        testID="e2e-weekly-overtime-multiplier"
       />
       <Text style={[styles.label, { color: colors.text, textAlign: align }]}>{t('salary.weeklyBasis')}</Text>
       <View style={[styles.choices, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}>

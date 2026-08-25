@@ -41,6 +41,15 @@ describe('DateField', () => {
       Object.defineProperty(Platform, 'OS', { configurable: true, value: originalOs });
     }
   });
+
+  it('exposes iOS picker actions outside the non-accessible modal overlay', () => {
+    renderApp(<DateField label="תאריך" onChange={jest.fn()} value="2026-08-08" />);
+
+    fireEvent.press(screen.getByRole('button', { name: 'תאריך' }));
+
+    expect(screen.getByTestId('e2e-date-time-cancel')).toBeTruthy();
+    expect(screen.getByTestId('e2e-date-time-confirm')).toBeTruthy();
+  });
 });
 
 describe('TimeField', () => {

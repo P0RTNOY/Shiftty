@@ -72,7 +72,7 @@ export function TemplateForm({ initial, loading, submitLabel, onDelete, onSubmit
         name="name"
         rules={{ required: true, minLength: 1, maxLength: 120 }}
         render={({ field }) => (
-          <FormField label={t('templates.name')} error={errors.name?.message} value={field.value} onChangeText={field.onChange} maxLength={120} />
+          <FormField label={t('templates.name')} error={errors.name?.message} value={field.value} onChangeText={field.onChange} maxLength={120} testID="e2e-shift-type-name" />
         )}
       />
 
@@ -123,6 +123,7 @@ export function TemplateForm({ initial, loading, submitLabel, onDelete, onSubmit
             onChangeText={field.onChange}
             keyboardType="decimal-pad"
             maxLength={7}
+            testID="e2e-shift-type-multiplier"
           />
         )}
       />
@@ -132,7 +133,7 @@ export function TemplateForm({ initial, loading, submitLabel, onDelete, onSubmit
         control={control}
         name="expectedBreakMinutes"
         render={({ field }) => (
-          <FormField label={t('templates.breakMinutes')} value={field.value} onChangeText={field.onChange} keyboardType="numeric" maxLength={4} />
+          <FormField label={t('templates.breakMinutes')} value={field.value} onChangeText={field.onChange} keyboardType="numeric" maxLength={4} testID="e2e-shift-type-break" />
         )}
       />
 
@@ -221,6 +222,7 @@ export function TemplateForm({ initial, loading, submitLabel, onDelete, onSubmit
         label={submitLabel ?? t('templates.create')}
         onPress={() => void handleSubmit(submit)()}
         disabled={loading}
+        testID="e2e-shift-type-save"
       />
       {onDelete ? <SecondaryButton destructive label={t('templates.delete')} onPress={onDelete} /> : null}
     </ScrollView>

@@ -38,10 +38,10 @@ export default function TabsLayout() {
         },
       })}
     >
-      <Tabs.Screen name="index" options={{ title: t('nav.home') }} />
-      <Tabs.Screen name="calendar" options={{ title: t('nav.calendar') }} />
-      <Tabs.Screen name="reports" options={{ title: t('nav.reports') }} />
-      <Tabs.Screen name="settings" options={{ title: t('nav.settings') }} />
+      <Tabs.Screen name="index" options={{ tabBarButtonTestID: 'e2e-tab-home', title: t('nav.home') }} />
+      <Tabs.Screen name="calendar" options={{ tabBarButtonTestID: 'e2e-tab-calendar', title: t('nav.calendar') }} />
+      <Tabs.Screen name="reports" options={{ tabBarButtonTestID: 'e2e-tab-reports', title: t('nav.reports') }} />
+      <Tabs.Screen name="settings" options={{ tabBarButtonTestID: 'e2e-tab-settings', title: t('nav.settings') }} />
     </Tabs>
   );
 }

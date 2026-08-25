@@ -3,6 +3,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import ExportsScreen from '@/app/settings/exports';
 import type { MonthlyReport } from '@/features/reports/monthly-report-service';
 import { shareFile } from '@/features/exports/adapters/file-share-adapter';
+import { processPdf } from '@/features/exports/adapters/print-share-adapter';
 import { createShift } from '@/test/fixtures';
 import { renderApp } from '@/test/render';
 
@@ -33,13 +34,27 @@ describe('ExportsScreen', () => {
     fireEvent.press(screen.getByRole('button', { name: 'הפקת CSV' }));
 
     await waitFor(() => expect(shareFile).toHaveBeenCalled());
-    const input = (shareFile as jest.Mock).mock.calls[0][0] as { filename: string; content: string };
+    const input = (shareFile as jest.Mock).mock.calls[0][0] as { filename: string; content: string; dialogTitle: string };
     expect(input.filename).toBe('shiftty-report-2026-08.csv');
+    expect(input.dialogTitle).toBe('שיתוף דוח CSV');
     expect(input.content).toContain('2026-08-05');
     expect(input.content).not.toContain('2026-08-05T08:00:00+03:00');
     const shiftLine = input.content.split('\r\n').find((line) => line.startsWith('2026-08-05'))!;
     expect(shiftLine.split(',')[9]).toBe('');
     expect(shiftLine).toContain('סכומי השכר הם הערכות המבוססות על ההגדרות שלך.');
     expect(shiftLine).toContain('ולא קביעה של זכאות משפטית.');
+  });
+
+  it('uses English share-sheet titles in English mode', async () => {
+    renderApp(<ExportsScreen />, { locale: 'en' });
+
+    fireEvent.press(screen.getByRole('button', { name: 'Create PDF' }));
+    await waitFor(() => expect(processPdf).toHaveBeenCalledWith(expect.objectContaining({ dialogTitle: 'Share PDF report' })));
+
+    fireEvent.press(screen.getByRole('button', { name: 'Create CSV' }));
+    await waitFor(() => expect(shareFile).toHaveBeenCalledWith(expect.objectContaining({ dialogTitle: 'Share CSV report' })));
+
+    fireEvent.press(screen.getByRole('button', { name: 'Create calendar' }));
+    await waitFor(() => expect(shareFile).toHaveBeenCalledWith(expect.objectContaining({ dialogTitle: 'Share calendar events' })));
   });
 });

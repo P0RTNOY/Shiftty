@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View, Alert, ActivityIndicator } from 'react-native';
-import { AppScreen, PrimaryButton } from '@/shared/components';
+import { AppScreen, PrimaryButton, SecondaryButton } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { spacing, typography, useAppTheme } from '@/shared/theme';
 import { BackupOrchestrator } from '@/domain/services/backup-orchestrator';
@@ -39,7 +39,7 @@ export default function DataManagementScreen() {
         filename,
         content,
         mimeType: 'application/json',
-        dialogTitle: 'ייצוא גיבוי נתונים'
+        dialogTitle: t('data.exportDialogTitle')
       });
     } catch (error) {
       reportUnexpectedError('backup.export', error);
@@ -68,33 +68,33 @@ export default function DataManagementScreen() {
       
       if (!validation.valid || !validation.envelope) {
         reportUnexpectedError('backup.validate', validation.errors);
-        Alert.alert('שגיאה בשחזור', 'קובץ הגיבוי לא תקין או פגום.');
+        Alert.alert(t('data.restoreErrorTitle'), t('data.invalidBackup'));
         return;
       }
 
       // Restore Preview & Strategy Choice
       Alert.alert(
-        'שחזור נתונים',
-        `נמצא גיבוי תקין הכולל ${validation.envelope.counts.shifts} משמרות.\nהאם להחליף את כל הנתונים הקיימים (מומלץ) או למזג עם הנתונים הקיימים?`,
+        t('data.restoreTitle'),
+        t('data.restorePreview', { count: validation.envelope.counts.shifts }),
         [
-          { text: 'ביטול', style: 'cancel' },
+          { text: t('common.cancel'), style: 'cancel' },
           { 
-            text: 'מיזוג עם הקיים',
+            text: t('data.merge'),
             onPress: async () => {
               setLoading(true);
               const result = await orchestrator.restoreMerge(content);
               setLoading(false);
               if (result.success) {
                 await synchronizeActiveShiftAfterDataMutation('restore', new SqliteShiftRepository(db), setActiveShift);
-                Alert.alert('הצלחה', 'הנתונים מוזגו בהצלחה.');
+                Alert.alert(t('data.success'), t('data.mergeSuccess'));
               } else {
                 reportUnexpectedError('backup.restore.merge', result.message);
-                Alert.alert(t('common.error'), 'לא ניתן היה למזג את הגיבוי. הנתונים הקיימים לא שונו.');
+                Alert.alert(t('common.error'), t('data.mergeFailure'));
               }
             } 
           },
           { 
-            text: 'החלפת כל הנתונים',
+            text: t('data.replace'),
             style: 'destructive',
             onPress: async () => {
               setLoading(true);
@@ -102,10 +102,10 @@ export default function DataManagementScreen() {
               setLoading(false);
               if (result.success) {
                 await synchronizeActiveShiftAfterDataMutation('restore', new SqliteShiftRepository(db), setActiveShift);
-                Alert.alert('הצלחה', 'הנתונים שוחזרו בהצלחה.');
+                Alert.alert(t('data.success'), t('data.replaceSuccess'));
               } else {
                 reportUnexpectedError('backup.restore.replace', result.message);
-                Alert.alert(t('common.error'), 'לא ניתן היה לשחזר את הגיבוי. הנתונים הקיימים לא שונו.');
+                Alert.alert(t('common.error'), t('data.replaceFailure'));
               }
             } 
           }
@@ -113,7 +113,7 @@ export default function DataManagementScreen() {
       );
     } catch (error) {
       reportUnexpectedError('backup.read', error);
-      Alert.alert('שגיאה בקריאת קובץ', 'לא ניתן היה לקרוא את קובץ הגיבוי.');
+      Alert.alert(t('data.readErrorTitle'), t('data.readError'));
     } finally {
       setLoading(false);
     }
@@ -121,12 +121,12 @@ export default function DataManagementScreen() {
 
   const handleClearAllData = () => {
     Alert.alert(
-      'מחיקת כל הנתונים',
-      'פעולה זו תמחק את כל הנתונים מהמכשיר באופן בלתי הפיך. האם אתה בטוח?',
+      t('data.deleteAll'),
+      t('data.deleteConfirm'),
       [
-        { text: 'ביטול', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'מחק הכל',
+          text: t('data.deleteAll'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -134,12 +134,12 @@ export default function DataManagementScreen() {
               const result = await new BackupOrchestrator(db).clearAllData();
               if (!result.success) throw new Error(result.message ?? 'Clear all failed');
               await synchronizeActiveShiftAfterDataMutation('clear', new SqliteShiftRepository(db), setActiveShift);
-              Alert.alert('הצלחה', 'כל הנתונים נמחקו.', [
-                { text: 'אישור', onPress: () => router.replace('/') }
+              Alert.alert(t('data.success'), t('data.deleted'), [
+                { text: t('common.confirm'), onPress: () => router.replace('/') }
               ]);
             } catch (error) {
               reportUnexpectedError('backup.clearAll', error);
-              Alert.alert('שגיאה במחיקה', 'לא ניתן היה למחוק את הנתונים. הנתונים הקיימים נשמרו.');
+              Alert.alert(t('data.deleteErrorTitle'), t('data.deleteFailure'));
             } finally {
               setLoading(false);
             }
@@ -155,27 +155,28 @@ export default function DataManagementScreen() {
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.text, { color: colors.text, marginTop: spacing.md }]}>מעבד נתונים...</Text>
+          <Text accessibilityRole="alert" style={[styles.text, { color: colors.text, marginTop: spacing.md }]}>{t('data.processing')}</Text>
         </View>
       ) : (
         <View style={styles.container}>
           <View style={styles.section}>
-            <Text style={headingStyle}>גיבוי נתונים</Text>
-            <Text style={textStyle}>ייצוא קובץ המכיל את כל המידע שלך לשמירה בענן או במכשיר אחר.</Text>
-            <PrimaryButton label="ייצא גיבוי עכשיו" onPress={handleExportBackup} />
+            <Text style={headingStyle}>{t('data.backupHeading')}</Text>
+            <Text style={textStyle}>{t('data.backupBody')}</Text>
+            <PrimaryButton label={t('data.exportNow')} onPress={handleExportBackup} testID="e2e-backup-export" />
           </View>
 
           <View style={styles.section}>
-            <Text style={headingStyle}>שחזור נתונים</Text>
-            <Text style={textStyle}>ייבוא מתוך קובץ גיבוי של Shiftty. לאחר בחירת הקובץ אפשר למזג אותו עם הנתונים הקיימים או להחליף אותם.</Text>
-            <PrimaryButton label="בחר קובץ לשחזור" onPress={handleRestoreBackup} />
+            <Text style={headingStyle}>{t('data.restoreHeading')}</Text>
+            <Text style={textStyle}>{t('data.restoreBody')}</Text>
+            <PrimaryButton label={t('data.chooseBackup')} onPress={handleRestoreBackup} testID="e2e-backup-restore" />
           </View>
 
           <View style={styles.section}>
-            <Text style={headingStyle}>איפוס כללי</Text>
-            <Text style={textStyle}>מחיקת כל הנתונים, המשמרות וההגדרות מהמכשיר.</Text>
-            <PrimaryButton 
-              label="מחק את כל הנתונים" 
+            <Text style={headingStyle}>{t('data.resetHeading')}</Text>
+            <Text style={textStyle}>{t('data.resetBody')}</Text>
+            <SecondaryButton
+              destructive
+              label={t('data.deleteAll')}
               onPress={handleClearAllData} 
             />
           </View>

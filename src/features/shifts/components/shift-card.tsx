@@ -7,9 +7,9 @@ import { useTranslation } from '@/shared/i18n';
 import { radius, spacing, typography, useAppTheme } from '@/shared/theme';
 import { formatLocalDateKey } from '@/shared/utils/zoned-time';
 
-interface ShiftCardProps { shift: Shift; workplaceName: string; roleName?: string; templateName?: string; onPress: () => void }
+interface ShiftCardProps { shift: Shift; workplaceName: string; roleName?: string; templateName?: string; onPress: () => void; testID?: string }
 
-export function ShiftCard({ shift, workplaceName, roleName, templateName, onPress }: ShiftCardProps) {
+export function ShiftCard({ shift, workplaceName, roleName, templateName, onPress, testID }: ShiftCardProps) {
   const { colors } = useAppTheme();
   const { formatDate, isRtl } = useTranslation();
   const range = getEffectiveShiftRange(shift);
@@ -21,6 +21,7 @@ export function ShiftCard({ shift, workplaceName, roleName, templateName, onPres
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
+      testID={testID}
       style={({ pressed }) => [styles.card, { backgroundColor: pressed ? colors.surfaceMuted : colors.surface, borderColor: colors.border }]}
     >
       <View style={[styles.header, { flexDirection: direction }]}>

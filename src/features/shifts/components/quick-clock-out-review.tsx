@@ -30,7 +30,7 @@ export function QuickClockOutReview({ shift, breaks, actualEnd, estimatedPay, sa
   const dateOptions = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: shift.timezone } as const;
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.primary }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.primary }]} testID="e2e-clock-out-review">
       <Text accessibilityRole="header" style={[styles.title, { color: colors.text, textAlign: align }]}>{t('end.quickTitle')}</Text>
       <Text style={[styles.row, { color: colors.text, textAlign: align }]}>{t('end.actualEndDate')}: {formatDate(actualEnd, dateOptions)}</Text>
       <Text style={[styles.row, { color: colors.text, textAlign: align }]}>{t('active.actualStart')}: {formatDate(shift.actualStart!, timeOptions)}</Text>
@@ -41,7 +41,7 @@ export function QuickClockOutReview({ shift, breaks, actualEnd, estimatedPay, sa
         <Text style={[styles.total, { color: colors.primary, textAlign: align }]}>{estimatedPay}</Text>
         <SalaryTrustDisclosure onOpenSalarySettings={onOpenSalarySettings} result={salaryResult} />
       </View> : null}
-      <PrimaryButton disabled={busy} label={t('end.save')} onPress={onSave} />
+      <PrimaryButton disabled={busy} label={t('end.save')} onPress={onSave} testID="e2e-clock-out-save" />
       <SecondaryButton disabled={busy} label={t('end.editDetails')} onPress={onEdit} />
       <SecondaryButton disabled={busy} label={t('common.cancel')} onPress={onCancel} />
     </View>

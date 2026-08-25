@@ -30,7 +30,7 @@ export async function shareFile(options: FileShareOptions): Promise<void> {
     }
 
     await Sharing.shareAsync(file.uri, {
-      dialogTitle: dialogTitle || `שתף את ${filename}`,
+      dialogTitle: dialogTitle ?? filename,
       mimeType,
       UTI: getUtiForMimeType(mimeType),
     });

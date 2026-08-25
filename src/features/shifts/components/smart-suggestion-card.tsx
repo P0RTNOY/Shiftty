@@ -59,7 +59,7 @@ export function SmartSuggestionCard({ candidate, onApplyAll, onApplySelected, on
             {t(`prediction.confidence.${candidate.confidence}`)} ({Math.round(candidate.score)}/100)
           </Text>
         </View>
-        <Text style={[styles.sourceLabel, { color: colors.textMuted }]}>
+        <Text style={[styles.sourceLabel, { color: colors.textMuted, textAlign: isRtl ? 'right' : 'left' }]}>
           {t(sourceKey)}
         </Text>
       </View>
@@ -115,7 +115,7 @@ export function SmartSuggestionCard({ candidate, onApplyAll, onApplySelected, on
       {showReasons && (
         <View style={styles.reasonsList}>
           {candidate.reasons.map((reason) => (
-            <View key={reason.code} style={styles.reasonRow}>
+            <View key={reason.code} style={[styles.reasonRow, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}>
               <Text style={[styles.reasonBullet, { color: colors.primary }]}>·</Text>
               <Text style={[styles.reasonText, { color: colors.textMuted }]}>
                 {t(reason.messageKey as never)}
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   headerText: { flex: 1 },
   title: { fontSize: typography.body, fontWeight: '700' },
   confidence: { fontSize: typography.caption },
-  sourceLabel: { fontSize: typography.caption, textAlign: 'right' },
+  sourceLabel: { fontSize: typography.caption },
   timeRow: { gap: spacing.md, padding: spacing.md },
   timeItem: { flex: 1 },
   timeLabel: { fontSize: typography.caption },
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   },
   whyLabel: { flex: 1, fontSize: typography.caption },
   reasonsList: { gap: 4, paddingHorizontal: spacing.md, paddingBottom: spacing.xs },
-  reasonRow: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.xs },
+  reasonRow: { alignItems: 'flex-start', gap: spacing.xs },
   reasonBullet: { fontSize: 20, lineHeight: 20 },
   reasonText: { flex: 1, fontSize: typography.caption, lineHeight: 18 },
   actions: { gap: spacing.sm, padding: spacing.md },

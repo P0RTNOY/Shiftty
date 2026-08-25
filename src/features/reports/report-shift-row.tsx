@@ -19,9 +19,10 @@ interface Props {
   specialIntervals?: readonly MonthlyReportSpecialInterval[];
   paidMinutes?: number;
   onPress: () => void;
+  testID?: string;
 }
 
-export function ReportShiftRow({ shift, workplaceName, salaryMinor, salaryStatus, specialIntervals = [], paidMinutes, onPress }: Props) {
+export function ReportShiftRow({ shift, workplaceName, salaryMinor, salaryStatus, specialIntervals = [], paidMinutes, onPress, testID = 'e2e-report-row' }: Props) {
   const { colors } = useAppTheme();
   const { formatCurrency, formatDate, isRtl, locale, t } = useTranslation();
   const range = shift.status === 'completed' && shift.actualStart && shift.actualEnd
@@ -50,7 +51,7 @@ export function ReportShiftRow({ shift, workplaceName, salaryMinor, salaryStatus
       .join(' · ')
     : '';
 
-  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.card, { backgroundColor: pressed ? colors.surfaceMuted : colors.surface, borderColor: colors.border }]}>
+  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.card, { backgroundColor: pressed ? colors.surfaceMuted : colors.surface, borderColor: colors.border }]} testID={testID}>
     <View style={[styles.topRow, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}>
       <View style={styles.titleBlock}>
         <Text style={[styles.date, { color: colors.text, textAlign }]}>{formatDate(range.start, { weekday: 'long', day: 'numeric', month: 'numeric', timeZone: shift.timezone })}</Text>
@@ -67,10 +68,10 @@ export function ReportShiftRow({ shift, workplaceName, salaryMinor, salaryStatus
 const styles = StyleSheet.create({
   card: { borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, gap: spacing.xs, minHeight: 120, padding: spacing.md },
   topRow: { alignItems: 'flex-start', gap: spacing.sm, justifyContent: 'space-between' },
-  titleBlock: { flex: 1, gap: spacing.xxs },
+  titleBlock: { flex: 1, gap: spacing.xxs, minWidth: 0 },
   date: { fontSize: typography.title, fontWeight: '800' },
   workplace: { fontSize: typography.caption },
-  salary: { fontSize: typography.title, fontWeight: '800' },
+  salary: { flexShrink: 1, fontSize: typography.title, fontWeight: '800', maxWidth: '55%' },
   time: { fontSize: typography.body, fontVariant: ['tabular-nums'], fontWeight: '700' },
   duration: { fontSize: typography.body, fontWeight: '600' },
   evidence: { flexShrink: 1, fontSize: typography.caption, lineHeight: 20 },

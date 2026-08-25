@@ -212,7 +212,7 @@ export function ShiftForm({ mode, workplaces, roles = [], templates = [], initia
           {initialShift?.shiftTemplateId && initialShift.shiftTypeNameSnapshot && !templates.some((template) => template.id === initialShift.shiftTemplateId)
             ? <Choice checked={field.value === initialShift.shiftTemplateId} label={`${initialShift.shiftTypeNameSnapshot} · ${(initialShift.shiftTypePayMultiplierBasisPoints ?? 10_000) / 100}%`} onPress={() => field.onChange(initialShift.shiftTemplateId!)} />
             : null}
-          {templates.map((template) => <Choice key={template.id} checked={field.value === template.id} label={`${template.name} · ${(template.payMultiplierBasisPoints ?? 10_000) / 100}%`} onPress={() => {
+          {templates.map((template) => <Choice key={template.id} checked={field.value === template.id} label={`${template.name} · ${(template.payMultiplierBasisPoints ?? 10_000) / 100}%`} testID="e2e-shift-type-option" onPress={() => {
             if (template.workplaceId) setValue('workplaceId', template.workplaceId, { shouldDirty: true });
             if (template.roleId && roles.some((role) => role.id === template.roleId && !role.isArchived && role.workplaceId === (template.workplaceId ?? workplaceId))) setValue('roleId', template.roleId, { shouldDirty: true });
             field.onChange(template.id);
@@ -255,8 +255,8 @@ export function ShiftForm({ mode, workplaces, roles = [], templates = [], initia
 
       {errors.root?.message ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.danger }]}>{errors.root.message}</Text> : null}
 
-      <PrimaryButton disabled={saving || !workplaces.length} label={t('common.save')} onPress={() => void submit()} />
-      <SecondaryButton label={showAdvanced ? t('form.hideAdvanced') : t('form.advancedOptions')} onPress={() => setShowAdvanced(!showAdvanced)} />
+      <PrimaryButton disabled={saving || !workplaces.length} label={t('common.save')} onPress={() => void submit()} testID="e2e-shift-save" />
+      <SecondaryButton label={showAdvanced ? t('form.hideAdvanced') : t('form.advancedOptions')} onPress={() => setShowAdvanced(!showAdvanced)} testID="e2e-shift-advanced" />
 
       {showAdvanced && (
         <View style={styles.advanced}>
@@ -308,19 +308,19 @@ interface ControlledFieldProps extends Omit<TextInputProps, 'value' | 'onChangeT
 }
 
 function ControlledField({ control, name, label, error, rules, ...props }: ControlledFieldProps) {
-  return <Controller control={control} name={name} rules={rules} render={({ field }) => <FormField {...props} error={error} label={label} onBlur={field.onBlur} onChangeText={field.onChange} value={field.value} />} />;
+  return <Controller control={control} name={name} rules={rules} render={({ field }) => <FormField {...props} error={error} label={label} onBlur={field.onBlur} onChangeText={field.onChange} testID={`e2e-shift-${name}`} value={field.value} />} />;
 }
 
 function ControlledDateField({ control, name, label, error, rules, optional }: ControlledFieldProps & { optional?: boolean }) {
   return <Controller control={control} name={name} rules={rules} render={({ field }) => (
-    <DateField error={error} label={label} optional={optional} value={field.value || undefined} onChange={(value) => field.onChange(value ?? '')} />
+    <DateField error={error} label={label} optional={optional} testID={`e2e-shift-${name}`} value={field.value || undefined} onChange={(value) => field.onChange(value ?? '')} />
   )} />;
 }
 
 function TimeField({ optional, ...props }: ControlledFieldProps & { optional?: boolean }) {
   const { t } = useTranslation();
   return <Controller control={props.control} name={props.name} rules={optional ? { pattern: { value: timePattern, message: t('form.invalidTime') } } : { required: t('form.required'), pattern: { value: timePattern, message: t('form.invalidTime') } }} render={({ field }) => (
-    <NativeTimeField error={props.error} label={props.label} optional={optional} value={field.value || undefined} onChange={(value) => field.onChange(value ?? '')} />
+    <NativeTimeField error={props.error} label={props.label} optional={optional} testID={`e2e-shift-${props.name}`} value={field.value || undefined} onChange={(value) => field.onChange(value ?? '')} />
   )} />;
 }
 
@@ -380,9 +380,9 @@ function mapFormError(error: unknown, t: ReturnType<typeof useTranslation>['t'])
   return t('form.repositoryError');
 }
 
-function Choice({ checked, label, onPress }: { checked: boolean; label: string; onPress: () => void }) {
+function Choice({ checked, label, onPress, testID }: { checked: boolean; label: string; onPress: () => void; testID?: string }) {
   const { colors } = useAppTheme();
-  return <Pressable accessibilityRole="radio" accessibilityState={{ checked }} onPress={onPress} style={[styles.choice, { borderColor: checked ? colors.primary : colors.border, backgroundColor: colors.surface }]}><Text style={{ color: colors.text, fontWeight: '600' }}>{label}</Text></Pressable>;
+  return <Pressable accessibilityRole="radio" accessibilityState={{ checked }} onPress={onPress} style={[styles.choice, { borderColor: checked ? colors.primary : colors.border, backgroundColor: colors.surface }]} testID={testID}><Text style={{ color: colors.text, fontWeight: '600' }}>{label}</Text></Pressable>;
 }
 
 const styles = StyleSheet.create({

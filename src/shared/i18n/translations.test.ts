@@ -3,7 +3,7 @@ import { screen } from '@testing-library/react-native';
 import { createElement } from 'react';
 import { Text } from 'react-native';
 
-import { useTranslation } from '@/shared/i18n/i18n-provider';
+import { resolveSupportedLocale, useTranslation } from '@/shared/i18n/i18n-provider';
 import { renderApp } from '@/test/render';
 
 describe('settings translations', () => {
@@ -15,6 +15,13 @@ describe('settings translations', () => {
     expect(en['settings.privacy']).toBe('Privacy');
     expect(en['settings.dataManagement']).toBe('Data management');
   });
+});
+
+it('selects English only for an English device/app locale and otherwise preserves Hebrew-first behavior', () => {
+  expect(resolveSupportedLocale('en')).toBe('en');
+  expect(resolveSupportedLocale('EN')).toBe('en');
+  expect(resolveSupportedLocale('he')).toBe('he');
+  expect(resolveSupportedLocale(undefined)).toBe('he');
 });
 
 it('keeps empty-state copy focused on visible worker outcomes', () => {

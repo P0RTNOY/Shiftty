@@ -15,24 +15,14 @@ export default function PrivacyScreen() {
     <AppScreen title={t('settings.privacy')}>
       <SettingsBackButton />
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={headingStyle}>הפרטיות שלך במקום הראשון</Text>
-        <Text style={textStyle}>
-          אפליקציית Shiftty נבנתה במטרה אחת: לתת לך שליטה מלאה על הנתונים שלך.
-        </Text>
-        <Text style={textStyle}>
-          כל המידע שאתה מזין באפליקציה (משמרות, שכר, הערות, מקומות עבודה) נשמר אך ורק על המכשיר שלך. 
-          אנחנו לא מעלים את הנתונים שלך לשום שרת, לא מוכרים אותם לצד שלישי, ולא משתמשים בהם לאף מטרה אחרת.
-        </Text>
+        <Text style={headingStyle}>{t('privacy.heading')}</Text>
+        <Text style={textStyle}>{t('privacy.localBody')}</Text>
         
-        <Text style={headingStyle}>גיבוי נתונים</Text>
-        <Text style={textStyle}>
-          מכיוון שהנתונים נשמרים רק אצלך, באחריותך לגבות אותם. מומלץ להשתמש באפשרות ייצוא הגיבוי במסך ניהול נתונים כדי לשמור עותק בטוח בענן הפרטי שלך (למשל iCloud או Google Drive).
-        </Text>
+        <Text style={headingStyle}>{t('privacy.backupHeading')}</Text>
+        <Text style={textStyle}>{t('privacy.backupBody')}</Text>
 
-        <Text style={headingStyle}>מחיקת נתונים</Text>
-        <Text style={textStyle}>
-          אתה יכול למחוק את כל הנתונים שלך מהאפליקציה בכל עת דרך מסך ניהול נתונים. הפעולה הזו היא בלתי הפיכה ותמחק הכל מהמכשיר שלך לתמיד.
-        </Text>
+        <Text style={headingStyle}>{t('privacy.deleteHeading')}</Text>
+        <Text style={textStyle}>{t('privacy.deleteBody')}</Text>
       </ScrollView>
     </AppScreen>
   );

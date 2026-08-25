@@ -239,6 +239,42 @@ describe('SalaryCalculationCoordinator', () => {
     ]);
   });
 
+  it('batches evidence reads without leaking an interval into a non-overlapping shift', async () => {
+    const profile = createSalaryProfile({ baseHourlyRateMinor: 6000 });
+    const morning = createShift({
+      id: 'morning', scheduledStart: '2026-07-15T08:00:00+03:00', scheduledEnd: '2026-07-15T10:00:00+03:00',
+      expectedBreakMinutes: 0, hourlyRateSnapshotMinor: 0,
+    });
+    const evening = createShift({
+      id: 'evening', scheduledStart: '2026-07-15T18:00:00+03:00', scheduledEnd: '2026-07-15T20:00:00+03:00',
+      expectedBreakMinutes: 0, hourlyRateSnapshotMinor: 0,
+    });
+    const morningHoliday = createCalendarEvidenceInterval({
+      id: 'morning-holiday', start: morning.scheduledStart!, end: morning.scheduledEnd!,
+    });
+    const specialRule = createPayRule({
+      id: 'holiday-rate', premiumFamily: 'special_interval',
+      conditions: [{ type: 'specialInterval', intervalTypes: ['holiday'] }],
+      effect: { type: 'multiplier', basisPoints: 15000 },
+    });
+    const listOverlapping = jest.fn().mockResolvedValue([morningHoliday]);
+    const deps = repositories({
+      salaryProfiles: { listByWorkplace: jest.fn().mockResolvedValue([profile]), getById: jest.fn() } as unknown as SalaryCoordinatorRepositories['salaryProfiles'],
+      payRules: { listForProfile: jest.fn().mockResolvedValue([specialRule]) } as unknown as SalaryCoordinatorRepositories['payRules'],
+      calendarEvidenceIntervals: { listOverlapping } as unknown as NonNullable<SalaryCoordinatorRepositories['calendarEvidenceIntervals']>,
+    });
+
+    const result = await new SalaryCalculationCoordinator(deps).calculateMany([morning, evening], '2026-07-15T21:00:00+03:00');
+
+    expect(listOverlapping).toHaveBeenCalledTimes(1);
+    expect(result.resultsByShiftId[morning.id]?.specialIntervalEvaluations).toEqual([
+      expect.objectContaining({ intervalId: morningHoliday.id, contributedToEstimate: true }),
+    ]);
+    expect(result.resultsByShiftId[evening.id]?.specialIntervalEvaluations).toBeUndefined();
+    expect(result.resultsByShiftId[morning.id]?.totalGrossPayMinor).toBe(18000);
+    expect(result.resultsByShiftId[evening.id]?.totalGrossPayMinor).toBe(12000);
+  });
+
   it('resolves a confirmed recurring weekly-rest occurrence without materializing a shift', async () => {
     const shift = createShift({
       scheduledStart: '2026-07-17T08:00:00+03:00', scheduledEnd: '2026-07-17T12:00:00+03:00',
@@ -616,5 +652,49 @@ describe('SalaryCalculationCoordinator', () => {
     expect(summary.resultsByShiftId[shift.id]).toMatchObject({ fixedBonusesMinor: 700, totalGrossPayMinor: undefined });
     expect(summary).toMatchObject({ futureMinor: 0, forecastMinor: 0, bonusesMinor: 0, basePayMinor: 0, regularMinutes: 0, incompleteShiftCount: 1 });
     expect(summary.byDate).toEqual({});
+  });
+
+  it('keeps annual dashboard repository work bounded by salary context, not row count', async () => {
+    const profile = createSalaryProfile({ baseHourlyRateMinor: 6000 });
+    const requestedWorkplace = {
+      id: 'workplace-1', name: 'Cafe', defaultHourlyRateMinor: 6000, defaultBreakMinutes: 0,
+      createdAt: '2026-01-01T00:00:00+02:00', updatedAt: '2026-01-01T00:00:00+02:00',
+    };
+    const unrelatedWorkplaces = Array.from({ length: 250 }, (_, index) => ({
+      ...requestedWorkplace,
+      id: `unrelated-${index}`,
+      name: `Unrelated ${index}`,
+      salaryProfileId: `unrelated-profile-${index}`,
+    }));
+    const shifts = Array.from({ length: 365 }, (_, index) => {
+      const start = new Date(Date.UTC(2026, 0, 1 + index, 6));
+      const end = new Date(start.getTime() + 8 * 60 * 60 * 1000);
+      return createShift({
+        id: `annual-${index}`,
+        scheduledStart: start.toISOString(),
+        scheduledEnd: end.toISOString(),
+        expectedBreakMinutes: 0,
+        hourlyRateSnapshotMinor: 0,
+      });
+    });
+    const listRoles = jest.fn().mockResolvedValue([]);
+    const getById = jest.fn().mockResolvedValue(null);
+    const listOverlapping = jest.fn().mockResolvedValue([]);
+    const getForProfile = jest.fn().mockResolvedValue(null);
+    const deps = repositories({
+      workplaces: { list: jest.fn().mockResolvedValue([requestedWorkplace, ...unrelatedWorkplaces]), listRoles } as unknown as SalaryCoordinatorRepositories['workplaces'],
+      salaryProfiles: { listByWorkplace: jest.fn().mockResolvedValue([profile]), getById } as unknown as SalaryCoordinatorRepositories['salaryProfiles'],
+      calendarEvidenceIntervals: { listOverlapping } as unknown as NonNullable<SalaryCoordinatorRepositories['calendarEvidenceIntervals']>,
+      weeklyRestSchedules: { getForProfile } as unknown as NonNullable<SalaryCoordinatorRepositories['weeklyRestSchedules']>,
+    });
+
+    const result = await new SalaryCalculationCoordinator(deps).calculateMany(shifts, '2027-01-01T00:00:00Z');
+
+    expect(Object.keys(result.resultsByShiftId)).toHaveLength(365);
+    expect(listRoles).toHaveBeenCalledTimes(1);
+    expect(listRoles).toHaveBeenCalledWith(requestedWorkplace.id);
+    expect(getById).not.toHaveBeenCalled();
+    expect(listOverlapping).toHaveBeenCalledTimes(1);
+    expect(getForProfile).toHaveBeenCalledTimes(1);
   });
 });

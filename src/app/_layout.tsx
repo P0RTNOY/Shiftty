@@ -4,17 +4,21 @@ import { StatusBar } from 'expo-status-bar';
 
 import { initializeDatabase } from '@/data/database';
 import { AppBootstrap } from '@/features/settings/components/app-bootstrap';
+import { DatabaseRecoveryBoundary } from '@/features/settings/components/database-recovery-boundary';
 import { DATABASE_NAME } from '@/shared/constants/app';
-import { configureNativeRtl, I18nProvider } from '@/shared/i18n';
+import { configureNativeRtl, getPreferredLocale, I18nProvider } from '@/shared/i18n';
 import { ThemeProvider, useAppTheme } from '@/shared/theme';
 
-configureNativeRtl('he');
+const initialLocale = getPreferredLocale();
+configureNativeRtl(initialLocale);
 
 export default function RootLayout() {
   return (
-    <I18nProvider>
+    <I18nProvider initialLocale={initialLocale}>
       <ThemeProvider>
-        <DatabaseRoot />
+        <DatabaseRecoveryBoundary>
+          <DatabaseRoot />
+        </DatabaseRecoveryBoundary>
       </ThemeProvider>
     </I18nProvider>
   );

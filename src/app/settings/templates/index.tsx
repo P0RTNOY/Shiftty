@@ -22,7 +22,7 @@ export default function TemplatesListScreen() {
 
   return (
     <AppScreen
-      footer={<View style={[styles.footer, { borderTopColor: colors.border }]}><PrimaryButton label={t('templates.add')} onPress={() => router.push('/settings/templates/new')} /></View>}
+      footer={<View style={[styles.footer, { borderTopColor: colors.border }]}><PrimaryButton label={t('templates.add')} onPress={() => router.push('/settings/templates/new')} testID="e2e-shift-type-add" /></View>}
       scrollable={false}
       title={t('settings.templates')}
     >

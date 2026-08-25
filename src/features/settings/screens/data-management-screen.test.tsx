@@ -31,8 +31,8 @@ it('uses clear Hebrew choices for merging or replacing a backup', async () => {
   const alert = jest.spyOn(Alert, 'alert');
   renderApp(<DataManagementScreen />);
 
-  expect(screen.getByText('ייבוא מתוך קובץ גיבוי של Shiftty. לאחר בחירת הקובץ אפשר למזג אותו עם הנתונים הקיימים או להחליף אותם.')).toBeTruthy();
-  fireEvent.press(screen.getByRole('button', { name: 'בחר קובץ לשחזור' }));
+  expect(screen.getByText('ייבוא גיבוי של שיפטי. לאחר בחירת הקובץ אפשר למזג אותו עם הנתונים הקיימים או להחליף אותם.')).toBeTruthy();
+  fireEvent.press(screen.getByRole('button', { name: 'בחירת קובץ לשחזור' }));
 
   await waitFor(() => expect(alert).toHaveBeenCalledWith(
     'שחזור נתונים',

@@ -30,35 +30,30 @@ interface Props {
   onOpenSalarySettings?: () => void;
 }
 
-function ActiveShiftTimer({ shift }: { shift: Shift }) {
+function LiveTimers({ shift, activeBreak }: { shift: Shift; activeBreak?: BreakSession }) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const now = useLiveNow(systemClock, 1000);
-  const elapsedMs = Math.max(0, now.getTime() - Date.parse(shift.actualStart!));
+  const shiftElapsedMs = Math.max(0, now.getTime() - Date.parse(shift.actualStart!));
+  const breakElapsedMs = activeBreak
+    ? Math.max(0, now.getTime() - Date.parse(activeBreak.start))
+    : undefined;
 
   return (
-    <View style={styles.timerGroup}>
-      <Text style={[styles.timerLabel, { color: colors.textMuted }]}>{t('active.elapsed')}</Text>
-      <Text accessibilityLabel={`${t('active.elapsed')} ${formatTimer(elapsedMs)}`} style={[styles.timer, { color: colors.text }]}>
-        {formatTimer(elapsedMs)}
-      </Text>
-    </View>
-  );
-}
-
-function ActiveBreakTimer({ session }: { session: BreakSession }) {
-  const { colors } = useAppTheme();
-  const { t } = useTranslation();
-  const now = useLiveNow(systemClock, 1000);
-  const elapsedMs = Math.max(0, now.getTime() - Date.parse(session.start));
-
-  return (
-    <View style={styles.timerGroup}>
-      <Text style={[styles.timerLabel, { color: colors.textMuted }]}>{t('active.breakDuration')}</Text>
-      <Text accessibilityLabel={`${t('active.breakDuration')} ${formatTimer(elapsedMs)}`} style={[styles.breakTimer, { color: colors.warning }]}>
-        {formatTimer(elapsedMs)}
-      </Text>
-    </View>
+    <>
+      <View style={styles.timerGroup}>
+        <Text style={[styles.timerLabel, { color: colors.textMuted }]}>{t('active.elapsed')}</Text>
+        <Text accessibilityLabel={`${t('active.elapsed')} ${formatTimer(shiftElapsedMs)}`} style={[styles.timer, { color: colors.text }]}>
+          {formatTimer(shiftElapsedMs)}
+        </Text>
+      </View>
+      {activeBreak && breakElapsedMs !== undefined ? <View style={styles.timerGroup}>
+        <Text style={[styles.timerLabel, { color: colors.textMuted }]}>{t('active.breakDuration')}</Text>
+        <Text accessibilityLabel={`${t('active.breakDuration')} ${formatTimer(breakElapsedMs)}`} style={[styles.breakTimer, { color: colors.warning }]}>
+          {formatTimer(breakElapsedMs)}
+        </Text>
+      </View> : null}
+    </>
   );
 }
 
@@ -83,7 +78,7 @@ export function ActiveShiftPanel({
   const align = isRtl ? 'right' : 'left';
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="e2e-active-shift-panel">
       <View style={[styles.hero, { backgroundColor: colors.surface, borderColor: metrics.isOnBreak ? colors.warning : colors.primary }]}>
         <Text style={[styles.eyebrow, { color: colors.textMuted, textAlign: align }]}>{t('active.title')}</Text>
         <Text accessibilityRole="header" style={[styles.state, { color: metrics.isOnBreak ? colors.warning : colors.success, textAlign: align }]}>
@@ -91,8 +86,7 @@ export function ActiveShiftPanel({
         </Text>
         <Text style={[styles.title, { color: colors.text, textAlign: align }]}>{shift.title || workplaceName}</Text>
         {roleName ? <Text style={[styles.meta, { color: colors.textMuted, textAlign: align }]}>{roleName}</Text> : null}
-        <ActiveShiftTimer shift={shift} />
-        {activeBreak ? <ActiveBreakTimer session={activeBreak} /> : null}
+        <LiveTimers activeBreak={activeBreak} shift={shift} />
         <Text style={[styles.meta, { color: colors.textMuted, textAlign: align }]}>
           {t('active.actualStart')}: {formatDate(shift.actualStart!, { hour: '2-digit', minute: '2-digit', timeZone: shift.timezone })}
         </Text>
@@ -108,9 +102,9 @@ export function ActiveShiftPanel({
         </Text> : null}
       </View>
       {metrics.isOnBreak
-        ? <PrimaryButton disabled={busy} label={t('active.resumeWork')} onPress={() => actions.onEndBreak?.()} />
-        : <PrimaryButton disabled={busy} label={t('active.breakAction')} onPress={() => actions.onStartBreak(false)} />}
-      <SecondaryButton disabled={busy} label={t('active.clockOut')} onPress={actions.onEndShift} />
+        ? <PrimaryButton disabled={busy} label={t('active.resumeWork')} onPress={() => actions.onEndBreak?.()} testID="e2e-active-end-break" />
+        : <PrimaryButton disabled={busy} label={t('active.breakAction')} onPress={() => actions.onStartBreak(false)} testID="e2e-active-start-break" />}
+      <SecondaryButton disabled={busy} label={t('active.clockOut')} onPress={actions.onEndShift} testID="e2e-active-clock-out" />
     </View>
   );
 }

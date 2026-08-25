@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo, useState, type PropsWithChildren } from 'react';
+import { getLocales } from 'expo-localization';
 import { I18nManager, Platform } from 'react-native';
 
 import { en, he, type TranslationKey } from '@/shared/i18n/translations';
@@ -16,8 +17,12 @@ interface I18nValue {
 
 const I18nContext = createContext<I18nValue | null>(null);
 
-export function I18nProvider({ children }: PropsWithChildren) {
-  const [locale, setLocaleState] = useState<SupportedLocale>('he');
+interface I18nProviderProps extends PropsWithChildren {
+  initialLocale?: SupportedLocale;
+}
+
+export function I18nProvider({ children, initialLocale }: I18nProviderProps) {
+  const [locale, setLocaleState] = useState<SupportedLocale>(() => initialLocale ?? getPreferredLocale());
   const isRtl = locale === 'he';
 
   const value = useMemo<I18nValue>(() => {
@@ -55,6 +60,18 @@ export function I18nProvider({ children }: PropsWithChildren) {
   }, [isRtl, locale]);
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+}
+
+export function getPreferredLocale(): SupportedLocale {
+  try {
+    return resolveSupportedLocale(getLocales()[0]?.languageCode);
+  } catch {
+    return 'he';
+  }
+}
+
+export function resolveSupportedLocale(languageCode: string | null | undefined): SupportedLocale {
+  return languageCode?.toLowerCase() === 'en' ? 'en' : 'he';
 }
 
 export function useTranslation(): I18nValue {

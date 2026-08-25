@@ -13,6 +13,7 @@ interface BasePickerProps {
   label?: string;
   error?: string;
   disabled?: boolean;
+  testID?: string;
 }
 
 interface StringPickerProps {
@@ -23,7 +24,7 @@ interface StringPickerProps {
 
 type PickerProps = BasePickerProps & StringPickerProps;
 
-export function DateTimeField({ value, onChange, mode, label, error, disabled, optional }: PickerProps) {
+export function DateTimeField({ value, onChange, mode, label, error, disabled, optional, testID }: PickerProps) {
   const { colors } = useAppTheme();
   const { isRtl, t, locale } = useTranslation();
   const intlLocale = locale === 'he' ? 'he-IL' : 'en-US';
@@ -65,6 +66,7 @@ export function DateTimeField({ value, onChange, mode, label, error, disabled, o
         accessibilityState={{ disabled: Boolean(disabled) }}
         accessibilityValue={{ text: displayValue }}
         disabled={disabled} 
+        testID={testID}
         onPress={() => {
           setTempValue(pickerDate(value, mode));
           setShow(true);
@@ -100,8 +102,8 @@ export function DateTimeField({ value, onChange, mode, label, error, disabled, o
 
       {show && Platform.OS === 'ios' && (
         <Modal transparent animationType="slide" visible={show}>
-          <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setShow(false)}>
-            <Pressable accessibilityRole="none" onPress={(event) => event.stopPropagation()} style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+          <Pressable accessible={false} style={styles.modalOverlay} onPress={() => setShow(false)}>
+            <Pressable accessible={false} onPress={(event) => event.stopPropagation()} style={[styles.modalContent, { backgroundColor: colors.surface }]}>
               <View style={styles.pickerContainer}>
                 <DateTimePicker
                   value={tempValue}
@@ -114,8 +116,8 @@ export function DateTimeField({ value, onChange, mode, label, error, disabled, o
                 />
               </View>
               <View style={[styles.actions, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}>
-                <View style={{ flex: 1 }}><SecondaryButton label={t('common.cancel')} onPress={() => setShow(false)} /></View>
-                <View style={{ flex: 1 }}><PrimaryButton label={t('common.confirm')} onPress={handleConfirm} /></View>
+                <View style={{ flex: 1 }}><SecondaryButton label={t('common.cancel')} onPress={() => setShow(false)} testID="e2e-date-time-cancel" /></View>
+                <View style={{ flex: 1 }}><PrimaryButton label={t('common.confirm')} onPress={handleConfirm} testID="e2e-date-time-confirm" /></View>
               </View>
             </Pressable>
           </Pressable>

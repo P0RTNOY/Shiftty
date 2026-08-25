@@ -54,7 +54,7 @@ export function ShiftDetailView({ shift, workplaceName, roleName, templateName, 
     { text: t('common.delete'), style: 'destructive', onPress: actions.onDelete },
   ]);
 
-  return <View style={styles.container}>
+  return <View style={styles.container} testID="e2e-shift-details">
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.heading}>
         <StatusBadge status={shift.status} />

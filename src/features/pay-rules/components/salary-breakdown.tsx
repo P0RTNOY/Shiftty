@@ -22,10 +22,10 @@ export function SalaryBreakdown({ result, status, onRecalculate, onOpenSalarySet
   const exceedsMaximumDuration = result?.issues.some((issue) => issue.code === 'shift_duration_exceeds_maximum');
   const trustState = deriveSalaryTrustState(result, status);
   if (trustState === 'unavailable' || !result || result.totalGrossPayMinor === undefined) {
-    return <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.warning }]}>
+    return <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.warning }]} testID="e2e-salary-unavailable-or-stale">
       <Text accessibilityRole="alert" style={[styles.title, { color: colors.warning, textAlign: align }]}>{t(status === 'stale' ? 'salary.stale' : 'salary.trustUnavailable')}</Text>
       {exceedsMaximumDuration ? <Text style={[styles.warning, { color: colors.warning, textAlign: align }]}>{t('salary.issues.shiftDurationExceedsMaximum')}</Text> : null}
-      {onRecalculate ? <PrimaryButton label={t('salary.recalculate')} onPress={onRecalculate} /> : null}
+      {onRecalculate ? <PrimaryButton label={t('salary.recalculate')} onPress={onRecalculate} testID="e2e-salary-recalculate" /> : null}
       <SalaryTrustDisclosure onOpenSalarySettings={onOpenSalarySettings} result={result} status={status} />
     </View>;
   }
@@ -41,7 +41,7 @@ export function SalaryBreakdown({ result, status, onRecalculate, onOpenSalarySet
   return <View style={[styles.card, { backgroundColor: colors.surface, borderColor: status === 'stale' ? colors.warning : colors.border }]}>
     <Text accessibilityRole="header" style={[styles.title, { color: colors.text, textAlign: align }]}>{t('salary.summaryTitle')}</Text>
     <Text style={[styles.status, { color: status === 'stale' ? colors.warning : colors.textMuted, textAlign: align }]}>{summaryStatus}</Text>
-    <Text style={[styles.total, { color: colors.primary, textAlign: align }]}>{formatCurrency(result.totalGrossPayMinor)}</Text>
+    <Text accessibilityLabel={String(result.totalGrossPayMinor)} style={[styles.total, { color: colors.primary, textAlign: align }]} testID="e2e-salary-total">{formatCurrency(result.totalGrossPayMinor)}</Text>
     {result.shiftTypeName ? <Row label={t('salary.shiftType')} value={result.shiftTypeName} /> : null}
     <Row label={t('salary.workingHours')} value={formatDurationLong(result.payableMinutes, locale)} />
     {result.resolvedBaseHourlyRateMinor !== undefined ? <Row label={t('salary.baseHourlyRate')} value={formatCurrency(result.resolvedBaseHourlyRateMinor)} /> : null}
@@ -50,7 +50,7 @@ export function SalaryBreakdown({ result, status, onRecalculate, onOpenSalarySet
     {hasLegacyBaseOnlyCalculation ? <Text accessibilityRole="alert" style={[styles.warning, { color: colors.warning, textAlign: align }]}>{t('salary.noPayRules')}</Text> : null}
     {hasLegacyBaseOnlyCalculation && onRecalculate ? <PrimaryButton label={t('salary.applyDefaultOvertime')} onPress={onRecalculate} /> : null}
     <SalaryTrustDisclosure onOpenSalarySettings={onOpenSalarySettings} result={result} status={status} />
-    <SecondaryButton label={showDetails ? t('salary.hideBreakdown') : t('salary.showBreakdown')} onPress={() => setShowDetails((value) => !value)} />
+    <SecondaryButton label={showDetails ? t('salary.hideBreakdown') : t('salary.showBreakdown')} onPress={() => setShowDetails((value) => !value)} testID="e2e-salary-breakdown-toggle" />
 
     {showDetails ? <View style={styles.details}>
       <Text accessibilityLabel={t(statusKey)} style={{ color: status === 'stale' ? colors.warning : colors.textMuted, textAlign: align }}>{t(statusKey)}</Text>
@@ -73,13 +73,18 @@ export function SalaryBreakdown({ result, status, onRecalculate, onOpenSalarySet
             : label === PROFILE_WEEKLY_OVERTIME_RULE_NAME
               ? weeklyRuleLabel
               : label);
-        return <View key={`${segment.start}-${segment.end}`} style={[styles.segment, { borderTopColor: colors.border }]}>
+        const segmentTestId = ruleLabels.includes(weeklyRuleLabel)
+          ? 'e2e-weekly-overtime-segment'
+          : segment.labels.some((label) => label === DEFAULT_OVERTIME_TIER_ONE_RULE_NAME || label === DEFAULT_OVERTIME_TIER_TWO_RULE_NAME)
+            ? 'e2e-default-overtime-segment'
+            : undefined;
+        return <View key={`${segment.start}-${segment.end}`} style={[styles.segment, { borderTopColor: colors.border }]} testID={segmentTestId}>
           <Text style={{ color: colors.text, textAlign: align }}>{formatDurationLong(segment.minutes, locale)} · {segment.multiplierBasisPoints / 100}%</Text>
           <Text style={{ color: colors.textMuted, textAlign: align }}>{ruleLabels.join(' + ') || t('salary.regularHours')} · {formatCurrency(segment.totalPayMinor)}</Text>
           {evidenceNames.length > 0 ? <Text testID="salary-segment-special-intervals" style={{ color: colors.textMuted, textAlign: align }}>{evidenceNames.join(' · ')}</Text> : null}
         </View>;
       })}
-      {onRecalculate ? <PrimaryButton label={t('salary.recalculate')} onPress={onRecalculate} /> : null}
+      {onRecalculate ? <PrimaryButton label={t('salary.recalculate')} onPress={onRecalculate} testID="e2e-salary-recalculate" /> : null}
     </View> : null}
   </View>;
 }

@@ -7,9 +7,10 @@ interface SecondaryButtonProps {
   onPress: () => void;
   destructive?: boolean;
   disabled?: boolean;
+  testID?: string;
 }
 
-export function SecondaryButton({ label, onPress, destructive = false, disabled = false }: SecondaryButtonProps) {
+export function SecondaryButton({ label, onPress, destructive = false, disabled = false, testID }: SecondaryButtonProps) {
   const { colors } = useAppTheme();
   const color = destructive ? colors.danger : colors.primary;
   return (
@@ -18,6 +19,7 @@ export function SecondaryButton({ label, onPress, destructive = false, disabled 
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
+      testID={testID}
       style={({ pressed }) => [styles.button, { borderColor: color, backgroundColor: pressed ? colors.surfaceMuted : colors.surface }, disabled && styles.disabled]}
     >
       <Text style={[styles.label, { color }]}>{label}</Text>

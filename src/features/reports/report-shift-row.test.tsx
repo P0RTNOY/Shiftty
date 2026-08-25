@@ -52,7 +52,7 @@ describe('ReportShiftRow', () => {
 
     const stale = { ...completed, salaryCalculationStatus: 'stale' as const };
     const staleRender = renderApp(<ReportShiftRow onPress={jest.fn()} salaryMinor={48_000} shift={stale} workplaceName="קפה" />);
-    expect(screen.getByText('חישוב שכר לא מעודכן')).toBeTruthy();
+    expect(screen.getByText('חישוב שכר לא מעודכן')).toHaveStyle({ flexShrink: 1, maxWidth: '55%' });
     staleRender.unmount();
 
     renderApp(<ReportShiftRow onPress={jest.fn()} salaryMinor={0} shift={completed} workplaceName="קפה" />);

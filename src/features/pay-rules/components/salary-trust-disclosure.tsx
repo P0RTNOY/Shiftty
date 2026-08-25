@@ -60,6 +60,7 @@ export function SalaryTrustDisclosure({
       accessibilityRole="button"
       accessibilityState={{ expanded }}
       onPress={() => setExpanded((value) => !value)}
+      testID="e2e-salary-trust-toggle"
       style={({ pressed }) => [styles.disclosure, { borderColor: colors.border, opacity: pressed ? 0.75 : 1 }]}
     >
       <Text style={[styles.disclosureText, { color: colors.primary, textAlign: align }]}>

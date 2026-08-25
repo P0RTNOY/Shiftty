@@ -166,16 +166,16 @@ export default function HomeScreen() {
         <ShiftCard onPress={() => router.push(`/shifts/${nextShift.id}`)} roleName={roles.find((item) => item.id === nextShift.roleId)?.name} shift={nextShift} templateName={templates.find((item) => item.id === nextShift.shiftTemplateId)?.name} workplaceName={workplaces.find((item) => item.id === nextShift.workplaceId)?.name ?? '—'} />
         {salary.summary?.resultsByShiftId[nextShift.id]?.totalGrossPayMinor !== undefined ? <Text style={{ color: colors.primary, fontWeight: '800', textAlign: isRtl ? 'right' : 'left' }}>{t('salary.expectedForShift')}: {formatCurrency(salary.summary.resultsByShiftId[nextShift.id]!.totalGrossPayMinor!)}</Text> : <Text accessibilityRole="alert" style={{ color: colors.warning, textAlign: isRtl ? 'right' : 'left' }}>{t('salary.missingConfig')}</Text>}
       </View> : !loading ? <EmptyState body={t('home.noNextShiftBody')} title={t('home.noNextShift')} /> : null}
-      <PrimaryButton disabled={active.busy || nearbyLoading} label={t('active.clockIn')} onPress={() => void clockIn()} />
+      <PrimaryButton disabled={active.busy || nearbyLoading} label={t('active.clockIn')} onPress={() => void clockIn()} testID="e2e-home-clock-in" />
       {clockInWorkplaceIds ? <ClockInWorkplacePicker
         busy={active.busy}
         onCancel={() => setClockInWorkplaceIds(null)}
         onChoose={(workplaceId) => void startAtWorkplace(workplaceId)}
         workplaces={workplaces.filter((item) => clockInWorkplaceIds.includes(item.id))}
       /> : null}
-      <SecondaryButton label={t('home.addShift')} onPress={() => router.push('/shifts/new')} />
+      <SecondaryButton label={t('home.addShift')} onPress={() => router.push('/shifts/new')} testID="e2e-home-add-shift" />
 
-      <View style={styles.section}>
+      <View style={styles.section} testID="e2e-home-completed-summary">
         <Text
           accessibilityRole="header"
           style={[styles.sectionTitle, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}

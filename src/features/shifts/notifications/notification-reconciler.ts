@@ -25,6 +25,19 @@ import { buildNotificationPlan } from '@/domain/services/notification-planner';
 import type { NotificationAdapter } from './expo-notification-adapter';
 import { reportUnexpectedError } from '@/shared/utils/report-unexpected-error';
 
+// Native notification state is process-global. Reconciliation can be requested by
+// navigation, foregrounding, and an active-shift mutation at nearly the same time,
+// sometimes through different hook instances. Serializing those mutations prevents
+// both callers from observing the same stale repository snapshot and scheduling two
+// native notifications for one logical key.
+let notificationMutationTail: Promise<void> = Promise.resolve();
+
+function runNotificationMutation(operation: () => Promise<void>): Promise<void> {
+  const result = notificationMutationTail.then(operation, operation);
+  notificationMutationTail = result.catch(() => undefined);
+  return result;
+}
+
 export interface ReconcileInput {
   now: Date;
   timezone: string;
@@ -42,7 +55,11 @@ export class NotificationReconciler {
     private readonly resolveText: (key: string, params?: Record<string, string | number>) => string,
   ) {}
 
-  async reconcile(input: ReconcileInput): Promise<void> {
+  reconcile(input: ReconcileInput): Promise<void> {
+    return runNotificationMutation(() => this.reconcileExclusive(input));
+  }
+
+  private async reconcileExclusive(input: ReconcileInput): Promise<void> {
     // Check permission first
     const permission = await this.adapter.getPermissionStatus();
     if (permission !== 'granted') {
@@ -141,7 +158,11 @@ export class NotificationReconciler {
     }
   }
 
-  async cancelForShift(shiftId: string): Promise<void> {
+  cancelForShift(shiftId: string): Promise<void> {
+    return runNotificationMutation(() => this.cancelForShiftExclusive(shiftId));
+  }
+
+  private async cancelForShiftExclusive(shiftId: string): Promise<void> {
     const records = await this.scheduledNotifs.listByShiftId(shiftId);
     for (const record of records) {
       if (record.nativeId) {

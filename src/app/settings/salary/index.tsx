@@ -44,6 +44,7 @@ export default function SalaryProfilesScreen() {
         accessibilityRole="button"
         accessibilityState={{ expanded: advancedExpanded }}
         onPress={() => setAdvancedExpanded((value) => !value)}
+        testID="e2e-salary-advanced-toggle"
         style={({ pressed }) => [styles.advancedToggle, { borderColor: colors.border, opacity: pressed ? 0.75 : 1 }]}
       >
         <Text style={{ color: colors.primary, fontWeight: '800', textAlign: isRtl ? 'right' : 'left' }}>{t(advancedExpanded ? 'salary.hideAdvancedRules' : 'salary.showAdvancedRules')}</Text>
@@ -52,19 +53,19 @@ export default function SalaryProfilesScreen() {
         <WeeklyOvertimeSettings value={weekly} onChange={setWeekly} />
         <FormField keyboardType="decimal-pad" label={t('salary.travel')} onChangeText={setTravel} value={travel} />
         <FormField keyboardType="decimal-pad" label={t('salary.shiftBonus')} onChangeText={setBonus} value={bonus} />
-        <DateField label={t('salary.effectiveFrom')} onChange={(value) => setEffectiveFrom(value ?? '')} optional value={effectiveFrom || undefined} />
+        <DateField label={t('salary.effectiveFrom')} onChange={(value) => setEffectiveFrom(value ?? '')} optional testID="e2e-salary-effective-from" value={effectiveFrom || undefined} />
         <DateField label={t('salary.effectiveTo')} onChange={(value) => setEffectiveTo(value ?? '')} optional value={effectiveTo || undefined} />
         <Text style={{ color: colors.text, textAlign: isRtl ? 'right' : 'left' }}>{t('salary.breakPolicy')}</Text><View style={[styles.choices, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}>{(['paid', 'unpaid', 'perBreak'] as const).map((value) => <Pressable accessibilityRole="radio" accessibilityState={{ checked: breakPolicy === value }} key={value} onPress={() => setBreakPolicy(value)} style={[styles.choice, { borderColor: breakPolicy === value ? colors.primary : colors.border, backgroundColor: colors.surface }]}><Text style={{ color: colors.text }}>{t(value === 'paid' ? 'salary.breakPaid' : value === 'unpaid' ? 'salary.breakUnpaid' : 'salary.breakPerSession')}</Text></Pressable>)}</View>
         <Text style={{ color: colors.text, textAlign: isRtl ? 'right' : 'left' }}>{t('salary.roundingMode')}</Text><View style={[styles.choices, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}>{(['half_up', 'floor', 'ceiling'] as const).map((value) => <Pressable accessibilityRole="radio" accessibilityState={{ checked: roundingMode === value }} key={value} onPress={() => setRoundingMode(value)} style={[styles.choice, { borderColor: roundingMode === value ? colors.primary : colors.border, backgroundColor: colors.surface }]}><Text style={{ color: colors.text }}>{t(value === 'half_up' ? 'salary.roundHalfUp' : value === 'floor' ? 'salary.roundFloor' : 'salary.roundCeiling')}</Text></Pressable>)}</View>
       </View> : null}
       {error ? <Text accessibilityRole="alert" style={{ color: colors.danger }}>{error}</Text> : null}
-      <PrimaryButton disabled={!selectedWorkplace || !name.trim() || !rate} label={editingId ? t('salary.updateProfile') : t('salary.addProfile')} onPress={() => void save()} />
+      <PrimaryButton disabled={!selectedWorkplace || !name.trim() || !rate} label={editingId ? t('salary.updateProfile') : t('salary.addProfile')} onPress={() => void save()} testID="e2e-salary-profile-save" />
       {editingId ? <SecondaryButton label={t('common.cancel')} onPress={reset} /> : null}
     </View>
     {!profiles.length ? <EmptyState title={t('salary.noProfiles')} body={t('salary.noProfilesBody')} /> : profiles.map((profile) => <View key={profile.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, opacity: profile.isArchived ? 0.6 : 1 }]}>
-      <Pressable accessibilityRole="button" onPress={() => edit(profile)}><Text style={[styles.title, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}>{profile.name}</Text><Text style={{ color: colors.textMuted, textAlign: isRtl ? 'right' : 'left' }}>{formatMinorUnits(profile.baseHourlyRateMinor, profile.currency, locale)} · {profile.effectiveFrom ?? '—'}</Text></Pressable>
-      <PrimaryButton label={t('salary.rules')} onPress={() => router.push(`/settings/salary/rules?profileId=${profile.id}`)} />
-      <SecondaryButton label={t('salary.holidaysRestTitle')} onPress={() => router.push(`/settings/salary/holidays-rest?profileId=${profile.id}` as Href)} />
+      <Pressable accessibilityRole="button" onPress={() => edit(profile)} testID="e2e-salary-profile-edit"><Text style={[styles.title, { color: colors.text, textAlign: isRtl ? 'right' : 'left' }]}>{profile.name}</Text><Text style={{ color: colors.textMuted, textAlign: isRtl ? 'right' : 'left' }}>{formatMinorUnits(profile.baseHourlyRateMinor, profile.currency, locale)} · {profile.effectiveFrom ?? '—'}</Text></Pressable>
+      <PrimaryButton label={t('salary.rules')} onPress={() => router.push(`/settings/salary/rules?profileId=${profile.id}`)} testID="e2e-salary-rules" />
+      <SecondaryButton label={t('salary.holidaysRestTitle')} onPress={() => router.push(`/settings/salary/holidays-rest?profileId=${profile.id}` as Href)} testID="e2e-salary-evidence" />
       <SecondaryButton label={t('salary.duplicate')} onPress={() => void duplicate(profile)} />{!profile.isArchived && workplaces.find((item) => item.id === profile.workplaceId)?.salaryProfileId !== profile.id ? <SecondaryButton label={t('salary.setDefault')} onPress={() => void setDefault(profile)} /> : null}{profile.isArchived ? <SecondaryButton label={t('salary.activate')} onPress={() => void activate(profile)} /> : <SecondaryButton destructive label={t('salary.archive')} onPress={() => void archive(profile)} />}
     </View>)}
   </AppScreen>;

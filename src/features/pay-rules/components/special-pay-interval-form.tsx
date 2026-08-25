@@ -81,7 +81,7 @@ export function SpecialPayIntervalForm({ timezone, interval, now, onSave }: Prop
       onPress={() => update(() => setScope(value))}
       style={[styles.choice, { backgroundColor: colors.surface, borderColor: scope === value ? colors.primary : colors.border }]}
     ><Text accessible={false} style={{ color: colors.text }}>{scope === value ? '✓ ' : ''}{t(value === 'profile' ? 'salary.intervalScopeProfile' : 'salary.intervalScopeWorkplace')}</Text></Pressable>)}</View>
-    <FormField label={t('salary.intervalName')} maxLength={120} value={name} onChangeText={(value) => update(() => setName(value))} />
+    <FormField label={t('salary.intervalName')} maxLength={120} testID="e2e-evidence-name" value={name} onChangeText={(value) => update(() => setName(value))} />
     <DateField label={t('salary.intervalStartDate')} value={startDate} onChange={(value) => value && update(() => setStartDate(value))} />
     <TimeField label={t('salary.intervalStartTime')} value={startTime} onChange={(value) => value && update(() => setStartTime(value))} />
     <DateField label={t('salary.intervalEndDate')} value={endDate} onChange={(value) => value && update(() => setEndDate(value))} />
@@ -119,6 +119,7 @@ export function SpecialPayIntervalForm({ timezone, interval, now, onSave }: Prop
       accessibilityState={{ checked: confirmed }}
       onPress={() => setConfirmed((value) => !value)}
       style={[styles.checkRow, { flexDirection: direction }]}
+      testID="e2e-evidence-confirm-edit"
     >
       <View style={[styles.check, { borderColor: colors.primary, backgroundColor: confirmed ? colors.primary : colors.surface }]}>
         <Text accessible={false} testID="special-interval-confirmation-mark" style={[styles.checkMark, { color: colors.onPrimary }]}>{confirmed ? '✓' : ''}</Text>
@@ -135,6 +136,7 @@ export function SpecialPayIntervalForm({ timezone, interval, now, onSave }: Prop
         presetId: sourceKind === 'confirmed_preset' ? interval?.presetId : undefined,
         presetVersion: sourceKind === 'confirmed_preset' ? interval?.presetVersion : undefined,
       })}
+      testID="e2e-evidence-save"
     />
   </View>;
 }

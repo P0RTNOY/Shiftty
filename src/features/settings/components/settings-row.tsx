@@ -11,9 +11,10 @@ interface SettingsRowProps {
   icon: IconName;
   label: string;
   onPress?: () => void;
+  testID?: string;
 }
 
-export function SettingsRow({ icon, label, onPress }: SettingsRowProps) {
+export function SettingsRow({ icon, label, onPress, testID }: SettingsRowProps) {
   const { colors } = useAppTheme();
   const { isRtl } = useTranslation();
 
@@ -22,6 +23,7 @@ export function SettingsRow({ icon, label, onPress }: SettingsRowProps) {
       accessibilityRole="button"
       disabled={!onPress}
       onPress={onPress}
+      testID={testID}
       style={({ pressed }) => [
         styles.row,
         {

@@ -3,6 +3,7 @@ import { phase3En, phase3He } from '@/shared/i18n/translations-phase3';
 import { phase4En, phase4He } from '@/shared/i18n/translations-phase4';
 import { phase5En, phase5He } from '@/shared/i18n/translations-phase5';
 import { milestone3En, milestone3He } from '@/shared/i18n/translations-milestone3';
+import { betaEn, betaHe } from '@/shared/i18n/translations-beta';
 
 export const he = {
   'app.name': 'שיפטי',
@@ -76,18 +77,25 @@ export const he = {
   'bootstrap.loading': 'מכינים את שיפטי…',
   'bootstrap.error': 'לא הצלחנו לפתוח את מסד הנתונים המקומי.',
   'bootstrap.retry': 'ניסיון נוסף',
+  'databaseRecovery.title': 'לא הצלחנו לפתוח את הנתונים המקומיים',
+  'databaseRecovery.body': 'הנתונים נשארו במכשיר. אין למחוק את האפליקציה או את הנתונים שלה. נסו שוב. לאחר שהיישום ייפתח אפשר לשחזר גיבוי קיים דרך ניהול נתונים. אם הבעיה נמשכת, ייצאו אבחון בטוח ופנו לתמיכה לפני התקנה מחדש.',
+  'databaseRecovery.exportDiagnostic': 'ייצוא אבחון בטוח לתמיכה',
+  'databaseRecovery.exportingDiagnostic': 'מייצאים אבחון…',
+  'databaseRecovery.exportDiagnosticFailed': 'לא הצלחנו לייצא את האבחון. אפשר לנסות שוב.',
+  'databaseRecovery.diagnosticDialogTitle': 'אבחון הפעלה של שיפטי',
   'accessibility.opensScreen': 'פותח מסך חדש',
   ...phase2He,
   ...phase3He,
   ...phase4He,
   ...phase5He,
   ...milestone3He,
+  ...betaHe,
 } as const;
 
 export type TranslationKey = keyof typeof he;
 
 export const en: Record<TranslationKey, string> = {
-  'app.name': 'Shifty',
+  'app.name': 'Shiftty',
   'common.notAvailable': 'Not available',
   'common.comingSoon': 'Coming in the next phase',
   'nav.home': 'Home',
@@ -155,13 +163,20 @@ export const en: Record<TranslationKey, string> = {
   'settings.reportsBackup': 'Reports and backup',
   'settings.backupRestore': 'Backup and restore',
   'settings.advanced': 'Advanced settings',
-  'bootstrap.loading': 'Preparing Shifty…',
+  'bootstrap.loading': 'Preparing Shiftty…',
   'bootstrap.error': 'We could not open the local database.',
   'bootstrap.retry': 'Try again',
+  'databaseRecovery.title': 'We could not open your local data',
+  'databaseRecovery.body': 'Your data remains on this device. Do not delete the app or its data. Try again. After the app opens, an existing backup can be restored from Data management. If the problem continues, export the safe diagnostic and contact support before reinstalling.',
+  'databaseRecovery.exportDiagnostic': 'Export safe support diagnostic',
+  'databaseRecovery.exportingDiagnostic': 'Exporting diagnostic…',
+  'databaseRecovery.exportDiagnosticFailed': 'We could not export the diagnostic. You can try again.',
+  'databaseRecovery.diagnosticDialogTitle': 'Shiftty startup diagnostic',
   'accessibility.opensScreen': 'Opens a new screen',
   ...phase2En,
   ...phase3En,
   ...phase4En,
   ...phase5En,
   ...milestone3En,
+  ...betaEn,
 };

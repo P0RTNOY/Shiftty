@@ -56,9 +56,9 @@ export function SpecialPayIntervalCard({ interval, rules, onEdit, onArchive, onD
     </View> : null}
     {interval.isArchived || !targetingRules.length ? <View style={[styles.noEffect, { borderColor: colors.warning }]}>
       <Text style={[styles.meta, { color: colors.text, textAlign: align }]}>{t(interval.isArchived ? 'salary.intervalArchivedNoPayEffect' : 'salary.intervalNoPayEffect')}</Text>
-      {!interval.isArchived ? <PrimaryButton label={t('salary.openIntervalRule')} onPress={onOpenRules} /> : null}
+      {!interval.isArchived ? <PrimaryButton label={t('salary.openIntervalRule')} onPress={onOpenRules} testID="e2e-evidence-open-rule" /> : null}
     </View> : null}
-    <SecondaryButton label={t('common.edit')} onPress={onEdit} />
+    <SecondaryButton label={t('common.edit')} onPress={onEdit} testID="e2e-evidence-edit" />
     <SecondaryButton label={interval.isArchived ? t('salary.intervalRestore') : t('salary.intervalArchive')} onPress={onArchive} />
     <SecondaryButton destructive label={t('salary.intervalDelete')} onPress={onDelete} />
     <Text style={[styles.history, { color: colors.textMuted, textAlign: align }]}>{t('salary.intervalArchivedHistory')}</Text>

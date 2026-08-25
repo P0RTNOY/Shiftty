@@ -79,6 +79,7 @@ export function WeeklyRestSettings({ schedule, timezone, workplaceId, salaryProf
         accessibilityLabel={t('salary.weeklyRestEnabled')}
         accessibilityRole="switch"
         accessibilityState={{ checked: enabled }}
+        testID="e2e-weekly-rest-enabled"
         value={enabled}
         onValueChange={(value) => update(() => setEnabled(value))}
       />
@@ -111,6 +112,7 @@ export function WeeklyRestSettings({ schedule, timezone, workplaceId, salaryProf
         accessibilityRole="checkbox"
         accessibilityState={{ checked: confirmed }}
         onPress={() => setConfirmed((value) => !value)}
+        testID="e2e-weekly-rest-confirm"
         style={[styles.checkRow, { flexDirection: direction }]}
       >
         <View style={[styles.check, { borderColor: colors.primary, backgroundColor: confirmed ? colors.primary : colors.surface }]}>
@@ -130,6 +132,7 @@ export function WeeklyRestSettings({ schedule, timezone, workplaceId, salaryProf
         sourceUrl: sourceUrl.trim() || undefined,
         confirmed,
       })}
+      testID="e2e-weekly-rest-save"
     />
   </View>;
 }

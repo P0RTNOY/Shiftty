@@ -24,12 +24,12 @@ export default function OnboardingWorkplaceScreen() {
 
   const handleNext = async () => {
     if (!workplaceName.trim()) {
-      Alert.alert('שגיאה', 'אנא הזן את שם מקום העבודה');
+      Alert.alert(t('common.error'), t('onboarding.nameRequired'));
       return;
     }
     const rate = parseFloat(hourlyRate);
     if (isNaN(rate) || rate < 0) {
-      Alert.alert('שגיאה', 'אנא הזן שכר שעתי תקין');
+      Alert.alert(t('common.error'), t('onboarding.rateInvalid'));
       return;
     }
 
@@ -56,18 +56,19 @@ export default function OnboardingWorkplaceScreen() {
   };
 
   return (
-    <AppScreen title="הגדרת מקום עבודה">
+    <AppScreen title={t('onboarding.workplaceTitle')}>
       <View style={styles.container}>
         <View style={styles.content}>
-          <Text style={headingStyle}>איפה אתה עובד?</Text>
-          <Text style={textStyle}>בוא נגדיר את מקום העבודה הראשון שלך ואת השכר השעתי.</Text>
+          <Text style={headingStyle}>{t('onboarding.workplaceHeading')}</Text>
+          <Text style={textStyle}>{t('onboarding.workplaceBody')}</Text>
           
           <View style={styles.formGroup}>
-            <Text style={textStyle}>שם מקום העבודה</Text>
+            <Text style={textStyle}>{t('onboarding.workplaceName')}</Text>
             <TextInput 
-              accessibilityLabel="שם מקום העבודה"
+              accessibilityLabel={t('onboarding.workplaceName')}
+              testID="e2e-onboarding-workplace-name"
               style={inputStyle} 
-              placeholder="לדוגמה: בית קפה, מסעדה" 
+              placeholder={t('onboarding.workplacePlaceholder')}
               placeholderTextColor={colors.textMuted}
               value={workplaceName}
               onChangeText={setWorkplaceName}
@@ -75,9 +76,10 @@ export default function OnboardingWorkplaceScreen() {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={textStyle}>שכר שעתי (₪)</Text>
+            <Text style={textStyle}>{t('onboarding.hourlyRate')}</Text>
             <TextInput 
-              accessibilityLabel="שכר שעתי (₪)"
+              accessibilityLabel={t('onboarding.hourlyRate')}
+              testID="e2e-onboarding-hourly-rate"
               style={inputStyle} 
               placeholder="0.00" 
               placeholderTextColor={colors.textMuted}
@@ -90,9 +92,10 @@ export default function OnboardingWorkplaceScreen() {
 
         <View style={styles.footer}>
           <PrimaryButton 
-            label={loading ? "שומר..." : "המשך"} 
+            label={loading ? t('onboarding.saving') : t('onboarding.continue')}
             onPress={handleNext} 
             disabled={loading}
+            testID="e2e-onboarding-complete"
           />
         </View>
       </View>

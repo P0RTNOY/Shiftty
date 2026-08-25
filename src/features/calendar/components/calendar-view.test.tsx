@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react-native';
+import { fireEvent, screen, within } from '@testing-library/react-native';
 
 import { CalendarView } from '@/features/calendar/components/calendar-view';
 import { createShift } from '@/test/fixtures';
@@ -15,6 +15,8 @@ describe('CalendarView', () => {
     fireEvent.press(screen.getByText('15'));
     fireEvent.press(screen.getByRole('button', { name: 'הוספת משמרת' }));
     expect(onCreateShift).toHaveBeenCalledWith('2026-07-15');
+    expect(within(screen.getByRole('button', { name: 'החודש הקודם' })).getByText('›')).toBeTruthy();
+    expect(within(screen.getByRole('button', { name: 'החודש הבא' })).getByText('‹')).toBeTruthy();
   });
 
   it.each(['week', 'agenda'] as const)('keeps contextual shift creation available in %s mode', (mode) => {

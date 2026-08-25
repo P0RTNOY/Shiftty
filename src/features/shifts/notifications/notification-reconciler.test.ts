@@ -232,4 +232,53 @@ describe('NotificationReconciler', () => {
     expect(scheduledRepo.upsert).not.toHaveBeenCalledWith(expect.objectContaining({ shiftId: 'shift-wp-1' }));
     expect(scheduledRepo.upsert).toHaveBeenCalledWith(expect.objectContaining({ shiftId: 'shift-wp-2' }));
   });
+
+  it('serializes concurrent reconcilers so a logical notification is scheduled once', async () => {
+    adapter.getPermissionStatus.mockResolvedValue('granted');
+    settingsRepo.getGlobal.mockResolvedValue({
+      masterEnabled: true, scheduledShiftReminders: true, shiftReminderOffsets: [60], missedClockInReminders: false,
+      expectedEndReminders: false, overdueShiftReminders: false, longBreakReminders: false,
+      missedClockInGraceMinutes: 10, longUnpaidBreakThresholdMinutes: 30, longPaidBreakThresholdMinutes: 60,
+      dailySummaryEnabled: false, dailySummaryTime: '20:00',
+    });
+    settingsRepo.getWorkplaceOverride.mockResolvedValue(null);
+    const records: Awaited<ReturnType<ScheduledNotificationRepository['listAll']>> = [];
+    scheduledRepo.listAll.mockImplementation(async () => records.map((record) => ({ ...record })));
+    scheduledRepo.upsert.mockImplementation(async (record) => {
+      const index = records.findIndex((item) => item.logicalKey === record.logicalKey);
+      const stored = { ...record, createdAt: '', updatedAt: '' };
+      if (index >= 0) records[index] = stored;
+      else records.push(stored);
+    });
+    scheduledRepo.updateNativeId.mockImplementation(async (logicalKey, nativeId) => {
+      const record = records.find((item) => item.logicalKey === logicalKey);
+      if (record) record.nativeId = nativeId;
+    });
+    let releaseFirstSchedule!: (nativeId: string) => void;
+    adapter.scheduleNotification
+      .mockImplementationOnce(() => new Promise((resolve) => { releaseFirstSchedule = resolve; }))
+      .mockResolvedValue('unexpected-duplicate');
+    const upcomingShift: Shift = {
+      id: 'concurrent-shift', workplaceId: 'wp-1', status: 'scheduled',
+      scheduledStart: '2026-08-04T12:00:00+03:00', scheduledEnd: '2026-08-04T16:00:00+03:00',
+      expectedBreakMinutes: 0, hourlyRateSnapshotMinor: 0, salaryCalculationStatus: 'not_calculated',
+      timezone: TIMEZONE, createdAt: '', updatedAt: '',
+    };
+    const input = {
+      now: new Date('2026-08-04T10:00:00+03:00'), timezone: TIMEZONE,
+      upcomingShifts: [upcomingShift], activeShift: null, activeBreak: null,
+    };
+    const otherReconciler = new NotificationReconciler(settingsRepo, scheduledRepo, adapter, resolveText);
+
+    const first = reconciler.reconcile(input);
+    while (adapter.scheduleNotification.mock.calls.length === 0) await Promise.resolve();
+    const second = otherReconciler.reconcile(input);
+    await Promise.resolve();
+
+    expect(adapter.scheduleNotification).toHaveBeenCalledTimes(1);
+    releaseFirstSchedule('native-concurrent');
+    await Promise.all([first, second]);
+    expect(adapter.scheduleNotification).toHaveBeenCalledTimes(1);
+    expect(records).toEqual([expect.objectContaining({ logicalKey: 'shift_reminder:concurrent-shift:60', nativeId: 'native-concurrent' })]);
+  });
 });

@@ -32,14 +32,25 @@ export default function ExportsScreen() {
     try {
       setExporting(format);
       if (format === 'csv') {
-        await shareFile({ filename: `shiftty-report-${month}.csv`, content: generateMonthlyReportCsv(report, locale), mimeType: 'text/csv' });
+        await shareFile({
+          filename: `shiftty-report-${month}.csv`,
+          content: generateMonthlyReportCsv(report, locale),
+          mimeType: 'text/csv',
+          dialogTitle: t('exports.csvShareTitle'),
+        });
       } else if (format === 'pdf') {
-        await processPdf({ html: generateMonthlyReportPdfHtml(report, locale), filename: `shiftty-report-${month}.pdf`, action: 'share' });
+        await processPdf({
+          html: generateMonthlyReportPdfHtml(report, locale),
+          filename: `shiftty-report-${month}.pdf`,
+          dialogTitle: t('exports.pdfShareTitle'),
+          action: 'share',
+        });
       } else {
         await shareFile({
           filename: `shiftty-shifts-${month}.ics`,
           content: generateIcs(report.rows.map((row) => row.shift), { fallbackTitle: t('exports.icsFallbackTitle') }),
           mimeType: 'text/calendar',
+          dialogTitle: t('exports.icsShareTitle'),
         });
       }
     } catch (caught) {
@@ -63,16 +74,16 @@ export default function ExportsScreen() {
     {report && report.rows.length === 0 ? <Text style={{ color: colors.textMuted, textAlign: align }}>{t('exports.noShifts')}</Text> : null}
 
     {report && report.rows.length > 0 ? <View style={styles.container}>
-      <ExportSection body={t('exports.pdfBody')} button={t('exports.pdfAction')} disabled={Boolean(exporting)} onPress={() => void runExport('pdf')} title={t('exports.pdfTitle')} />
-      <ExportSection body={t('exports.csvBody')} button={t('exports.csvAction')} disabled={Boolean(exporting)} onPress={() => void runExport('csv')} title={t('exports.csvTitle')} />
-      <ExportSection body={t('exports.icsBody')} button={t('exports.icsAction')} disabled={Boolean(exporting)} onPress={() => void runExport('ics')} title={t('exports.icsTitle')} />
+      <ExportSection body={t('exports.pdfBody')} button={t('exports.pdfAction')} disabled={Boolean(exporting)} format="pdf" onPress={() => void runExport('pdf')} title={t('exports.pdfTitle')} />
+      <ExportSection body={t('exports.csvBody')} button={t('exports.csvAction')} disabled={Boolean(exporting)} format="csv" onPress={() => void runExport('csv')} title={t('exports.csvTitle')} />
+      <ExportSection body={t('exports.icsBody')} button={t('exports.icsAction')} disabled={Boolean(exporting)} format="ics" onPress={() => void runExport('ics')} title={t('exports.icsTitle')} />
     </View> : null}
   </AppScreen>;
 }
 
-function ExportSection({ title, body, button, disabled, onPress }: { title: string; body: string; button: string; disabled: boolean; onPress: () => void }) {
+function ExportSection({ title, body, button, disabled, format, onPress }: { title: string; body: string; button: string; disabled: boolean; format: 'pdf' | 'csv' | 'ics'; onPress: () => void }) {
   const { colors } = useAppTheme(); const { isRtl } = useTranslation(); const align = isRtl ? 'right' : 'left';
-  return <View style={styles.section}><Text style={[styles.heading, { color: colors.text, textAlign: align }]}>{title}</Text><Text style={[styles.text, { color: colors.textMuted, textAlign: align }]}>{body}</Text><PrimaryButton disabled={disabled} label={button} onPress={onPress} /></View>;
+  return <View style={styles.section}><Text style={[styles.heading, { color: colors.text, textAlign: align }]}>{title}</Text><Text style={[styles.text, { color: colors.textMuted, textAlign: align }]}>{body}</Text><PrimaryButton disabled={disabled} label={button} onPress={onPress} testID={`e2e-export-${format}`} /></View>;
 }
 
 function MonthButton({ label, onPress }: { label: string; onPress: () => void }) { const { colors } = useAppTheme(); return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.choice, { backgroundColor: pressed ? colors.surfaceMuted : colors.surface, borderColor: colors.border }]}><Text style={{ color: colors.text }}>{label}</Text></Pressable>; }

@@ -29,7 +29,7 @@ describe('OnboardingWorkplaceScreen', () => {
 
     expect(screen.getByLabelText('שם מקום העבודה')).toBeTruthy();
     expect(screen.getByLabelText('שכר שעתי (₪)')).toBeTruthy();
-    fireEvent.changeText(screen.getByPlaceholderText('לדוגמה: בית קפה, מסעדה'), 'בית קפה');
+    fireEvent.changeText(screen.getByPlaceholderText('לדוגמה: בית קפה או מסעדה'), 'בית קפה');
     fireEvent.changeText(screen.getByPlaceholderText('0.00'), '60');
     fireEvent.press(screen.getByRole('button', { name: 'המשך' }));
 

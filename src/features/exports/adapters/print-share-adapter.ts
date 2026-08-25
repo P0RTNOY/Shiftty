@@ -52,7 +52,7 @@ export async function processPdf(options: PrintShareOptions): Promise<void> {
     
     if (isAvailable) {
       await Sharing.shareAsync(newUri, {
-        dialogTitle: dialogTitle || `שתף ${filename}`,
+        dialogTitle: dialogTitle ?? filename,
         mimeType: 'application/pdf',
         UTI: 'com.adobe.pdf',
       });

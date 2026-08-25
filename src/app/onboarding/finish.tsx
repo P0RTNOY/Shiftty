@@ -8,7 +8,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 
 export default function OnboardingFinishScreen() {
   const { colors } = useAppTheme();
-  const { isRtl } = useTranslation();
+  const { isRtl, t } = useTranslation();
   const db = useSQLiteContext();
   const [loading, setLoading] = useState(false);
 
@@ -29,13 +29,11 @@ export default function OnboardingFinishScreen() {
   };
 
   return (
-    <AppScreen title="הכל מוכן!">
+    <AppScreen title={t('onboarding.finishTitle')}>
       <View style={styles.container}>
         <View style={styles.content}>
-          <Text style={headingStyle}>מצוין, סיימנו!</Text>
-          <Text style={textStyle}>
-            מקום העבודה שלך הוגדר בהצלחה. כעת תוכל להתחיל לעקוב אחר המשמרות שלך בקלות.
-          </Text>
+          <Text style={headingStyle}>{t('onboarding.finishHeading')}</Text>
+          <Text style={textStyle}>{t('onboarding.finishBody')}</Text>
         </View>
 
         <View style={styles.footer}>
@@ -43,7 +41,7 @@ export default function OnboardingFinishScreen() {
             <ActivityIndicator size="large" color={colors.primary} />
           ) : (
             <PrimaryButton 
-              label="היכנס לאפליקציה" 
+              label={t('onboarding.enterApp')}
               onPress={completeOnboarding} 
             />
           )}

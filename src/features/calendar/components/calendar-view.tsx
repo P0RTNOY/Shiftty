@@ -57,9 +57,9 @@ export function CalendarView(props: Props) {
       <ModeButton active={props.mode === 'agenda'} label={t('calendar.agenda')} onPress={() => props.onModeChange('agenda')} />
     </View>
     <View style={[styles.monthHeader, { flexDirection: direction }]}>
-      <Pressable accessibilityLabel={t('calendar.previousMonth')} accessibilityRole="button" hitSlop={8} onPress={props.onPreviousMonth} style={styles.navButton}><Text style={[styles.navText, { color: colors.primary }]}>{isRtl ? '‹' : '‹'}</Text></Pressable>
+      <Pressable accessibilityLabel={t('calendar.previousMonth')} accessibilityRole="button" hitSlop={8} onPress={props.onPreviousMonth} style={styles.navButton}><Text style={[styles.navText, { color: colors.primary }]}>{isRtl ? '›' : '‹'}</Text></Pressable>
       <Text accessibilityRole="header" style={[styles.monthTitle, { color: colors.text }]}>{monthLabel}</Text>
-      <Pressable accessibilityLabel={t('calendar.nextMonth')} accessibilityRole="button" hitSlop={8} onPress={props.onNextMonth} style={styles.navButton}><Text style={[styles.navText, { color: colors.primary }]}>›</Text></Pressable>
+      <Pressable accessibilityLabel={t('calendar.nextMonth')} accessibilityRole="button" hitSlop={8} onPress={props.onNextMonth} style={styles.navButton}><Text style={[styles.navText, { color: colors.primary }]}>{isRtl ? '‹' : '›'}</Text></Pressable>
     </View>
 
     {props.mode === 'week' ? (
@@ -100,13 +100,13 @@ export function CalendarView(props: Props) {
       <ShiftList roles={props.roles ?? []} shifts={agendaShifts} templates={props.templates ?? []} workplaces={props.workplaces} onOpenShift={props.onOpenShift} onStartShift={props.onStartShift} />
       {!agendaShifts.length ? <EmptyState body={t('calendar.emptyBody')} title={t('calendar.empty')} /> : null}
     </>}
-    <PrimaryButton label={t('home.addShift')} onPress={() => props.onCreateShift(props.selectedDate)} />
+    <PrimaryButton label={t('home.addShift')} onPress={() => props.onCreateShift(props.selectedDate)} testID="e2e-calendar-add-shift" />
   </View>;
 }
 
 function ShiftList({ shifts, workplaces, roles, templates, onOpenShift, onStartShift }: { shifts: readonly Shift[]; workplaces: readonly WorkplaceSummary[]; roles: readonly RoleSummary[]; templates: readonly TemplateSummary[]; onOpenShift: (shift: Shift) => void; onStartShift?: (shift: Shift) => void }) {
   const { t } = useTranslation();
-  return <View style={styles.list}>{shifts.map((shift) => <View key={shift.id} style={styles.list}><ShiftCard onPress={() => onOpenShift(shift)} roleName={roles.find((item) => item.id === shift.roleId)?.name} shift={shift} templateName={templates.find((item) => item.id === shift.shiftTemplateId)?.name} workplaceName={workplaces.find((item) => item.id === shift.workplaceId)?.name ?? '—'} />{shift.status === 'scheduled' && onStartShift ? <PrimaryButton label={t('active.startScheduled')} onPress={() => onStartShift(shift)} /> : null}</View>)}</View>;
+  return <View style={styles.list}>{shifts.map((shift) => <View key={shift.id} style={styles.list}><ShiftCard onPress={() => onOpenShift(shift)} roleName={roles.find((item) => item.id === shift.roleId)?.name} shift={shift} templateName={templates.find((item) => item.id === shift.shiftTemplateId)?.name} testID="e2e-calendar-shift-card" workplaceName={workplaces.find((item) => item.id === shift.workplaceId)?.name ?? '—'} />{shift.status === 'scheduled' && onStartShift ? <PrimaryButton label={t('active.startScheduled')} onPress={() => onStartShift(shift)} /> : null}</View>)}</View>;
 }
 
 function ModeButton({ active, label, onPress }: { active: boolean; label: string; onPress: () => void }) {

@@ -6,30 +6,27 @@ import { router } from 'expo-router';
 
 export default function OnboardingWelcomeScreen() {
   const { colors } = useAppTheme();
-  const { isRtl } = useTranslation();
+  const { isRtl, t } = useTranslation();
 
   const textStyle = [styles.text, { color: colors.text, textAlign: isRtl ? ('right' as const) : ('left' as const) }];
   const headingStyle = [styles.heading, { color: colors.text, textAlign: isRtl ? ('right' as const) : ('left' as const) }];
 
   return (
-    <AppScreen title="ברוכים הבאים ל-Shiftty">
+    <AppScreen title={t('onboarding.welcomeTitle')}>
       <View style={styles.container}>
         <View style={styles.content}>
-          <Text style={headingStyle}>העוזר האישי שלך למשמרות</Text>
-          <Text style={textStyle}>
-            מעקב אחר משמרות, חישוב שכר, דו&quot;חות חודשיים והכל עם דגש על פרטיות.
-          </Text>
+          <Text style={headingStyle}>{t('onboarding.assistantTitle')}</Text>
+          <Text style={textStyle}>{t('onboarding.assistantBody')}</Text>
           
-          <Text style={headingStyle}>פרטיות קודם כל</Text>
-          <Text style={textStyle}>
-            הנתונים שלך נשמרים רק על המכשיר הזה. אין ענן, אין שרתים חיצוניים, והנתונים שייכים אך ורק לך.
-          </Text>
+          <Text style={headingStyle}>{t('onboarding.privacyTitle')}</Text>
+          <Text style={textStyle}>{t('onboarding.privacyBody')}</Text>
         </View>
 
         <View style={styles.footer}>
           <PrimaryButton 
-            label="התחל עכשיו" 
+            label={t('onboarding.start')}
             onPress={() => router.push('/onboarding/workplace')} 
+            testID="e2e-onboarding-start"
           />
         </View>
       </View>

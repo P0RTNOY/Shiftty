@@ -3,9 +3,17 @@ import { ActiveShiftPanel } from '@/features/shifts/components/active-shift-pane
 import { renderApp } from '@/test/render';
 import { createBreak, createShift } from '@/test/fixtures';
 import type { PayCalculationResult } from '@/domain/entities';
+import { useLiveNow } from '@/shared/hooks/use-live-now';
+
+jest.mock('@/shared/hooks/use-live-now', () => ({
+  useLiveNow: jest.fn(() => new Date('2026-07-15T17:00:00+03:00')),
+}));
+const mockUseLiveNow = jest.mocked(useLiveNow);
 
 describe('ActiveShiftPanel', () => {
   const shift = createShift({ status: 'active', actualStart: '2026-07-15T13:00:00+03:00', expectedEnd: '2026-07-15T22:00:00+03:00', activeOrigin: 'scheduled' });
+
+  beforeEach(() => mockUseLiveNow.mockClear());
 
   it('renders timestamp-derived Hebrew live metrics and accessible actions', () => {
     const onStartBreak = jest.fn();
@@ -28,6 +36,12 @@ describe('ActiveShiftPanel', () => {
     fireEvent.press(screen.getByRole('button', { name: 'חזרה לעבודה' }));
     expect(onEndBreak).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('button', { name: 'הפסקה' })).toBeNull();
+  });
+
+  it('uses one one-second clock subscription for both active-shift and break timers', () => {
+    renderApp(<ActiveShiftPanel breaks={[createBreak({ end: undefined, start: '2026-07-15T16:52:00+03:00' })]} now={new Date('2026-07-15T17:00:00+03:00')} onEndBreak={jest.fn()} onEndShift={jest.fn()} onManageBreaks={jest.fn()} onOpenDetails={jest.fn()} onStartBreak={jest.fn()} shift={shift} workplaceName="קפה העיר" />);
+
+    expect(mockUseLiveNow).toHaveBeenCalledTimes(1);
   });
 
   it('labels the live amount as estimated and exposes its assumptions', () => {

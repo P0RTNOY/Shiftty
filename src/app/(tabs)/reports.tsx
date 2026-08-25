@@ -23,9 +23,9 @@ export default function ReportsScreen() {
 
   return <AppScreen title={t('reports.title')}>
     <View style={[styles.navigation, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}>
-      <MonthButton label={t('reports.previousMonth')} onPress={() => setMonth((value) => addMonths(value, -1))} />
+      <MonthButton label={t('reports.previousMonth')} onPress={() => setMonth((value) => addMonths(value, -1))} testID="e2e-reports-previous-month" />
       <Text accessibilityRole="header" style={[styles.monthTitle, { color: colors.text }]}>{formatMonth(month, locale)}</Text>
-      <MonthButton label={t('reports.nextMonth')} onPress={() => setMonth((value) => addMonths(value, 1))} />
+      <MonthButton label={t('reports.nextMonth')} onPress={() => setMonth((value) => addMonths(value, 1))} testID="e2e-reports-next-month" />
     </View>
 
     {loading ? <Text style={{ color: colors.textMuted, textAlign: align }}>{t('common.loading')}</Text> : null}
@@ -39,7 +39,7 @@ export default function ReportsScreen() {
         <Text style={[styles.headlineValue, { color: colors.text, textAlign: align }]}>{t('reports.workedDuration', { duration: formatDurationLong(report.totals.paidMinutes, locale) })}</Text>
         {report.totals.salaryMinor === undefined
           ? <Text accessibilityRole="alert" style={[styles.warning, { color: colors.warning, textAlign: align }]}>{report.totals.salaryIssueCount === 1 ? t('reports.salaryUnavailableOne') : t('reports.salaryUnavailable', { count: report.totals.salaryIssueCount })}</Text>
-          : <Text style={[styles.salary, { color: colors.primary, textAlign: align }]}>{t('reports.earnedAmount', { amount: formatCurrency(report.totals.salaryMinor) })}</Text>}
+          : <Text testID="e2e-reports-estimated-total" style={[styles.salary, { color: colors.primary, textAlign: align }]}>{t('reports.earnedAmount', { amount: formatCurrency(report.totals.salaryMinor) })}</Text>}
         {report.totals.invalidShiftCount > 0 ? <Text accessibilityRole="alert" style={[styles.warning, { color: colors.warning, textAlign: align }]}>{t('reports.invalidShiftCount', { count: report.totals.invalidShiftCount })}</Text> : null}
       </View>
 
@@ -57,18 +57,19 @@ export default function ReportsScreen() {
           salaryStatus={row.salaryStatus}
           specialIntervals={row.specialIntervals}
           shift={row.shift}
+          testID={`e2e-report-row-${formatLocalDateKey(row.start, row.shift.timezone)}`}
           workplaceName={row.workplaceName}
         />)}
       </View>
 
-      <PrimaryButton label={t('reports.export')} onPress={() => router.push(`/settings/exports?month=${month}`)} />
+      <PrimaryButton label={t('reports.export')} onPress={() => router.push(`/settings/exports?month=${month}`)} testID="e2e-reports-export" />
     </> : null}
   </AppScreen>;
 }
 
-function MonthButton({ label, onPress }: { label: string; onPress: () => void }) {
+function MonthButton({ label, onPress, testID }: { label: string; onPress: () => void; testID: string }) {
   const { colors } = useAppTheme();
-  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.choice, { backgroundColor: pressed ? colors.surfaceMuted : colors.surface, borderColor: colors.border }]}><Text style={{ color: colors.text }}>{label}</Text></Pressable>;
+  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.choice, { backgroundColor: pressed ? colors.surfaceMuted : colors.surface, borderColor: colors.border }]} testID={testID}><Text style={{ color: colors.text }}>{label}</Text></Pressable>;
 }
 
 function addMonths(month: string, delta: number): string {

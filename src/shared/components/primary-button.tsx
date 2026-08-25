@@ -7,6 +7,7 @@ interface PrimaryButtonProps {
   onPress: () => void;
   accessibilityHint?: string;
   disabled?: boolean;
+  testID?: string;
 }
 
 export function PrimaryButton({
@@ -14,6 +15,7 @@ export function PrimaryButton({
   onPress,
   accessibilityHint,
   disabled = false,
+  testID,
 }: PrimaryButtonProps) {
   const { colors } = useAppTheme();
 
@@ -24,6 +26,7 @@ export function PrimaryButton({
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
+      testID={testID}
       style={({ pressed }) => [
         styles.button,
         { backgroundColor: pressed ? colors.primaryPressed : colors.primary },

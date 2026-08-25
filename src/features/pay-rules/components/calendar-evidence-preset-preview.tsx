@@ -25,6 +25,7 @@ export function CalendarEvidencePresetPreview({ preset, onApply }: Props) {
       accessibilityRole="button"
       accessibilityState={{ expanded }}
       onPress={() => setExpanded((value) => !value)}
+      testID="e2e-evidence-preset-expand"
       style={({ pressed }) => [styles.disclosure, { borderColor: colors.border, opacity: pressed ? 0.75 : 1 }]}
     ><Text style={[styles.disclosureText, { color: colors.primary, textAlign: align }]}>{t(expanded ? 'salary.presetHide' : 'salary.presetPreview')}</Text></Pressable>
     {expanded ? <View style={styles.details}>
@@ -44,6 +45,7 @@ export function CalendarEvidencePresetPreview({ preset, onApply }: Props) {
         accessibilityRole="checkbox"
         accessibilityState={{ checked: confirmed }}
         onPress={() => setConfirmed((value) => !value)}
+        testID="e2e-evidence-preset-confirm"
         style={[styles.checkRow, { flexDirection: direction }]}
       >
         <View style={[styles.check, { borderColor: colors.primary, backgroundColor: confirmed ? colors.primary : colors.surface }]}>
@@ -51,7 +53,7 @@ export function CalendarEvidencePresetPreview({ preset, onApply }: Props) {
         </View>
         <Text style={[styles.checkText, { color: colors.text, textAlign: align }]}>{t('salary.presetConfirm')}</Text>
       </Pressable>
-      <PrimaryButton disabled={!confirmed} label={t('salary.presetApply')} onPress={() => void onApply()} />
+      <PrimaryButton disabled={!confirmed} label={t('salary.presetApply')} onPress={() => void onApply()} testID="e2e-evidence-preset-apply" />
     </View> : null}
   </View>;
 }
