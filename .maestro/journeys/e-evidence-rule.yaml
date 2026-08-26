@@ -192,6 +192,11 @@ tags:
 - eraseText: 30
 - inputText: E2E Edited Evidence
 - tapOn: "Start date|תאריך התחלה"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - pressKey: Back
 - tapOn:
     id: e2e-date-time-cancel
     optional: true

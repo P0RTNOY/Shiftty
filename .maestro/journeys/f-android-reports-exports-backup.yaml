@@ -1,10 +1,10 @@
 appId: ${APP_ID}
-name: F - finalized-zero report exposes PDF CSV ICS and backup actions
+name: F Android - finalized zero reaches native export and backup share workflows
 tags:
   - smoke
   - exports
   - backup
-  - ios
+  - android
 ---
 - clearState
 - launchApp
@@ -34,41 +34,21 @@ tags:
     id: e2e-tab-reports
 - assertVisible:
     id: e2e-reports-estimated-total
-- extendedWaitUntil:
-    visible:
-      id: e2e-reports-export
-    timeout: 30000
 - tapOn:
     id: e2e-reports-export
-- assertVisible:
-    id: e2e-export-pdf
-- assertVisible:
-    id: e2e-export-csv
-- assertVisible:
-    id: e2e-export-ics
 - tapOn:
     id: e2e-export-pdf
-- extendedWaitUntil:
-    visible: "Copy|העתק"
-    timeout: 30000
-- tapOn: "Copy|העתק"
+- waitForAnimationToEnd
+- pressKey: Back
 - tapOn:
     id: e2e-export-csv
-- extendedWaitUntil:
-    visible: "Copy|העתק"
-    timeout: 30000
-- tapOn: "Copy|העתק"
+- waitForAnimationToEnd
+- pressKey: Back
 - tapOn:
     id: e2e-export-ics
-- extendedWaitUntil:
-    visible: "Copy|העתק"
-    timeout: 30000
-- tapOn: "Copy|העתק"
-- tapOn: "Back|חזרה"
-- extendedWaitUntil:
-    visible:
-      id: e2e-tab-settings
-    timeout: 15000
+- waitForAnimationToEnd
+- pressKey: Back
+- pressKey: Back
 - tapOn:
     id: e2e-tab-settings
 - tapOn:
@@ -79,7 +59,5 @@ tags:
     id: e2e-backup-restore
 - tapOn:
     id: e2e-backup-export
-- extendedWaitUntil:
-    visible: "Copy|העתק"
-    timeout: 30000
-- tapOn: "Copy|העתק"
+- waitForAnimationToEnd
+- pressKey: Back

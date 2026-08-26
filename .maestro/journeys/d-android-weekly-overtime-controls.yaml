@@ -1,0 +1,139 @@
+appId: ${APP_ID}
+name: D Android - save versioned weekly overtime and verify a threshold crossing
+tags:
+  - salary
+  - weekly-overtime
+  - android
+---
+- clearState
+- launchApp
+- runFlow: ../helpers/complete-first-use.yaml
+- tapOn:
+    id: e2e-tab-settings
+- tapOn:
+    id: e2e-settings-salary
+- scrollUntilVisible:
+    element:
+      id: e2e-salary-profile-edit
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: e2e-salary-profile-edit
+- tapOn:
+    id: e2e-salary-advanced-toggle
+- scrollUntilVisible:
+    element:
+      id: e2e-weekly-overtime-enabled
+    direction: DOWN
+- tapOn:
+    id: e2e-weekly-overtime-enabled
+- scrollUntilVisible:
+    element:
+      id: e2e-weekly-overtime-hours
+    direction: DOWN
+- tapOn:
+    id: e2e-weekly-overtime-hours
+- eraseText: 2
+- inputText: "8"
+- tapOn: "Weekly overtime|שעות נוספות שבועיות"
+- scrollUntilVisible:
+    element:
+      id: e2e-weekly-overtime-multiplier
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: e2e-weekly-overtime-multiplier
+- eraseText: 3
+- inputText: "150"
+- tapOn: "This setting is configurable and is not a guarantee of labor-law compliance.|הגדרה זו ניתנת להתאמה ואינה מבטיחה עמידה בדיני העבודה."
+- scrollUntilVisible:
+    element:
+      id: e2e-salary-effective-from
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: e2e-salary-effective-from
+- tapOn: "OK|אישור"
+- scrollUntilVisible:
+    element:
+      id: e2e-salary-profile-save
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: e2e-salary-profile-save
+- extendedWaitUntil:
+    visible:
+      id: e2e-salary-profile-edit
+    timeout: 30000
+- openLink: "shifty://shifts/new?mode=completed&date=${WEEKLY_DATE_1}"
+- tapOn:
+    text: "Open|פתח"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: e2e-shift-save
+    timeout: 30000
+- tapOn: E2E Workplace
+- tapOn:
+    id: e2e-shift-save
+- tapOn:
+    text: "Confirm|אישור"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: e2e-shift-details
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: e2e-salary-breakdown-toggle
+    direction: DOWN
+- tapOn:
+    id: e2e-salary-breakdown-toggle
+- assertNotVisible:
+    id: e2e-weekly-overtime-segment
+- assertNotVisible:
+    id: e2e-default-overtime-segment
+- openLink: "shifty://shifts/new?mode=completed&date=${WEEKLY_DATE_2}"
+- tapOn:
+    text: "Open|פתח"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: e2e-shift-save
+    timeout: 30000
+- tapOn: E2E Workplace
+- tapOn:
+    id: e2e-shift-save
+- tapOn:
+    text: "Confirm|אישור"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: e2e-shift-details
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: e2e-salary-breakdown-toggle
+    direction: DOWN
+- tapOn:
+    id: e2e-salary-breakdown-toggle
+- scrollUntilVisible:
+    element:
+      id: e2e-weekly-overtime-segment
+    direction: DOWN
+- assertVisible:
+    id: e2e-weekly-overtime-segment
+- assertVisible: "8 hours · 150%|8 שעות · 150%"
+- assertNotVisible:
+    id: e2e-default-overtime-segment
+- scrollUntilVisible:
+    element:
+      id: e2e-salary-trust-toggle
+    direction: UP
+- tapOn:
+    id: e2e-salary-trust-toggle
+- scrollUntilVisible:
+    element:
+      text: "Configured weekly overtime threshold|סף השעות הנוספות השבועי שהוגדר"
+    direction: DOWN
+- assertVisible: "Configured weekly overtime threshold|סף השעות הנוספות השבועי שהוגדר"

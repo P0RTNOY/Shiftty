@@ -34,7 +34,7 @@ tags:
 - extendedWaitUntil:
     visible: E2E Premium
     timeout: 15000
-- openLink: "shifty://shifts/new?mode=scheduled&date=2026-08-26"
+- openLink: "shifty://shifts/new?mode=scheduled"
 - tapOn:
     text: "Open|פתח"
     optional: true

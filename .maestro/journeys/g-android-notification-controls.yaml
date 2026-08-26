@@ -1,0 +1,40 @@
+appId: ${APP_ID}
+name: G Android - configure one logical scheduled-shift reminder
+tags:
+  - notifications
+  - android
+---
+- clearState
+- launchApp
+- runFlow: ../helpers/complete-first-use.yaml
+- tapOn:
+    id: e2e-tab-settings
+- tapOn:
+    id: e2e-settings-notifications
+- tapOn:
+    id: e2e-notifications-enable
+- tapOn:
+    text: "Allow|אישור"
+    optional: true
+- assertVisible:
+    id: notif_master_toggle
+- assertVisible:
+    id: e2e-notifications-scheduled
+- tapOn:
+    id: e2e-notification-offset-60
+- tapOn:
+    id: e2e-notification-offset-15
+- tapOn:
+    id: e2e-notification-offset-0
+- scrollUntilVisible:
+    element:
+      id: e2e-notifications-missed
+    direction: DOWN
+- tapOn:
+    id: e2e-notifications-missed
+- assertVisible:
+    id: e2e-notifications-expected-end
+- assertVisible:
+    id: e2e-notifications-overdue
+- assertVisible:
+    id: e2e-notifications-long-break

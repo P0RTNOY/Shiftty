@@ -22,7 +22,7 @@ export default function SettingsScreen() {
         <SettingsRow icon="business-outline" label={t('settings.workplaces')} onPress={() => router.push('/settings/workplaces')} testID="e2e-settings-workplaces" />
         <SettingsRow icon="cash-outline" label={t('settings.salary')} onPress={() => router.push('/settings/salary')} testID="e2e-settings-salary" />
         <SettingsRow icon="time-outline" label={t('settings.templates')} onPress={() => router.push('/settings/templates')} testID="e2e-settings-shift-types" />
-        <SettingsRow icon="notifications-outline" label={t('settings.notifications')} onPress={() => router.push('/settings/notifications')} />
+        <SettingsRow icon="notifications-outline" label={t('settings.notifications')} onPress={() => router.push('/settings/notifications')} testID="e2e-settings-notifications" />
         <SettingsRow icon="download-outline" label={t('settings.exports')} onPress={() => router.push('/settings/exports')} testID="e2e-settings-exports" />
         <SettingsRow icon="save-outline" label={t('settings.backupRestore')} onPress={() => router.push('/settings/data-management')} testID="e2e-settings-backup" />
       </View>

@@ -21,6 +21,7 @@ it('links exports and backup directly from the primary settings list', () => {
   expect(screen.getByRole('button', { name: 'שכר' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'סוגי משמרת' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'התראות' })).toBeTruthy();
+  expect(screen.getByTestId('e2e-settings-notifications')).toBeTruthy();
   expect(screen.getByRole('button', { name: 'ייצוא דוחות' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'גיבוי ושחזור' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'דוחות וגיבוי' })).toBeNull();

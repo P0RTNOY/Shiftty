@@ -89,6 +89,7 @@ export default function NotificationSettingsScreen() {
             <PrimaryButton
               label={t('notification.enableNotifications')}
               onPress={() => void handlePermissionRequest()}
+              testID="e2e-notifications-enable"
             />
           </View>
         )}
@@ -106,6 +107,7 @@ export default function NotificationSettingsScreen() {
           t('notification.shiftReminders'),
           preferences.scheduledShiftReminders,
           (v) => void toggle('scheduledShiftReminders', v),
+          'e2e-notifications-scheduled',
         )}
 
         {preferences.scheduledShiftReminders && (
@@ -122,6 +124,7 @@ export default function NotificationSettingsScreen() {
                   accessibilityState={{ checked: active, disabled: saving }}
                   disabled={saving}
                   key={offset}
+                  testID={`e2e-notification-offset-${offset}`}
                   style={[styles.offsetChip, { backgroundColor: active ? colors.primary : colors.surfaceMuted }]}
                   onPress={() => {
                     const next = active
@@ -144,6 +147,7 @@ export default function NotificationSettingsScreen() {
           t('notification.missedClockIn'),
           preferences.missedClockInReminders,
           (v) => void toggle('missedClockInReminders', v),
+          'e2e-notifications-missed',
         )}
 
         {renderSectionHeader(t('notification.activeShiftSafety'))}
@@ -151,16 +155,19 @@ export default function NotificationSettingsScreen() {
           t('notification.expectedEndReminders'),
           preferences.expectedEndReminders,
           (v) => void toggle('expectedEndReminders', v),
+          'e2e-notifications-expected-end',
         )}
         {renderToggleRow(
           t('notification.overdueShift'),
           preferences.overdueShiftReminders,
           (v) => void toggle('overdueShiftReminders', v),
+          'e2e-notifications-overdue',
         )}
         {renderToggleRow(
           t('notification.longBreak'),
           preferences.longBreakReminders,
           (v) => void toggle('longBreakReminders', v),
+          'e2e-notifications-long-break',
         )}
       </ScrollView>
     </AppScreen>
