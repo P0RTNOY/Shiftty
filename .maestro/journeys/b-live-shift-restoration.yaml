@@ -27,6 +27,10 @@ tags:
     visible:
       id: e2e-active-shift-panel
     timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: e2e-active-end-break
+    direction: DOWN
 - assertVisible:
     id: e2e-active-end-break
 - stopApp
