@@ -5,7 +5,9 @@ tags:
   - android
 ---
 - clearState
-- launchApp
+- launchApp:
+    permissions:
+      all: deny
 - runFlow: ../helpers/complete-first-use.yaml
 - tapOn:
     id: e2e-tab-settings
