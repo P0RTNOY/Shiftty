@@ -19,8 +19,7 @@ tags:
     id: e2e-shift-type-multiplier
 - eraseText: 3
 - inputText: "150"
-- tapOn: "100% is the standard rate.*|100% הוא התעריף הרגיל.*"
-- tapOn: "Create shift type|יצירת סוג משמרת"
+- hideKeyboard
 - scrollUntilVisible:
     element:
       id: e2e-shift-type-save
