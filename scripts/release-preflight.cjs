@@ -86,6 +86,15 @@ try {
   process.exitCode = 1;
 }
 
+if (process.argv.includes('--configuration-only')) {
+  if (process.exitCode) {
+    console.error('\nSOURCE_BLOCKED: fix the release configuration before continuing.');
+  } else {
+    console.log('\nSOURCE_READY: release configuration and required assets passed.');
+  }
+  process.exit(process.exitCode ?? 0);
+}
+
 for (const [label, command, args] of sourceChecks) {
   console.log(`\nRUN   ${label}`);
   const result = spawnSync(command, args, {
