@@ -108,6 +108,7 @@ tags:
 - assertVisible:
     id: e2e-rule-value
     text: "^150$"
+- hideKeyboard
 - tapOn: "Stack premium with other rules|צבירת תוספת עם חוקים אחרים"
 - scrollUntilVisible:
     element:
@@ -191,15 +192,7 @@ tags:
     id: e2e-evidence-name
 - eraseText: 30
 - inputText: E2E Edited Evidence
-- tapOn: "Start date|תאריך התחלה"
-- runFlow:
-    when:
-      platform: Android
-    commands:
-      - pressKey: Back
-- tapOn:
-    id: e2e-date-time-cancel
-    optional: true
+- hideKeyboard
 - scrollUntilVisible:
     element:
       id: e2e-evidence-confirm-edit
