@@ -63,11 +63,15 @@ npx expo start --dev-client
 
 These commands prove only the platform actually built and launched. An unavailable Android SDK/emulator, physical device, or signing team must be recorded as an external blocker, not as a pass.
 
-### Verified Milestone 4 local candidate
+### Verified Milestone 5 local candidate
 
-On 2026-08-25, Xcode 26.6 produced a fresh arm64 Release for the iOS 26.5 Simulator from the final Milestone 4 source. The artifact reported `Shiftty`, `com.omerportnoy.shifty`, and build `1`, installed and launched without Metro, and passed all six Maestro flows in 11 minutes 50 seconds. The flows opened real iOS share sheets for PDF, CSV, ICS, and backup files, but did not read those files back or perform an OS document-picker restore. This is Simulator build evidence, not a signed device/archive/TestFlight artifact.
+On 2026-08-26, a fresh arm64 Release built and ran without Metro on the pinned disposable iPhone 17 Pro clone running iOS 26.5, UDID `73B7FFB2-1EC0-470C-B7E5-38D401BA4255`. The application used the stable `com.omerportnoy.shifty` bundle. Production English and Hebrew UI generated PDF, CSV, calendar-only ICS, and backup files through real share sheets. Independent `pypdf`, Quick Look, standard-library CSV, `icalendar`, and `qpdf` readback was performed with the exact warning boundary documented in `NATIVE_VERIFICATION_REPORT.md`.
 
-The connected iPhone already held the legacy bundle with dogfood data. A side-by-side device build using `com.omerportnoy.shiftty.beta` stopped because there was no matching provisioning profile and Xcode required `-allowProvisioningUpdates`. Do not enable profile creation merely to bypass that boundary; establish the intended Apple team and beta identifier first, then preserve the complete existing SQLite container before any same-identifier install.
+The production document picker selected **On My iPhone → `m5-source-backup.json`**. Replace restore, cold-relaunch active/open-break restoration, SQLite integrity/foreign-key checks, canonical backup-data comparison, bounded merge, full end review, new snapshot finalization, historical-result preservation, and expected weekly dependency staleness passed on disposable Simulator data. This is still Simulator evidence, not a signed device/archive/TestFlight artifact.
+
+The connected iPhone 15 Pro Max already holds the stable bundle with existing data. A safe current-candidate device build was unavailable because the configured project team and only installed signing identity belong to different teams and no matching provisioning profile exists. Do not create profiles, alter credentials, or replace the existing container merely to bypass that boundary. First establish the authorized Apple team and profile, then preserve a recoverable copy of the complete app container before any same-identifier installation.
+
+Android is also blocked: the host has no complete SDK, Android Studio, emulator, AVD, or connected device. The presence of `adb` 37 and an incomplete Unity SDK is not a reproducible Expo/Gradle build environment.
 
 ## EAS builds
 
@@ -100,6 +104,8 @@ The repository intentionally defines no automatic submit step. Review artifacts,
 ## CI boundary
 
 `.github/workflows/ci.yml` runs locked installation and the source gate on pushes and pull requests. It has read-only repository permission, does not persist the checkout credential, receives no deployment secrets, cancels superseded runs, and never builds, publishes, signs, or submits an application.
+
+No hosted workflow/run exists for the Milestone 5 candidate, and the exact commit is not remote. The checked-in workflow runs the source-gate commands individually but does not invoke the `npm run release:preflight` wrapper, whose additional release configuration and asset assertions are therefore local-only evidence. Before relying on hosted CI for a release decision, either add those assertions or demonstrate equivalent hosted steps. Do not push merely to create evidence when pushing is outside the authorized task.
 
 ## Rollback boundary
 

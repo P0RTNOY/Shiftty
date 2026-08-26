@@ -1,6 +1,24 @@
 # Shiftty Project Status
 
-Last updated: 2026-08-25
+Last updated: 2026-08-26
+
+## Native Artifact and Cross-Platform Verification — 2026-08-26
+
+Milestone 5 is based on `0908c7b3214abc55efebfc6a70893c4168cc58cf` on branch `codex/native-artifact-cross-platform-verification`. Its only source correction is narrow PDF manual pagination plus regression tests; salary arithmetic, report semantics, persisted schemas, backup V1, and historical snapshots are unchanged. The exact final SHA is recorded in the milestone handoff.
+
+The arm64 iOS Simulator Release ran standalone as `com.omerportnoy.shifty` on the pinned disposable iPhone 17 Pro clone, iOS 26.5, UDID `73B7FFB2-1EC0-470C-B7E5-38D401BA4255`. Production English and Hebrew flows generated PDF, CSV, calendar-only ICS, and backup files through real iOS share sheets. Independent `pypdf`, Quick Look, Python standard-library CSV, `icalendar`, and `qpdf` readback verified the outputs. The corrected PDF spans three pages with the table header repeated on every page, and Hebrew RTL was inspected visually in Quick Look. `qpdf` exits 3 on Quartz offset-0 object warnings even though the files open and parse; no clean `qpdf` result is claimed.
+
+CSV readback found 29 data rows, UTF-8 BOM/CRLF, formula-protected user fields, one estimate note, numeric finalized zero, and empty missing/outdated salary. ICS contained 29 valid UTC events and no salary/payroll/rate/multiplier/evidence/rule/source/trust/entitlement content. Backup V1 for app 0.1.0 contained 33 shifts, two workplaces/profiles, rule/evidence and archived records, scheduled and active/open-unpaid-break states, zero/nonzero/stale/missing salary, and frozen history, with no credentials or secrets.
+
+The real production document picker selected **On My iPhone → `m5-source-backup.json`**. Replace restore succeeded, and a cold relaunch showed the restored active shift and open unpaid break. SQLite integrity returned `ok`, foreign-key check returned no rows, and a native re-export matched source canonical data at recorded SHA-256 prefix `b15aad…`; only `exportedAt` differed. Bounded merge of the same file succeeded. Full end review then completed the restored active shift/open break, finalized a new nine-minute snapshot for 1,125 minor units, retained the prior historical result JSON at recorded SHA-256 prefix `f419…`, and correctly marked the later weekly-dependent shift stale.
+
+The compact quick-review Save control was outside the automation viewport with a tall disclosure, but the scrollable full end-review production path succeeded; this is an automation limitation, not a validated defect. A fixed-date weekly-overtime expectation initially used 2026-08-25, which correctly resolved to the older salary profile. Continuing on 2026-08-27 under the intended effective profile passed with eight hours at 150%; the original date assumption is not a product failure.
+
+Physical iPhone and Android verification remain blocked. The connected iPhone 15 Pro Max runs iOS 26.6 and already holds the same stable bundle; the project team beginning `9R9…` does not match the only signing identity, whose team begins `7R88…`, and no provisioning profiles are installed. No physical build, install, launch, notification, lifecycle, or data mutation was attempted. Android has no complete SDK, Android Studio, emulator, AVD, or device; `adb` 37 plus an incomplete Unity SDK is insufficient, so no Android build/runtime pass is claimed.
+
+No hosted GitHub Actions workflow/run is registered remotely and the exact candidate is not remote; the branch was not pushed. The local workflow remains least-privilege and command-aligned, but it does not invoke the `release:preflight` wrapper's additional release-configuration/asset assertions. The committed candidate passed typecheck, lint, **137/137 suites and 685/685 tests**, migration and Expo/config validation, release preflight, and patch-whitespace checks. Expected SQLite rejection diagnostics came from negative integration tests. An independent review found only the PDF pagination correction, its regression assertions, and Milestone 5 documentation in the base-to-candidate diff.
+
+Evidence-based verdict: **`SOURCE_READY_NATIVE_BLOCKED`**. Simulator artifact readback and OS document-picker restore are now complete. Safe physical-iPhone signing/install, Android build/runtime, hosted CI, TestFlight/App Store/Google Play credentials, and store metadata/privacy/support assets remain unresolved. Exact evidence is in `docs/NATIVE_VERIFICATION_REPORT.md`; release commands and boundaries are in `docs/RELEASE_BUILD.md`.
 
 ## Beta Stabilization and Release Readiness — 2026-08-25
 

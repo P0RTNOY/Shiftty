@@ -1,105 +1,127 @@
 # Native verification report
 
-Candidate date: 2026-08-25
-Branch: `codex/beta-stabilization`
-Candidate source: the final verified Milestone 4 working tree based on `b94ac6f3141cbec1c8fde5197a2cf5e2f2e8e97e`
+Candidate date: 2026-08-26
+Branch: `codex/native-artifact-cross-platform-verification`
+Milestone base: `0908c7b3214abc55efebfc6a70893c4168cc58cf`
+Final candidate: the committed HEAD containing this report; the exact SHA is recorded in the milestone handoff
 
 ## Evidence policy
 
-This report keeps automated source evidence, iOS Simulator evidence, physical-iPhone evidence, and Android evidence separate. A source test is not reported as a native pass, share-sheet presentation is not reported as file-content readback, and a restore entry point is not reported as an OS document-picker restore.
+This report keeps automated source evidence, iOS Simulator evidence, physical-iPhone evidence, Android evidence, and hosted-CI evidence separate. Native share-sheet presentation is not treated as artifact readback; an in-app restore entry point is not treated as an OS document-picker restore; Simulator evidence is not treated as a signed-device or store artifact.
 
 ## Candidate and environment
 
 | Item | Recorded value |
 | --- | --- |
 | Public identity | Shiftty / שיפטי |
-| Expo / React Native mode | Expo SDK 57; New Architecture enabled; standalone Release bundle, no Metro dependency |
-| iOS build host | macOS host with Xcode 26.6 (`17F113`) and iOS 26.5 Simulator runtime |
-| iOS Simulator | Disposable clone named `Shiftty Beta Verification Clone`; iPhone 17 Pro class; iOS 26.5 |
-| Built application | arm64 `Release-iphonesimulator/Shifty.app`; `CFBundleDisplayName=Shiftty`; `CFBundleIdentifier=com.omerportnoy.shifty`; build `1` |
-| Physical iPhone | Paired iPhone 15 Pro Max available; current candidate not installed |
-| Android | No Android SDK, emulator, AVD tooling, or connected device available |
+| Expo / React Native mode | Expo SDK 57; New Architecture enabled; standalone Release bundle without Metro |
+| iOS Simulator | Disposable iPhone 17 Pro clone, iOS 26.5, UDID `73B7FFB2-1EC0-470C-B7E5-38D401BA4255` |
+| Built application | arm64 Simulator Release; `com.omerportnoy.shifty` |
+| Physical iPhone | Connected iPhone 15 Pro Max, iOS 26.6; current candidate not built or installed |
+| Android | No complete Android SDK, Android Studio, emulator, AVD, or device; only `adb` 37 and an incomplete Unity SDK were present |
+| Source base | `0908c7b3214abc55efebfc6a70893c4168cc58cf` |
+| Source delta | PDF pagination implementation and regression tests only |
 
-The fresh Release build command completed with `** BUILD SUCCEEDED **`, the app installed and launched on the disposable Simulator, and all six Maestro flows were then rerun against that exact binary. The physical iPhone installation was not cleared or replaced. During iterative verification, one unpinned Maestro invocation selected the separately booted `iPhone 17 Pro` Simulator and executed `clearState` for `com.omerportnoy.shifty` before the run was stopped. Subsequent native commands were pinned to clone UDID `73B7FFB2-1EC0-470C-B7E5-38D401BA4255`. No physical-device data was affected; any prior data in that Simulator app container was not recoverable from the test harness and is not represented as preserved.
+The iOS artifact was generated through the production application UI and real iOS share sheets. English and Hebrew report/export paths were exercised. Independent readers were used after export rather than trusting only the application preview.
 
 ## Verification summary
 
 | Evidence class | Result | Evidence |
 | --- | --- | --- |
-| Automated repository gate | Passed | Typecheck, lint, 137 suites / 685 tests, migrations, Expo export, Expo dependency check, public config, and `git diff --check` |
-| Release preflight | Passed at source level | Configuration/assets and the full source gate passed; the command separately listed account, signing, store, and device prerequisites |
-| Maestro definitions | Passed | Six public production-UI flows; no fixture route, seeded product database, hidden clock, or production bypass |
-| Maestro execution | Passed | `6/6 Flows Passed in 11m 50s` on the final standalone Release binary, pinned to the disposable clone UDID |
-| iOS native build/install/launch | Passed | Fresh arm64 Release build, install, cold launch, repeated termination/relaunch, and standalone execution without Metro |
-| iOS Simulator presentation | Passed for executed scope | English/light throughout automation plus a separate Hebrew/RTL/dark launch and visual inspection |
-| Physical iPhone | Not tested | Safe side-by-side build stopped at missing provisioning profile; existing dogfood app/data were preserved |
-| Android native build/runtime | Not tested | Runtime and SDK unavailable |
-| GitHub Actions workflow | Local definition passed; hosted run not tested | Workflow YAML parsed locally and every declared command passed; no remote runner result is claimed |
+| Milestone 5 final repository gate | Passed | Typecheck, lint, 137/137 suites and 685/685 tests, migration/Expo/config checks, release preflight, and patch-whitespace validation passed |
+| iOS native build/install/launch | Passed | Fresh arm64 Simulator Release installed and ran standalone on the pinned disposable clone |
+| PDF/CSV/ICS generation | Passed | Generated through production report/export UI and real share sheets in English and Hebrew |
+| Independent artifact readback | Passed with documented PDF parser warning | `pypdf`, Quick Look, Python `csv`, `icalendar`, and `qpdf` read the generated files |
+| OS document-picker replace restore | Passed | Browse → On My iPhone → `m5-source-backup.json`; production confirmation and success UI; cold-relaunch verification |
+| Backup semantic readback | Passed | Source and restored canonical data matched; only `exportedAt` changed on re-export |
+| Bounded merge restore | Passed | Merging the same backup completed without unbounded duplication |
+| Physical iPhone | Blocked / not tested | Same installed bundle, signing-team mismatch, and no provisioning profiles prevented a safe build/install |
+| Android native build/runtime | Blocked / not tested | Complete Android build and runtime toolchain unavailable |
+| Hosted GitHub Actions | Not tested | No remote workflow/run was registered and the exact candidate commit was not remote |
 
-## Native journey matrix
+## Native artifact readback
 
-| Journey | iOS Simulator result | Native boundary |
-| --- | --- | --- |
-| A. First use | Passed | Fresh state, onboarding, workplace/hourly rate, Home, cold relaunch, persistence |
-| B. Live shift | Passed | Clock in, unpaid break, cold relaunch, open-break restoration, end break, clock out, review and save |
-| C. Shift type | Passed | Create a 150% type, select it on a scheduled shift, override copied break to 15 minutes, archive the type, and observe frozen identity in Calendar and details |
-| D. Weekly overtime | Passed | Save an effective-dated profile with an eight-hour weekly threshold and 150% multiplier; prove the first shift is below threshold and the next shift is exactly eight weekly-overtime hours without a duplicate default segment |
-| E. Evidence and rule | Passed | Confirm the dated preset, prove evidence alone has no pay effect, add an exact 150% rule, selectively mark/recalculate the affected shift, edit evidence, preserve the control shift, and retain frozen historical provenance |
-| F. Reports and data safety | Passed for share-sheet boundary | Complete a legitimate finalized-zero shift; present and copy PDF, CSV, calendar-only ICS, and backup files through real iOS share sheets; verify the restore entry point |
+### PDF
 
-The native flows open real iOS share sheets and invoke the stable Copy action. They stop before generated-file content readback and before selecting/restoring a file through the OS document picker. Automated export and backup tests remain authoritative for PDF/CSV/ICS content, formula safety, semantic restore, collision handling, and SQLite integrity; this distinction is the reason the verdict remains native-blocked.
+The native monthly report produced a three-page PDF after a narrow pagination correction in the PDF generator. Independent `pypdf` extraction and Quick Look inspection confirmed that:
 
-## Presentation and state matrix
+- the document opens and parses;
+- the selected report content spans three pages;
+- the report table header repeats on all three pages;
+- page breaks do not hide the repeated header; and
+- Hebrew output is visually right-to-left and readable in Quick Look.
 
-| Check | iOS Simulator | Physical iPhone | Android | Notes |
-| --- | --- | --- | --- | --- |
-| English LTR | Passed | Not tested | Not tested | Six final Maestro flows used English UI |
-| Hebrew RTL | Passed for inspected Home surface | Not tested | Not tested | Device-language launch showed Hebrew copy, right-to-left tab order/alignment, and `שיפטי` |
-| Light appearance | Passed | Not tested | Not tested | Final flow suite and relaunches |
-| Dark appearance | Passed for inspected Home surface | Not tested | Not tested | Hebrew dark launch rendered legibly with correct contrast and RTL layout |
-| Dynamic Type extremes | Automated/static only | Not tested | Not tested | Public-source audit rejects disabled font scaling; extreme sizes were not manually swept |
-| Screen reader focus/order | Automated/component only | Not tested | Not tested | Maestro uses stable accessibility IDs; a VoiceOver sweep was not performed |
-| Native picker | Passed where exercised | Not tested | Not tested | Journey D exercised the iOS effective-date picker; full picker/cancellation matrix was not repeated |
-| Missing/stale/finalized zero | Passed where exercised | Not tested | Not tested | E exercised stale/non-numeric behavior; F exercised legitimate numeric zero; unit tests cover missing/incomplete |
-| Startup recovery error | Passed | Not tested | Not tested | A test-only Migration 9 name mismatch produced the non-destructive recovery screen |
-| iPad layout/orientation | Not tested | Not tested | Not applicable | Tablet support is declared, not runtime-verified |
+`qpdf --check` exited with status 3 because Apple's Quartz PDF writer emits offset-0 object warnings. The same files opened in Quick Look and parsed with `pypdf`; no unreadable page or missing report content was found. This is recorded as a non-blocking producer warning, not as a clean `qpdf` pass. Hebrew text extraction can appear in reverse visual order because bidirectional layout information is not reconstructed by the parser; visual RTL was therefore verified in Quick Look.
 
-## Persistence, migration, recovery, and privacy
+The only Milestone 5 source correction is the narrow manual-pagination behavior and its regression tests. No salary arithmetic, report model, persisted schema, backup format, or historical snapshot was changed.
 
-Automated integration tests passed for empty and v1-v9 upgrades, interrupted Migration 9 rollback/retry, incomplete/future migration-history rejection, corrupt and semantically invalid backups, replace rollback, merge collisions, active/open-break constraints, legacy V1 data, evidence/workweek provenance, archived/deleted evidence behavior, and a 250-shift zero-rate semantic round-trip.
+### CSV
 
-The final Simulator database reported:
+The native CSV read back through Python's standard `csv` module with:
 
-- Migration 9 with the exact expected name `evidence_aware_holiday_rest`;
-- `PRAGMA integrity_check` → `ok`; and
-- `PRAGMA foreign_key_check` → no rows.
+- 29 data rows;
+- a UTF-8 BOM and CRLF record endings;
+- formula protection on user-controlled workplace, role, and title fields;
+- exactly one estimate/provenance note;
+- a legitimate finalized zero serialized as numeric zero; and
+- missing and outdated salary values left empty rather than serialized as zero.
 
-For the native recovery check, the app was terminated, the disposable database was copied, and only its Migration 9 name was changed to a test-only mismatch. On launch, the app refused normal startup, stated that local data remained on-device, and offered retry plus a safe diagnostic export. The expected migration name was then restored, the WAL was checkpointed, integrity/foreign keys were rechecked, and normal launch resumed. No user or dogfood database was involved. The OS diagnostic share sheet itself was not opened; unit/component tests verify that the diagnostic excludes paths, native error messages, workplace/shift content, salaries, and backup data.
+### ICS
 
-## Stability findings
+The native ICS parsed with `icalendar` as 29 valid UTC events. A content audit found no payroll or salary payload: no salary/payroll/rate terminology, amount, multiplier, trust state, evidence provenance, source URL, rule ID, or entitlement data was present. ICS remains calendar-only.
 
-The earlier Milestone 3 symptom is best classified as Metro/dev-client connectivity, not a demonstrated application crash: retained logs showed 87 heartbeat timeouts alongside 92 successful bundles, without a matching fatal exception, Jetsam event, signal termination, SQLite termination, crash report, or failed Xcode build.
+## Backup contents and native restore
 
-The Milestone 4 candidate was tested as a standalone Release without Metro. It completed six flows over 11 minutes 50 seconds, including repeated cold relaunches, active-shift restoration, and open-break restoration. A post-run log search found no application fatal, crash, or SQLite failure. One earlier `XCTAS Error` occurred while the Maestro accessibility harness was querying a terminating window; the app continued, so it is recorded as a harness transition rather than an app crash.
+The source backup is envelope version 1 for app version `0.1.0`. It contains 33 shifts, two workplaces, two salary profiles, a pay rule and calendar evidence, archived role/template records, a scheduled shift, one active shift with an open unpaid break, finalized zero and nonzero snapshots, stale and missing salary states, and frozen historical provenance. Inspection found no credentials, API keys, native notification identifiers, or other secrets.
 
-Notification reconciliation is now serialized and has a race regression test proving one logical reminder schedules once. Local-notification delivery, denial behavior, and background delivery were not reverified on a physical device.
+The real iOS document picker was exercised from the production restore UI on disposable Simulator data:
 
-## Performance findings
+1. Browse was opened.
+2. **On My iPhone** was selected.
+3. `m5-source-backup.json` was selected.
+4. Replace restore was confirmed and reported success.
+5. The app was cold-terminated and relaunched.
+6. The restored active shift and its open unpaid break were visible and coherent.
 
-The 365-shift/250-unrelated-workplace regression scenario reduced role reads from 251 to 1, unrelated profile reads from 250 to 0, evidence reads from 365 to 1, and weekly-rest reads from 365 to 1. Evidence remains filtered back to each exact half-open shift range. The isolated test body took about 5.6 seconds and the Jest process reached about 163 MB maximum RSS on this host.
+The restored database returned `PRAGMA integrity_check = ok` and an empty `PRAGMA foreign_key_check`. A native re-export of the restored database matched the source backup's canonical data SHA-256 prefix `b15aad…`; only the intentionally regenerated `exportedAt` timestamp differed. A bounded merge of the same file also succeeded.
 
-These are query-count and deterministic workload measurements, not a controlled native battery, frame-rate, or memory benchmark. Native flows exercised Home, Salary Settings, Shift Details, Calendar/Reports navigation, and report rows without a timeout attributable to application work, but no physical-device battery or long-session memory claim is made.
+## Post-restore salary and history verification
 
-## Physical iPhone and Android boundaries
+Verification continued through the full end-review production path:
 
-The paired iPhone 15 Pro Max already contains `com.omerportnoy.shifty` (`Shifty` 0.1.0 build 1) with existing dogfood data. It was not replaced or cleared. A command-line Release build using the side-by-side identifier `com.omerportnoy.shiftty.beta` stopped before compilation because no matching provisioning profile existed; Xcode required `-allowProvisioningUpdates`. This milestone did not create profiles or credentials, so no current-candidate physical install, notification delivery, or background/foreground pass is claimed.
+- the restored active shift and open break were completed safely;
+- a new finalized nine-minute snapshot was written for 1,125 minor units;
+- the previously current historical result JSON retained its recorded SHA-256 prefix `f419…` unchanged; and
+- the later weekly-dependent shift became stale, as expected from dependency invalidation.
 
-Android remains outside the ready platform scope because no SDK/emulator/device was available. Android configuration and automated source checks pass, but there is no Android build or runtime evidence.
+The compact quick-review screen placed Save below the visible automation viewport when the tall Salary Trust disclosure was present. The full end-review production path scrolled and saved successfully. This is recorded as an automation/viewport limitation, not as a validated product defect.
 
-## Blockers and verdict
+## Date-sensitive weekly-overtime evidence
 
-No known P0/P1 source or iOS Simulator core-flow defect remains. The report-row width and iOS picker accessibility defects found during native verification were fixed and regression-tested before the final Release build and the 6/6 rerun. A known P2 remains: the root recovery boundary can describe a later render exception as a database-startup failure; it is non-destructive but diagnostically imprecise.
+The first fixed-date weekly-overtime assertion used 2026-08-25 and did not cross the configured threshold because that date resolved to the older effective salary profile. That result was correct and exposed a date-sensitive test assumption. Verification then continued explicitly on 2026-08-27 under the intended effective profile and produced eight hours at the configured 150% weekly-overtime rate. The initial expectation is not reported as a product failure, and only the successful date-corrected result is reported as threshold-crossing evidence.
 
-The direct native blockers are generated PDF/CSV/ICS/backup file readback and a complete OS document-picker backup restore with post-restore verification. External blockers are Apple device/distribution provisioning, App Store Connect metadata and privacy/support assets, hosted CI evidence, physical notification/background checks, and the complete Android toolchain/runtime matrix.
+## Physical iPhone boundary
 
-Evidence-based verdict: `SOURCE_READY_NATIVE_BLOCKED`. The source, standalone iOS Release, and disposable Simulator journeys pass, including real share-sheet presentation, but the missing file-readback and document-picker restore evidence prevents an iOS beta-ready claim. It is not an Android, physical-device, TestFlight, App Store, or hosted-CI claim.
+The connected iPhone 15 Pro Max runs iOS 26.6 and already contains `com.omerportnoy.shifty` with existing data. Because the candidate uses that same stable bundle identifier, it could not be installed safely side-by-side. The Xcode project selected a team whose identifier begins `9R9…`, while the only available signing identity belonged to a different team beginning `7R88…`; no matching provisioning profiles were installed. No profile creation, credential change, same-bundle replacement, build, installation, launch, notification, background/foreground, or device-data mutation was attempted.
+
+Physical iPhone status is therefore **blocked / not tested**, not failed and not passed. A future run needs an authorized signing team and profile plus a recoverable preservation plan for the existing app container.
+
+## Android boundary
+
+Android Studio, an emulator, an AVD, a complete Android SDK, and a physical Android device were unavailable. The host contained only `adb` 37 and an incomplete Unity-provided SDK, which is insufficient for a reproducible Expo/Gradle build. No Android compile, install, launch, SQLite, export, restore, notification, locale, or lifecycle pass is claimed.
+
+## Hosted CI boundary
+
+No workflow or run was registered for the remote repository, and the exact candidate commit was not present remotely. The branch was not pushed. The checked-in workflow remains least-privilege and its individual commands match the local source gate, but it does not invoke the `npm run release:preflight` wrapper itself. Consequently, a future hosted run should either add the wrapper's release-configuration/asset assertions or retain and explicitly validate equivalent steps. Local workflow parsing and command parity are not reported as hosted-CI evidence.
+
+## Source gate and dependency boundary
+
+The complete Milestone 5 post-fix gate passed on the committed candidate: typecheck, lint, **137/137 Jest suites and 685/685 tests**, empty and v1-v9 migration validation, Expo web export/config validation, `expo install --check`, public Expo configuration, release preflight, and `git diff --check`. Expected SQLite constraint and foreign-key rejection diagnostics appeared in negative integration tests; they were not test failures. An independent base-to-candidate diff review found only the PDF pagination correction, its regression assertions, and Milestone 5 documentation.
+
+The known dependency boundary is unchanged: `npm audit --omit=dev` reports 16 transitive Expo/Metro developer-toolchain advisories, with no compatible non-force repair and an incompatible force proposal. No forced dependency rewrite is part of this milestone.
+
+## Verdict
+
+Evidence-based verdict: `SOURCE_READY_NATIVE_BLOCKED`.
+
+The earlier native artifact-readback and document-picker restore blockers are closed on the iOS Simulator. The remaining blockers are the unavailable safe physical-iPhone signing/install path, absent Android build/runtime environment, absent hosted-CI execution, and external distribution/store prerequisites. This report does not authorize TestFlight, App Store, Google Play, physical-device, Android, or hosted-CI claims.
