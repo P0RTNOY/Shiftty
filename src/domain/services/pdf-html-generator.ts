@@ -11,6 +11,7 @@ export interface PdfHtmlOptions {
 
 export function generatePdfHtml(options: PdfHtmlOptions): string {
   const { title, subtitle, note, totals, headers, rows, direction = 'rtl', language = 'he' } = options;
+  const rowChunks = chunkRows(rows, 12);
 
   const html = `
 <!DOCTYPE html>
@@ -59,6 +60,10 @@ export function generatePdfHtml(options: PdfHtmlOptions): string {
       border-collapse: collapse;
       margin-bottom: 14px;
       page-break-inside: auto;
+    }
+    .report-table + .report-table {
+      break-before: page;
+      page-break-before: always;
     }
     tr {
       page-break-inside: avoid;
@@ -115,26 +120,33 @@ export function generatePdfHtml(options: PdfHtmlOptions): string {
   </table>
   ` : ''}
 
-  <table>
+  ${rowChunks.map(chunk => `
+  <table class="report-table">
     <thead>
       <tr>
         ${headers.map(h => `<th>${escapeHtml(h)}</th>`).join('\n        ')}
       </tr>
     </thead>
     <tbody>
-      ${rows.map(row => `
+      ${chunk.map(row => `
       <tr>
         ${row.map(cell => `<td>${escapeHtml(cell)}</td>`).join('\n        ')}
       </tr>
       `).join('')}
     </tbody>
   </table>
+  `).join('')}
 
 </body>
 </html>
   `.trim();
 
   return html;
+}
+
+function chunkRows(rows: string[][], size: number): string[][][] {
+  if (rows.length === 0) return [[]];
+  return Array.from({ length: Math.ceil(rows.length / size) }, (_, index) => rows.slice(index * size, (index + 1) * size));
 }
 
 export function escapeHtml(unsafe: string | null | undefined): string {

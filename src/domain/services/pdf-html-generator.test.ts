@@ -66,8 +66,11 @@ describe('pdf-html-generator', () => {
 
       expect(result).toContain('<html dir="rtl" lang="he">');
       expect(result).toContain('display: table-header-group');
+      expect(result).toContain('page-break-before: always');
       expect(result).toContain('page-break-inside: avoid');
-      expect((result.match(/<tr>/g) ?? []).length).toBe(121);
+      expect((result.match(/<tr>/g) ?? []).length).toBe(130);
+      expect(result.match(/<table class="report-table">/g)).toHaveLength(10);
+      expect(result.match(/<thead>/g)).toHaveLength(10);
       expect(result).toContain('משמרת &lt;120&gt;');
       expect(result.match(/הערה יחידה/g)).toHaveLength(1);
     });
