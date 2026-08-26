@@ -32,6 +32,9 @@ describe('NotificationReconciler', () => {
     adapter = {
       getPermissionStatus: jest.fn(),
       requestPermission: jest.fn(),
+      listScheduledNotificationIds: jest.fn().mockResolvedValue(new Set([
+        'native-old', 'native-1', 'native-2', 'native-concurrent', 'native-id',
+      ])),
       scheduleNotification: jest.fn(),
       cancelNotification: jest.fn().mockResolvedValue(undefined),
       cancelAllByOwner: jest.fn().mockResolvedValue(undefined),
@@ -124,6 +127,74 @@ describe('NotificationReconciler', () => {
     }));
     expect(adapter.scheduleNotification).toHaveBeenCalled();
     expect(scheduledRepo.updateNativeId).toHaveBeenCalledWith('shift_reminder:new-shift:60', 'native-new');
+  });
+
+  it('reschedules a desired reminder when persisted metadata no longer exists natively', async () => {
+    adapter.getPermissionStatus.mockResolvedValue('granted');
+    adapter.listScheduledNotificationIds.mockResolvedValue(new Set());
+    settingsRepo.getGlobal.mockResolvedValue({
+      masterEnabled: true, scheduledShiftReminders: true, shiftReminderOffsets: [60], missedClockInReminders: false,
+      expectedEndReminders: false, overdueShiftReminders: false, longBreakReminders: false,
+      missedClockInGraceMinutes: 15, longUnpaidBreakThresholdMinutes: 30, longPaidBreakThresholdMinutes: 15,
+      dailySummaryEnabled: false, dailySummaryTime: '20:00',
+    });
+    settingsRepo.getWorkplaceOverride.mockResolvedValue(null);
+    scheduledRepo.listAll.mockResolvedValue([{
+      logicalKey: 'shift_reminder:recover:60', type: 'shift_reminder',
+      scheduledFor: '2026-08-04T08:00:00.000Z', nativeId: 'native-removed',
+      shiftId: 'recover', workplaceId: 'wp-1', titleKey: '', bodyKey: '', createdAt: '', updatedAt: '',
+    }]);
+    adapter.scheduleNotification.mockResolvedValue('native-recreated');
+    const upcomingShift: Shift = {
+      id: 'recover', workplaceId: 'wp-1', status: 'scheduled',
+      scheduledStart: '2026-08-04T12:00:00+03:00', scheduledEnd: '2026-08-04T16:00:00+03:00',
+      expectedBreakMinutes: 0, hourlyRateSnapshotMinor: 0, salaryCalculationStatus: 'not_calculated',
+      timezone: TIMEZONE, createdAt: '', updatedAt: '',
+    };
+
+    await reconciler.reconcile({
+      now: new Date('2026-08-04T10:00:00+03:00'), timezone: TIMEZONE,
+      upcomingShifts: [upcomingShift], activeShift: null, activeBreak: null,
+    });
+
+    expect(scheduledRepo.deleteByLogicalKey).toHaveBeenCalledWith('shift_reminder:recover:60');
+    expect(adapter.scheduleNotification).toHaveBeenCalledTimes(1);
+    expect(scheduledRepo.updateNativeId).toHaveBeenCalledWith('shift_reminder:recover:60', 'native-recreated');
+  });
+
+  it('trusts persisted metadata when native-state inspection fails', async () => {
+    const inspectionError = new Error('native scheduler unavailable');
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    adapter.getPermissionStatus.mockResolvedValue('granted');
+    adapter.listScheduledNotificationIds.mockRejectedValue(inspectionError);
+    settingsRepo.getGlobal.mockResolvedValue({
+      masterEnabled: true, scheduledShiftReminders: true, shiftReminderOffsets: [60], missedClockInReminders: false,
+      expectedEndReminders: false, overdueShiftReminders: false, longBreakReminders: false,
+      missedClockInGraceMinutes: 15, longUnpaidBreakThresholdMinutes: 30, longPaidBreakThresholdMinutes: 15,
+      dailySummaryEnabled: false, dailySummaryTime: '20:00',
+    });
+    settingsRepo.getWorkplaceOverride.mockResolvedValue(null);
+    scheduledRepo.listAll.mockResolvedValue([{
+      logicalKey: 'shift_reminder:existing:60', type: 'shift_reminder',
+      scheduledFor: '2026-08-04T08:00:00.000Z', nativeId: 'native-existing',
+      shiftId: 'existing', workplaceId: 'wp-1', titleKey: '', bodyKey: '', createdAt: '', updatedAt: '',
+    }]);
+    const upcomingShift: Shift = {
+      id: 'existing', workplaceId: 'wp-1', status: 'scheduled',
+      scheduledStart: '2026-08-04T12:00:00+03:00', scheduledEnd: '2026-08-04T16:00:00+03:00',
+      expectedBreakMinutes: 0, hourlyRateSnapshotMinor: 0, salaryCalculationStatus: 'not_calculated',
+      timezone: TIMEZONE, createdAt: '', updatedAt: '',
+    };
+
+    await reconciler.reconcile({
+      now: new Date('2026-08-04T10:00:00+03:00'), timezone: TIMEZONE,
+      upcomingShifts: [upcomingShift], activeShift: null, activeBreak: null,
+    });
+
+    expect(adapter.scheduleNotification).not.toHaveBeenCalled();
+    expect(scheduledRepo.deleteByLogicalKey).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith('[Shiftty:notifications.listScheduled]', inspectionError);
+    errorSpy.mockRestore();
   });
 
   it('cancelForShift cancels all related notifications', async () => {

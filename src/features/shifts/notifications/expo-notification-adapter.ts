@@ -12,6 +12,7 @@ import { reportUnexpectedError } from '@/shared/utils/report-unexpected-error';
 export interface NotificationAdapter {
   getPermissionStatus(): Promise<'granted' | 'denied' | 'undetermined'>;
   requestPermission(): Promise<'granted' | 'denied'>;
+  listScheduledNotificationIds(): Promise<ReadonlySet<string>>;
   scheduleNotification(logicalKey: string, scheduledFor: Date, titleKey: string, bodyKey: string, bodyParams: Record<string, string | number>, data: Record<string, unknown>): Promise<string | null>;
   cancelNotification(nativeId: string): Promise<void>;
   cancelAllByOwner(owner: string): Promise<void>;
@@ -28,6 +29,12 @@ class ExpoNotificationAdapter implements NotificationAdapter {
     if (Platform.OS === 'web') return 'denied';
     const { status } = await Notifications.requestPermissionsAsync();
     return status === 'granted' ? 'granted' : 'denied';
+  }
+
+  async listScheduledNotificationIds(): Promise<ReadonlySet<string>> {
+    if (Platform.OS === 'web') return new Set();
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    return new Set(scheduled.map((notification) => notification.identifier));
   }
 
   async scheduleNotification(
@@ -73,6 +80,7 @@ class ExpoNotificationAdapter implements NotificationAdapter {
 class NoOpNotificationAdapter implements NotificationAdapter {
   async getPermissionStatus(): Promise<'granted' | 'denied' | 'undetermined'> { return 'undetermined'; }
   async requestPermission(): Promise<'granted' | 'denied'> { return 'denied'; }
+  async listScheduledNotificationIds(): Promise<ReadonlySet<string>> { return new Set(); }
   async scheduleNotification(): Promise<string | null> { return null; }
   async cancelNotification(): Promise<void> {}
   async cancelAllByOwner(): Promise<void> {}

@@ -36,6 +36,17 @@ describe('ExpoNotificationAdapter', () => {
       expect(Notifications.scheduleNotificationAsync).toHaveBeenCalled();
     });
 
+    it('lists native scheduled notification identifiers', async () => {
+      (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValueOnce([
+        { identifier: 'native-1', content: { data: {} } },
+        { identifier: 'native-2', content: { data: {} } },
+      ]);
+
+      await expect(expoNotificationAdapter.listScheduledNotificationIds()).resolves.toEqual(
+        new Set(['native-1', 'native-2']),
+      );
+    });
+
     it('propagates native scheduling failures to the reconciler', async () => {
       const nativeError = new Error('schedule failed');
       (Notifications.scheduleNotificationAsync as jest.Mock).mockRejectedValueOnce(nativeError);
@@ -82,6 +93,11 @@ describe('ExpoNotificationAdapter', () => {
       expect(id).toBeNull();
       expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
     });
+
+    it('returns no native scheduled IDs', async () => {
+      await expect(expoNotificationAdapter.listScheduledNotificationIds()).resolves.toEqual(new Set());
+      expect(Notifications.getAllScheduledNotificationsAsync).not.toHaveBeenCalled();
+    });
   });
 });
 
@@ -89,6 +105,7 @@ describe('NoOpNotificationAdapter', () => {
   it('returns safe default values', async () => {
     expect(await noOpNotificationAdapter.getPermissionStatus()).toBe('undetermined');
     expect(await noOpNotificationAdapter.requestPermission()).toBe('denied');
+    expect(await noOpNotificationAdapter.listScheduledNotificationIds()).toEqual(new Set());
     expect(await noOpNotificationAdapter.scheduleNotification('key', new Date(), 'title', 'body', {}, {})).toBeNull();
   });
 });

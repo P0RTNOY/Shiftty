@@ -81,8 +81,30 @@ export class NotificationReconciler {
     ] as const));
     const resolved = resolveNotificationPreferences(globalPrefs, null);
 
-    // Load existing records
-    const existingRecords = await this.scheduledNotifs.listAll();
+    // Load existing records and verify that their native counterparts still
+    // exist. Android removes alarms when an app is force-stopped, while our
+    // SQLite metadata remains. Treating that stale metadata as authoritative
+    // would prevent a desired reminder from being scheduled again on relaunch.
+    const persistedRecords = await this.scheduledNotifs.listAll();
+    let existingRecords = persistedRecords;
+    let scheduledNativeIds: ReadonlySet<string> | null = null;
+    try {
+      scheduledNativeIds = await this.adapter.listScheduledNotificationIds();
+    } catch (error) {
+      reportUnexpectedError('notifications.listScheduled', error);
+      // If native inspection itself fails, trust persisted metadata for this
+      // pass so a transient platform error cannot create duplicate reminders.
+    }
+    if (scheduledNativeIds) {
+      const missingNativeRecords = persistedRecords.filter(
+        (record) => !record.nativeId || !scheduledNativeIds.has(record.nativeId),
+      );
+      for (const record of missingNativeRecords) {
+        await this.scheduledNotifs.deleteByLogicalKey(record.logicalKey);
+      }
+      const missingLogicalKeys = new Set(missingNativeRecords.map((record) => record.logicalKey));
+      existingRecords = persistedRecords.filter((record) => !missingLogicalKeys.has(record.logicalKey));
+    }
 
     // Build plan
     const plan = buildNotificationPlan({
