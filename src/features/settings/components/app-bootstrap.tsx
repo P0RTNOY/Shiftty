@@ -8,6 +8,7 @@ import { PrimaryButton } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { spacing, typography, useAppTheme } from '@/shared/theme';
 import { NotificationLifecycle } from '@/features/shifts/components/notification-lifecycle';
+import { NotificationResponseLifecycle } from '@/features/shifts/components/notification-response-lifecycle';
 
 export function AppBootstrap({ children }: PropsWithChildren) {
   const database = useSQLiteContext();
@@ -27,7 +28,7 @@ export function AppBootstrap({ children }: PropsWithChildren) {
   }, [bootstrap, bootstrapStatus, database]);
 
   if (bootstrapStatus === 'ready') {
-    return <><NotificationLifecycle />{children}</>;
+    return <><NotificationLifecycle /><NotificationResponseLifecycle />{children}</>;
   }
 
   if (bootstrapStatus === 'error') {
