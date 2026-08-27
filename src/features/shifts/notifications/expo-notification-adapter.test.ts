@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { expoNotificationAdapter, noOpNotificationAdapter } from '@/features/shifts/notifications/expo-notification-adapter';
+import { configureForegroundNotificationPresentation, expoNotificationAdapter, noOpNotificationAdapter } from '@/features/shifts/notifications/expo-notification-adapter';
 
 jest.mock('expo-notifications', () => ({
   getPermissionsAsync: jest.fn(),
@@ -8,6 +8,7 @@ jest.mock('expo-notifications', () => ({
   scheduleNotificationAsync: jest.fn(),
   cancelScheduledNotificationAsync: jest.fn().mockResolvedValue(undefined),
   getAllScheduledNotificationsAsync: jest.fn(),
+  setNotificationHandler: jest.fn(),
   SchedulableTriggerInputTypes: { DATE: 'DATE' },
 }));
 
@@ -25,6 +26,19 @@ describe('ExpoNotificationAdapter', () => {
       (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValueOnce({ status: 'granted' });
       const status = await expoNotificationAdapter.getPermissionStatus();
       expect(status).toBe('granted');
+    });
+
+    it('configures visible foreground notification presentation', async () => {
+      configureForegroundNotificationPresentation();
+
+      expect(Notifications.setNotificationHandler).toHaveBeenCalledTimes(1);
+      const handler = (Notifications.setNotificationHandler as jest.Mock).mock.calls[0]?.[0];
+      await expect(handler.handleNotification()).resolves.toEqual({
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      });
     });
 
     it('scheduleNotification calls expo and returns id', async () => {
@@ -86,6 +100,11 @@ describe('ExpoNotificationAdapter', () => {
       const status = await expoNotificationAdapter.getPermissionStatus();
       expect(status).toBe('undetermined');
       expect(Notifications.getPermissionsAsync).not.toHaveBeenCalled();
+    });
+
+    it('does not register a native foreground handler', () => {
+      configureForegroundNotificationPresentation();
+      expect(Notifications.setNotificationHandler).not.toHaveBeenCalled();
     });
 
     it('scheduleNotification returns null', async () => {

@@ -18,6 +18,18 @@ export interface NotificationAdapter {
   cancelAllByOwner(owner: string): Promise<void>;
 }
 
+export function configureForegroundNotificationPresentation(): void {
+  if (Platform.OS === 'web') return;
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}
+
 class ExpoNotificationAdapter implements NotificationAdapter {
   async getPermissionStatus(): Promise<'granted' | 'denied' | 'undetermined'> {
     if (Platform.OS === 'web') return 'undetermined';
