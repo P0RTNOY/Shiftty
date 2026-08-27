@@ -9,6 +9,11 @@ tags:
 - runFlow: ../helpers/complete-first-use.yaml
 - tapOn:
     id: e2e-tab-settings
+    retryTapIfNoChange: true
+- extendedWaitUntil:
+    visible:
+      id: e2e-settings-salary
+    timeout: 15000
 - tapOn:
     id: e2e-settings-salary
 - scrollUntilVisible:

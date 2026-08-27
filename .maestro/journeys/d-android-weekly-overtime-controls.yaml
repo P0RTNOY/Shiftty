@@ -43,8 +43,12 @@ tags:
     centerElement: true
 - tapOn:
     id: e2e-weekly-overtime-multiplier
-- eraseText: 3
+- eraseText: 10
 - inputText: "150"
+- hideKeyboard
+- assertVisible:
+    id: e2e-weekly-overtime-multiplier
+    text: "150"
 - tapOn: "This setting is configurable and is not a guarantee of labor-law compliance.|הגדרה זו ניתנת להתאמה ואינה מבטיחה עמידה בדיני העבודה."
 - scrollUntilVisible:
     element:
