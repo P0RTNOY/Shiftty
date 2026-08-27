@@ -1,4 +1,4 @@
-import { TZDate } from '@date-fns/tz';
+import { TZDate, tzOffset } from '@date-fns/tz';
 import { addDays, differenceInMinutes, format } from 'date-fns';
 
 import { DEFAULT_TIMEZONE } from '@/shared/constants/app';
@@ -62,7 +62,39 @@ export function resolveLocalShiftRange(
 export function resolveLocalDateTime(localDate: string, localTime: string, timezone = DEFAULT_TIMEZONE): string {
   const [year, month, day] = parseLocalDate(localDate);
   const [hour, minute] = parseLocalTime(localTime);
-  return new TZDate(year, month - 1, day, hour, minute, timezone).toISOString();
+  const fallback = new TZDate(year, month - 1, day, hour, minute, timezone);
+  const nominalWallTime = Date.UTC(year, month - 1, day, hour, minute);
+  const offsets = new Set([
+    tzOffset(timezone, new Date(nominalWallTime - 36 * 60 * 60_000)),
+    tzOffset(timezone, new Date(nominalWallTime)),
+    tzOffset(timezone, new Date(nominalWallTime + 36 * 60 * 60_000)),
+  ]);
+  const matchingInstants: number[] = [];
+
+  for (const offset of offsets) {
+    if (!Number.isFinite(offset)) continue;
+    const instant = nominalWallTime - offset * 60_000;
+    const candidate = TZDate.tz(timezone, new Date(instant));
+    if (
+      candidate.getFullYear() === year
+      && candidate.getMonth() === month - 1
+      && candidate.getDate() === day
+      && candidate.getHours() === hour
+      && candidate.getMinutes() === minute
+      && candidate.getSeconds() === 0
+      && candidate.getMilliseconds() === 0
+    ) {
+      matchingInstants.push(instant);
+    }
+  }
+
+  // A fall-back overlap has two matching instants. Choosing the smaller one
+  // makes "earlier" deterministic across host operating-system time zones.
+  // A spring-forward gap has no match, so preserve TZDate's forward
+  // normalization used by existing scheduling semantics.
+  return matchingInstants.length
+    ? TZDate.tz(timezone, new Date(Math.min(...matchingInstants))).toISOString()
+    : fallback.toISOString();
 }
 
 function parseLocalDate(value: string): [number, number, number] {

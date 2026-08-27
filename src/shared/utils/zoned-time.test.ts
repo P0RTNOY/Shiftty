@@ -1,4 +1,4 @@
-import { resolveLocalShiftRange } from '@/shared/utils/zoned-time';
+import { resolveLocalDateTime, resolveLocalShiftRange } from '@/shared/utils/zoned-time';
 
 describe('resolveLocalShiftRange', () => {
   it('resolves a cross-midnight shift onto the following day', () => {
@@ -28,5 +28,12 @@ describe('resolveLocalShiftRange', () => {
     expect(() => resolveLocalShiftRange('2026-02-30', '08:00', '16:00')).toThrow('valid');
     expect(() => resolveLocalShiftRange('2026-07-15', '25:00', '16:00')).toThrow('24-hour');
     expect(() => resolveLocalShiftRange('2026-07-15', '08:00', '08:00')).toThrow('identical');
+  });
+});
+
+describe('resolveLocalDateTime', () => {
+  it('selects the earlier instant for an ambiguous fall-back wall time', () => {
+    expect(resolveLocalDateTime('2026-10-25', '01:30', 'Asia/Jerusalem'))
+      .toBe('2026-10-25T01:30:00.000+03:00');
   });
 });
