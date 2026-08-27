@@ -6,7 +6,9 @@ Branch: `codex/external-native-evidence-closure`
 
 Milestone base: `c2730d7cda7e08fd99631d2e91438862468f9222`
 
-Product-bearing native candidate: `f89d798fb68769a0b5a819fbf0d8c3467134b9fc`
+Final product-bearing source candidate: `58ab0820cda2d8ff79eee886b87758d5000a8232`
+
+Original full native-matrix candidate: `f89d798fb68769a0b5a819fbf0d8c3467134b9fc`
 
 Final source SHA: recorded in the milestone handoff after exact-SHA hosted verification
 
@@ -16,18 +18,18 @@ Shiftty is a Hebrew-first, local-first shift and gross-pay estimation assistant 
 
 The estimator does not fully model statutory weekly overtime, automatic holiday or religious-calendar status, weekly-rest entitlement, employer permits or agreements, tax, National Insurance, pension, deductions, benefits, or net pay. It is not payroll, legal advice, or an Israeli labor-law compliance product. PDF and CSV use estimate/missing/stale terminology; ICS is strictly calendar-only.
 
-Milestone 6 adds no salary behavior, migration, backup-envelope version, automatic recalculation, or public identifier change. It fixes only two reproduced Android local-notification defects and adds verification automation/documentation.
+Milestone 6 adds no salary concept, entitlement, premium, migration, backup-envelope version, automatic recalculation, or public identifier change. It fixes two reproduced Android local-notification defects and one hosted portability defect in the existing deterministic fall-back overlap rule, then adds verification automation/documentation.
 
 ## Evidence summary
 
 | Evidence class | Result | Boundary |
 | --- | --- | --- |
-| Source automation before final docs | Passed | 138/138 suites, 692/692 tests; final exact-commit gate still required |
+| Source automation before final docs | Passed | 138/138 suites, 693/693 tests; focused overlap tests pass under four host timezones; final exact-commit gate still required |
 | iOS Simulator | Inherited passed evidence | Milestone 5 Release artifact readback, real document-picker restore, semantic backup comparison, and database checks |
 | Android emulator | Passed | Isolated API 36 ARM64 Release build and full runtime/notification/export/restore matrix |
 | Physical iPhone | Partial pass | Side-by-side QA Release lifecycle, RTL/LTR, share sheet, permission, scheduling/dedupe, and database health passed; required notification delivery/cancellation/timezone states remain unverified |
 | Physical Android | Not tested | No physical Android device was supplied or required to substitute for the authorized emulator |
-| Hosted GitHub Actions | Pending until push | Exact final SHA must pass the existing non-deploying workflow; documentation does not predict the result |
+| Hosted GitHub Actions | Rerun pending | Run 33068224029 exposed the host-timezone overlap defect after earlier steps passed; exact final SHA must pass the existing non-deploying workflow |
 | Production signing/distribution | Not tested | QA development signing is not production-bundle/archive/TestFlight/App Store/Google Play evidence |
 
 ## Android closure
@@ -50,7 +52,7 @@ The physical foreground banner was not captured, and background/terminated deliv
 
 ## Source, CI, dependencies, and rollback
 
-The GitHub Actions workflow remains read-only, secret-free, non-deploying, time-bounded, and disables checkout credential persistence. It includes release configuration and asset assertions aligned with `release:preflight` without repeating the complete Jest suite. After the final documentation commit, only this branch may be pushed, and the exact SHA must obtain one successful hosted run before handoff.
+The GitHub Actions workflow remains read-only, secret-free, non-deploying, time-bounded, and disables checkout credential persistence. It includes release configuration and asset assertions aligned with `release:preflight` without repeating the complete Jest suite. Run `33068224029` at `9dccc7b216f35d04df0f9f311ed13154855f56f7` passed install, release configuration, typecheck, and lint, then failed the ambiguous Jerusalem fall-back test under the hosted timezone. The reproduced correction selects the earlier valid target-zone instant independently of the host. After the final documentation commit, only this branch may be pushed, and the exact SHA must obtain one successful hosted run before handoff.
 
 The Expo SDK 57 dependency graph is intentionally unchanged. The raw compatibility check reports 13 exact patch notices; release preflight and CI use a deterministic reviewed-pair wrapper that fails if the set changes. `npm audit --omit=dev` reports 16 transitive Expo/Metro developer-toolchain advisories: 12 moderate and 4 high. No compatible non-force repair exists; no forced downgrade is approved.
 

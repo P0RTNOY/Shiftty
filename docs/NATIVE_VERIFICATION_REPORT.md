@@ -6,7 +6,9 @@ Branch: `codex/external-native-evidence-closure`
 
 Milestone base: `c2730d7cda7e08fd99631d2e91438862468f9222`
 
-Product-bearing native candidate: `f89d798fb68769a0b5a819fbf0d8c3467134b9fc`
+Final product-bearing source candidate: `58ab0820cda2d8ff79eee886b87758d5000a8232`
+
+Original full native-matrix candidate: `f89d798fb68769a0b5a819fbf0d8c3467134b9fc`
 
 Detailed evidence: [`MILESTONE_6_EXTERNAL_NATIVE_EVIDENCE.md`](MILESTONE_6_EXTERNAL_NATIVE_EVIDENCE.md)
 
@@ -18,20 +20,22 @@ Source automation, inherited iOS Simulator evidence, Android emulator evidence, 
 
 | Item | Recorded value |
 | --- | --- |
-| Native product commit | `f89d798fb68769a0b5a819fbf0d8c3467134b9fc` |
+| Original full native-matrix commit | `f89d798fb68769a0b5a819fbf0d8c3467134b9fc` |
+| Final product-bearing source commit | `58ab0820cda2d8ff79eee886b87758d5000a8232` |
 | Android | Release `com.shifty.app`; isolated API 36 ARM64 emulator `emulator-5580` |
-| Android APK SHA-256 | `8d9bfba9c341c2e5c0f7e54a69239cd016b5035ac17675ee060d7cedca89d143` |
+| Original Android matrix APK SHA-256 | `8d9bfba9c341c2e5c0f7e54a69239cd016b5035ac17675ee060d7cedca89d143` |
+| Corrected Android APK SHA-256 | `1cbbc1b9ce02edae7d11bf6a4f091a294022aa9097e053fbab5e6eae2578d37a` |
 | Physical iPhone | iPhone 15 Pro Max (`iPhone16,2`), iOS 26.6 (23G71) |
 | Physical QA bundle | Release `com.omerportnoy.shifty.m6qa`; existing team `9R9UQ6GTQW` |
 | QA executable SHA-256 | `f1c938b302e93c5ffb8f3182fa1498e18af38db2866f94cf5dc0998452ee553f` |
 | iOS Simulator | Inherited Milestone 5 Release evidence on disposable iPhone 17 Pro clone, iOS 26.5 |
-| Source delta after product commit | Maestro stabilization, source-verification tooling, and documentation only |
+| Native/source boundary | Android was rebuilt from `58ab082`; physical-iPhone evidence remains at `f89d798` because the device later became unavailable |
 
 ## Verification summary
 
 | Evidence class | Result |
 | --- | --- |
-| Current source suite before final docs | Passed: 138/138 suites, 692/692 tests |
+| Current source suite before final docs | Passed: 138/138 suites, 693/693 tests |
 | Android Release build/install/launch | Passed |
 | Android seven-journey production UI matrix | Passed with fresh driver process per journey |
 | Android notifications | Passed, including direct foreground/background/plain-kill delivery and force-stop reconciliation |
@@ -41,7 +45,7 @@ Source automation, inherited iOS Simulator evidence, Android emulator evidence, 
 | Physical iPhone lifecycle/share/RTL | Passed in side-by-side QA bundle |
 | Physical iPhone notifications | Partial: permission, scheduling, and dedupe passed; delivery/cancellation states not directly complete |
 | Physical Android | Not tested |
-| Hosted CI exact final SHA | Pending until the authorized branch push |
+| Hosted CI exact final SHA | Rerun pending; run 33068224029 exposed and reproduced one host-timezone portability defect |
 | Production/archive/store signing | Not tested and not inferred from QA development signing |
 
 ## Android results

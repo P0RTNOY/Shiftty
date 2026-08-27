@@ -6,7 +6,9 @@ Branch: `codex/external-native-evidence-closure`
 
 Base: `c2730d7cda7e08fd99631d2e91438862468f9222`
 
-Product-bearing native candidate: `f89d798fb68769a0b5a819fbf0d8c3467134b9fc`
+Final product-bearing source candidate: `58ab0820cda2d8ff79eee886b87758d5000a8232`
+
+Original full native-matrix candidate: `f89d798fb68769a0b5a819fbf0d8c3467134b9fc`
 
 Final non-product verification/documentation commit: recorded in the milestone handoff
 
@@ -14,7 +16,7 @@ Final non-product verification/documentation commit: recorded in the milestone h
 
 Milestone 6 closes external evidence where the authorized environment permits it. It adds no salary concept, migration, backup-envelope version, identifier change, distribution credential, or historical recalculation. Native observations are separated from source automation, inherited iOS Simulator evidence, hosted CI, physical Android, production signing, and store distribution.
 
-The native binaries were built from `f89d798`, which contains the complete product-code change. Later milestone commits change only Maestro automation, source-verification tooling, and documentation; they do not change the application binary. The exact final source SHA must still pass the complete local gate and hosted GitHub Actions. This document intentionally does not predict that hosted result.
+The complete Android and physical-iPhone matrices were run from `f89d798`. The first hosted run later exposed a host-timezone-dependent ambiguity in the existing fall-back wall-time resolver. Commit `58ab082` makes the documented earlier-occurrence choice independent of the runner's timezone and is therefore the final product-bearing source candidate. Its Android Release APK was rebuilt, installed, cold-launched, and rerun through the seven-journey production UI matrix. The physical iPhone became unavailable before this correction could be rebuilt and installed there, so the physical evidence remains explicitly tied to `f89d798`. The exact final source SHA must still pass the complete local gate and hosted GitHub Actions; this document does not predict that result.
 
 ## Authorized external actions
 
@@ -41,11 +43,11 @@ The native binaries were built from `f89d798`, which contains the complete produ
 | Device fingerprint | `google/sdk_gphone64_arm64/emu64a:16/BE2A.250530.026.F3/13894323:userdebug/dev-keys` |
 | Application | Release `com.shifty.app`, arm64-v8a, min SDK 24, target SDK 36 |
 
-The clean Release build completed all 869 Gradle tasks in 2 hours 42 minutes. An incremental rebuild of the final product-bearing commit completed in 7 minutes 50 seconds. The installed APK was 45 MB with SHA-256 `8d9bfba9c341c2e5c0f7e54a69239cd016b5035ac17675ee060d7cedca89d143`. SDKs, the AVD, generated native sources, build products, artifacts, and device databases remain outside Git.
+The clean Release build completed all 869 Gradle tasks in 2 hours 42 minutes. An incremental rebuild of the original matrix candidate completed in 7 minutes 50 seconds; that 45 MB APK had SHA-256 `8d9bfba9c341c2e5c0f7e54a69239cd016b5035ac17675ee060d7cedca89d143`. After the hosted portability correction, an exact-`58ab082` incremental Release rebuild completed 797 tasks in 39 seconds. The rebuilt APK had SHA-256 `1cbbc1b9ce02edae7d11bf6a4f091a294022aa9097e053fbab5e6eae2578d37a`, installed successfully, and cold-launched on `emulator-5580`. SDKs, the AVD, generated native sources, build products, artifacts, and device databases remain outside Git.
 
 ## Android runtime matrix
 
-All seven Android Maestro production-UI journeys passed on the pinned API 36 Release installation. Each accepted journey used a fresh Maestro 2.8.0 driver process to avoid a reproduced long-lived driver timeout.
+All seven Android Maestro production-UI journeys passed on the pinned API 36 Release installation and again on the rebuilt `58ab082` APK. Each accepted journey used a fresh Maestro 2.8.0 driver process to avoid a reproduced long-lived driver timeout. The corrected-candidate weekly-threshold rerun used 2026-08-28 and 2026-08-29, both on or after the selected effective date and in the same configured workweek.
 
 - Fresh first use, English onboarding, workplace/rate creation, termination, cold relaunch, and persisted settings passed. A separate clean-data run set Android's per-app locale to `[he-IL]`, asserted the Hebrew welcome, assistant, and privacy copy, completed workplace/rate onboarding, and passed a termination/cold relaunch to Home. Hebrew RTL, English LTR, light, dark, system font scale 1.3, native date picker, numeric salary keyboards, system Back, background restoration, and offline cold launch were also directly exercised.
 - A live shift and unpaid break survived Home/backgrounding and process termination/cold relaunch. The break ended, clock-out finalized, and Home, Calendar, Shift Details, and Reports displayed the completed result.
@@ -90,7 +92,7 @@ Semantic comparison retained all 33 original shifts; completed/finalized the res
 
 ## Physical iPhone
 
-The exact product-bearing commit was built from a clean detached worktree as a Release arm64 application and installed side-by-side:
+The original full-matrix product commit, `f89d798`, was built from a clean detached worktree as a Release arm64 application and installed side-by-side:
 
 | Item | Observed value |
 | --- | --- |
@@ -112,11 +114,11 @@ Maestro 2.8.0 could not enumerate physical iOS. A temporary XCUITest runner coul
 
 ## CI, source compatibility, and verdict
 
-The workflow is read-only, non-deploying, secret-free, time-bounded, uses checkout with credential persistence disabled, and runs the release configuration/asset checks without needlessly executing the full Jest suite twice. After documentation is committed, the branch must be pushed and a successful hosted run obtained for the exact final SHA. No pull request, merge, tag, signing/distribution action, or store submission is part of this milestone.
+The workflow is read-only, non-deploying, secret-free, time-bounded, uses checkout with credential persistence disabled, and runs the release configuration/asset checks without needlessly executing the full Jest suite twice. Hosted run `33068224029` on source SHA `9dccc7b216f35d04df0f9f311ed13154855f56f7` passed install, release-configuration checks, typecheck, and lint, then failed one weekly-rest test because ambiguous `2026-10-25 01:30` in `Asia/Jerusalem` resolved according to the Ubuntu runner's host timezone. The failure reproduced locally with `TZ=UTC`, `America/New_York`, and `Europe/London`; the same test had passed under the developer host's `Asia/Jerusalem` timezone.
 
-The current implementation run passed 138/138 Jest suites and 692/692 tests before the final documentation commit. The complete required gate is rerun on the exact final committed candidate and reported in the handoff. Expected SQLite constraint/foreign-key diagnostics are negative-test evidence, not failures. The raw Expo compatibility command currently exits nonzero with 13 exact SDK 57 patch notices; dependencies remain locked, while a deterministic wrapper used by release preflight and hosted CI accepts only those reviewed installed/expected pairs and fails on drift.
+The resolver now enumerates valid target-zone offsets, round-trips candidate instants, and deterministically selects the earlier matching instant during an overlap while preserving the existing forward normalization for a spring gap. Focused tests pass under all four host timezones. The current implementation run passed 138/138 Jest suites and 693/693 tests before the final documentation commit. The complete required gate is rerun on the exact final committed candidate and reported in the handoff, after which the same branch must obtain a successful hosted run. Expected SQLite constraint/foreign-key diagnostics are negative-test evidence, not failures. The raw Expo compatibility command currently exits nonzero with 13 exact SDK 57 patch notices; dependencies remain locked, while a deterministic wrapper used by release preflight and hosted CI accepts only those reviewed installed/expected pairs and fails on drift.
 
-No migration or backup V1 format changed. Salary totals, calculation behavior, frozen snapshots, public bundle/package/scheme/project identifiers, and existing data were not rewritten. `npm audit --omit=dev` remains at 16 transitive Expo/Metro developer-toolchain advisories (12 moderate, 4 high); no compatible non-force repair is available and no forced dependency change was made.
+No migration or backup V1 format changed. No persisted salary total, frozen snapshot, public bundle/package/scheme/project identifier, or existing data was rewritten. The overlap correction enforces the already documented earlier-occurrence rule for future local-time resolution; it adds no entitlement, premium, or automatic recalculation. `npm audit --omit=dev` remains at 16 transitive Expo/Metro developer-toolchain advisories (12 moderate, 4 high); no compatible non-force repair is available and no forced dependency change was made.
 
 Evidence-based verdict: `SOURCE_READY_NATIVE_BLOCKED`.
 
