@@ -8,13 +8,13 @@ Base: `c2730d7cda7e08fd99631d2e91438862468f9222`
 
 Product-bearing native candidate: `f89d798fb68769a0b5a819fbf0d8c3467134b9fc`
 
-Final documentation/test-only commit: recorded in the milestone handoff
+Final non-product verification/documentation commit: recorded in the milestone handoff
 
 ## Scope and evidence policy
 
 Milestone 6 closes external evidence where the authorized environment permits it. It adds no salary concept, migration, backup-envelope version, identifier change, distribution credential, or historical recalculation. Native observations are separated from source automation, inherited iOS Simulator evidence, hosted CI, physical Android, production signing, and store distribution.
 
-The native binaries were built from `f89d798`, which contains the complete product-code change. Later milestone commits change only Maestro automation and documentation; they do not change the application binary. The exact final source SHA must still pass the complete local gate and hosted GitHub Actions. This document intentionally does not predict that hosted result.
+The native binaries were built from `f89d798`, which contains the complete product-code change. Later milestone commits change only Maestro automation, source-verification tooling, and documentation; they do not change the application binary. The exact final source SHA must still pass the complete local gate and hosted GitHub Actions. This document intentionally does not predict that hosted result.
 
 ## Authorized external actions
 

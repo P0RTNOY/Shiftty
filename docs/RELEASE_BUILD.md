@@ -71,7 +71,7 @@ The same product commit built as a side-by-side physical-iPhone Release with tem
 
 The existing `com.omerportnoy.shifty` dogfood application and database are protected. They were not installed over, launched, cleared, uninstalled, or modified. Do not use same-bundle installation as a shortcut for future verification.
 
-Milestone 5's disposable iOS Simulator Release artifact/readback and real document-picker restore evidence remains valid and was not repeated. The Milestone 6 Android and physical builds use the complete product code; subsequent milestone commits contain only Maestro stabilization and documentation.
+Milestone 5's disposable iOS Simulator Release artifact/readback and real document-picker restore evidence remains valid and was not repeated. The Milestone 6 Android and physical builds use the complete product code; subsequent milestone commits contain only Maestro stabilization, source-verification tooling, and documentation.
 
 ## EAS builds
 

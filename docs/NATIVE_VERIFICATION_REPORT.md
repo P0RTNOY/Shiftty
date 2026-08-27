@@ -25,7 +25,7 @@ Source automation, inherited iOS Simulator evidence, Android emulator evidence, 
 | Physical QA bundle | Release `com.omerportnoy.shifty.m6qa`; existing team `9R9UQ6GTQW` |
 | QA executable SHA-256 | `f1c938b302e93c5ffb8f3182fa1498e18af38db2866f94cf5dc0998452ee553f` |
 | iOS Simulator | Inherited Milestone 5 Release evidence on disposable iPhone 17 Pro clone, iOS 26.5 |
-| Source delta after product commit | Maestro stabilization and documentation only |
+| Source delta after product commit | Maestro stabilization, source-verification tooling, and documentation only |
 
 ## Verification summary
 
