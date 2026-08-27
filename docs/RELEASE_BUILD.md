@@ -24,7 +24,7 @@ The app is local-first and currently has no required runtime secrets or remote s
 
 ## Dependency advisory boundary
 
-The SDK 57 compatibility check is clean after applying Expo's eight recommended patch updates. `npm audit --omit=dev` nevertheless reports 16 transitive Expo/Metro toolchain findings: 12 moderate and 4 high. The high findings are the `image-size` denial-of-service advisories reached through Metro; the moderate group includes `uuid` through Expo's Xcode configuration tooling. The non-force audit dry run remains unable to produce a compatible repair, while the force proposal downgrades to incompatible Expo-era packages, including Expo 46 and `expo-sharing` 14. No forced audit rewrite is approved. Track an SDK-compatible upstream Metro/Expo resolution and do not process untrusted image inputs through developer tooling in the meantime.
+The SDK 57 compatibility check reports the accepted baseline of eight patch-level notices. Dependencies are intentionally unchanged in this evidence-only milestone. `npm audit --omit=dev` reports 16 transitive Expo/Metro toolchain findings: 12 moderate and 4 high. The high findings are the `image-size` denial-of-service advisories reached through Metro; the moderate group includes `uuid` through Expo's Xcode configuration tooling. The non-force audit dry run remains unable to produce a compatible repair, while the force proposal downgrades to incompatible Expo-era packages, including Expo 46 and `expo-sharing` 14. No forced audit rewrite is approved. Track an SDK-compatible upstream Metro/Expo resolution and do not process untrusted image inputs through developer tooling in the meantime.
 
 ## Source preflight
 
@@ -63,15 +63,15 @@ npx expo start --dev-client
 
 These commands prove only the platform actually built and launched. An unavailable Android SDK/emulator, physical device, or signing team must be recorded as an external blocker, not as a pass.
 
-### Verified Milestone 5 local candidate
+### Verified Milestone 6 native candidates
 
-On 2026-08-26, a fresh arm64 Release built and ran without Metro on the pinned disposable iPhone 17 Pro clone running iOS 26.5, UDID `73B7FFB2-1EC0-470C-B7E5-38D401BA4255`. The application used the stable `com.omerportnoy.shifty` bundle. Production English and Hebrew UI generated PDF, CSV, calendar-only ICS, and backup files through real share sheets. Independent `pypdf`, Quick Look, standard-library CSV, `icalendar`, and `qpdf` readback was performed with the exact warning boundary documented in `NATIVE_VERIFICATION_REPORT.md`.
+On 2026-08-27, the complete product-bearing commit `f89d798fb68769a0b5a819fbf0d8c3467134b9fc` built as an Android arm64 Release using the isolated API 36 toolchain. The installed `com.shifty.app` APK has SHA-256 `8d9bfba9c341c2e5c0f7e54a69239cd016b5035ac17675ee060d7cedca89d143`. All seven Android Maestro journeys passed on the pinned disposable API 36 emulator when each journey used a fresh driver process. Direct Android notification delivery, artifact readback, DocumentsUI replace restore, semantic backup comparison, restored-shift completion, and SQLite integrity/foreign-key checks also passed. Exact tool versions, hashes, and boundaries are in `MILESTONE_6_EXTERNAL_NATIVE_EVIDENCE.md`.
 
-The production document picker selected **On My iPhone → `m5-source-backup.json`**. Replace restore, cold-relaunch active/open-break restoration, SQLite integrity/foreign-key checks, canonical backup-data comparison, bounded merge, full end review, new snapshot finalization, historical-result preservation, and expected weekly dependency staleness passed on disposable Simulator data. This is still Simulator evidence, not a signed device/archive/TestFlight artifact.
+The same product commit built as a side-by-side physical-iPhone Release with temporary bundle `com.omerportnoy.shifty.m6qa`, existing team `9R9UQ6GTQW`, and the existing Apple Development identity. It installed and ran on the iPhone 15 Pro Max, iOS 26.6. Lifecycle, open-break recovery, Reports, a native CSV share sheet, Hebrew RTL, English LTR, permission grant, scheduling, and dedupe passed. Foreground/background/terminated notification delivery, notification tap, pre-trigger cancellation, and timezone variation were not directly completed. This QA build does not prove stable production-bundle signing, archive, TestFlight, App Store, or distribution readiness.
 
-The connected iPhone 15 Pro Max already holds the stable bundle with existing data. A safe current-candidate device build was unavailable because the configured project team and only installed signing identity belong to different teams and no matching provisioning profile exists. Do not create profiles, alter credentials, or replace the existing container merely to bypass that boundary. First establish the authorized Apple team and profile, then preserve a recoverable copy of the complete app container before any same-identifier installation.
+The existing `com.omerportnoy.shifty` dogfood application and database are protected. They were not installed over, launched, cleared, uninstalled, or modified. Do not use same-bundle installation as a shortcut for future verification.
 
-Android is also blocked: the host has no complete SDK, Android Studio, emulator, AVD, or connected device. The presence of `adb` 37 and an incomplete Unity SDK is not a reproducible Expo/Gradle build environment.
+Milestone 5's disposable iOS Simulator Release artifact/readback and real document-picker restore evidence remains valid and was not repeated. The Milestone 6 Android and physical builds use the complete product code; subsequent milestone commits contain only Maestro stabilization and documentation.
 
 ## EAS builds
 
@@ -103,9 +103,9 @@ The repository intentionally defines no automatic submit step. Review artifacts,
 
 ## CI boundary
 
-`.github/workflows/ci.yml` runs locked installation and the source gate on pushes and pull requests. It has read-only repository permission, does not persist the checkout credential, receives no deployment secrets, cancels superseded runs, and never builds, publishes, signs, or submits an application.
+`.github/workflows/ci.yml` runs locked installation and the complete source gate on pushes and pull requests. It has read-only repository permission, does not persist the checkout credential, receives no deployment secrets, cancels superseded runs, is time-bounded, and never builds, publishes, signs, or submits an application. Release configuration and asset assertions are included without needlessly running the full Jest suite twice.
 
-No hosted workflow/run exists for the Milestone 5 candidate, and the exact commit is not remote. The checked-in workflow runs the source-gate commands individually but does not invoke the `npm run release:preflight` wrapper, whose additional release configuration and asset assertions are therefore local-only evidence. Before relying on hosted CI for a release decision, either add those assertions or demonstrate equivalent hosted steps. Do not push merely to create evidence when pushing is outside the authorized task.
+Milestone 6 authorizes pushing only `codex/external-native-evidence-closure` to trigger this existing workflow. Commit the native evidence documentation before pushing, make no documentation-only commit after success, and require one green hosted run for the exact final SHA. Record the workflow URL, run ID, SHA, and conclusion in the handoff rather than predicting a future hosted result in tracked documentation. Do not open or merge a pull request.
 
 ## Rollback boundary
 

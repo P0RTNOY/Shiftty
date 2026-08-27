@@ -1,6 +1,28 @@
 # Shiftty Project Status
 
-Last updated: 2026-08-26
+Last updated: 2026-08-27
+
+## External Native Evidence Closure — 2026-08-27
+
+Milestone 6 is based on `c2730d7cda7e08fd99631d2e91438862468f9222` on branch `codex/external-native-evidence-closure`. The complete product-bearing native commit is `f89d798fb68769a0b5a819fbf0d8c3467134b9fc`; later commits stabilize Maestro journeys and record evidence without changing the application binary. The final source SHA and hosted workflow run are recorded in the handoff after exact-SHA verification.
+
+An isolated user-local Android toolchain now provides API 36, Build Tools 36.0.0, Platform Tools 37.0.1, Emulator 37.1.11, NDK 27.1.12297006, CMake 3.22.1, and an API 36 `google_apis` ARM64 system image. A clean arm64 Release built and installed as `com.shifty.app` on the pinned disposable emulator. The installed 45 MB APK has SHA-256 `8d9bfba9c341c2e5c0f7e54a69239cd016b5035ac17675ee060d7cedca89d143`.
+
+All seven Android production-UI Maestro journeys passed using a fresh driver process per journey. They cover first use and cold persistence; active shift/open-break background and terminated-process recovery; finalization through Home, Calendar, Shift Details, and Reports; 150% shift types; effective-dated weekly threshold crossing with no duplicate default overtime; neutral evidence, explicit rule/recalculation, and frozen provenance; finalized zero; native share entry points; and the real notification permission/settings path. Manual checks also passed Hebrew RTL, English LTR, light/dark, font scale 1.3, system Back, native pickers, numeric salary keyboards, and offline cold launch. No Shiftty fatal JavaScript, native, or SQLite match was found in the final log audit.
+
+Android native inspection directly proved one logical reminder, dedupe, cancellation, foreground delivery, background delivery, plain-process-kill receiver delivery, and force-stop/user-relaunch reconciliation. Two reproduced product defects were fixed: persisted native IDs could survive after Android removed their alarms on force-stop, and foreground notifications were not presented because no handler was registered. The reconciler now compares persisted/native state and recreates only missing desired reminders; root startup registers visible foreground presentation. Focused tests cover both behaviors.
+
+Production Android UI generated PDF, CSV, calendar-only ICS, and backup artifacts through real share/document workflows. Independent parsers validated them, including a one-event ICS with no financial payload. Real DocumentsUI replace-restored the established complex Milestone 5 V1 backup; cold relaunch restored the active shift/open break; completing it preserved seven prior frozen snapshots deeply equal and created exactly one new finalized snapshot. The copied database returned `integrity_check = ok` and zero foreign-key rows.
+
+The physical iPhone 15 Pro Max on iOS 26.6 received a side-by-side Release QA bundle, `com.omerportnoy.shifty.m6qa`, built with the existing Apple Development identity and team `9R9UQ6GTQW`. Deep/strict signing verification, install, launch, onboarding/persistence, open-break background and SIGKILL/cold recovery, finalization, Reports, a real CSV share sheet, Hebrew RTL, English LTR, permission grant, one-reminder scheduling, and relaunch dedupe passed. QA SQLite integrity remained `ok`, and no matching crash report was found. The existing production dogfood application and database were not installed over, launched, cleared, uninstalled, or modified.
+
+The physical foreground banner was not captured; background/terminated delivery, notification tap, pre-trigger cancellation, and timezone variation were not directly completed. Maestro cannot enumerate physical iOS in this environment, and a temporary XCUITest runner could not install because the free development profile had reached its three-app device limit. No protected or unrelated app was removed to bypass it. The QA bundle is development-device evidence, not production-bundle/archive/TestFlight/App Store signing evidence.
+
+The current implementation run passed **138/138 Jest suites and 692/692 tests**. Expected SQLite constraint and foreign-key messages were emitted by passing negative integration tests. The complete gate is rerun on the final documentation commit, after which only this branch is pushed and one exact-SHA hosted GitHub Actions result is inspected. The workflow is read-only, secret-free, non-deploying, time-bounded, disables checkout credential persistence, and includes release configuration/asset assertions without duplicating the full suite.
+
+No migration, backup V1 format, salary total, calculation behavior, historical snapshot, or public identifier changed. The dependency boundary remains 16 transitive Expo/Metro developer-toolchain advisories (12 moderate, 4 high), with no compatible non-force repair; no forced dependency update was made.
+
+Evidence-based verdict: **`SOURCE_READY_NATIVE_BLOCKED`**. Android emulator evidence is complete and the source has no known P0/P1 defect, but the required physical-iPhone notification delivery/cancellation/timezone matrix remains incomplete. Physical Android, production signing, and store distribution also remain separately unverified. Detailed evidence is in `docs/MILESTONE_6_EXTERNAL_NATIVE_EVIDENCE.md`.
 
 ## Native Artifact and Cross-Platform Verification — 2026-08-26
 
