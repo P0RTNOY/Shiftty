@@ -15,7 +15,7 @@ describe('Milestone 7 native evidence gate', () => {
     }));
     let module: typeof import('./m7-native-evidence') | undefined;
     jest.isolateModules(() => {
-      module = require('./m7-native-evidence') as typeof import('./m7-native-evidence');
+      module = jest.requireActual<typeof import('./m7-native-evidence')>('./m7-native-evidence');
     });
     return module!;
   }
@@ -44,7 +44,7 @@ describe('Milestone 7 native evidence gate', () => {
 
 describe('Milestone 7 native evidence privacy projection', () => {
   it('returns only the owner-matched count', () => {
-    const { countOwnedNotifications } = require('./m7-native-evidence') as typeof import('./m7-native-evidence');
+    const { countOwnedNotifications } = jest.requireActual<typeof import('./m7-native-evidence')>('./m7-native-evidence');
     const notifications = [
       { content: { data: { owner: 'shifty', shiftId: 'private-shift-id' } } },
       { content: { data: { owner: 'other', body: 'private body' } } },

@@ -35,7 +35,7 @@ describe('beta product naming and localization audit', () => {
         : []);
     });
 
-    expect(routeModules).toHaveLength(35);
+    expect(routeModules).toHaveLength(36);
     expect(findings).toEqual([]);
   });
 
