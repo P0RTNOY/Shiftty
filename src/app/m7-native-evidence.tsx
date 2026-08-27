@@ -21,10 +21,14 @@ const QA_SHIFT_TITLE = 'M7 QA notification check';
 type QaScenario = 'background' | 'cancellation' | 'foreground' | 'terminated';
 
 interface EvidenceSummary {
+  alertAllowed: boolean | null;
+  badgeAllowed: boolean | null;
+  badgeCount: number;
   deliveredCount: number;
   pendingCount: number;
   permission: Notifications.PermissionStatus;
   persistedCount: number;
+  soundAllowed: boolean | null;
   timezone: string;
   timezoneGap: string;
   timezoneOverlap: string;
@@ -45,17 +49,22 @@ export default function M7NativeEvidenceScreen() {
     setBusy(true);
     setFailed(false);
     try {
-      const [permission, pending, delivered, persisted] = await Promise.all([
+      const [permission, pending, delivered, persisted, badgeCount] = await Promise.all([
         Notifications.getPermissionsAsync(),
         Notifications.getAllScheduledNotificationsAsync(),
         Notifications.getPresentedNotificationsAsync(),
         repositories.scheduledNotifications.listAll(),
+        Notifications.getBadgeCountAsync(),
       ]);
       setSummary({
+        alertAllowed: permission.ios?.allowsAlert ?? null,
+        badgeAllowed: permission.ios?.allowsBadge ?? null,
+        badgeCount,
         deliveredCount: countOwnedNotifications(delivered.map(({ request }) => request)),
         pendingCount: countOwnedNotifications(pending),
         permission: permission.status,
         persistedCount: persisted.length,
+        soundAllowed: permission.ios?.allowsSound ?? null,
         timezone: Localization.getCalendars()[0]?.timeZone ?? 'unknown',
         timezoneGap: resolveLocalDateTime('2026-03-27', '02:30', 'Asia/Jerusalem'),
         timezoneOverlap: resolveLocalDateTime('2026-10-25', '01:30', 'Asia/Jerusalem'),
@@ -170,6 +179,10 @@ export default function M7NativeEvidenceScreen() {
       {summary ? (
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <EvidenceRow label="Permission" value={summary.permission} />
+          <EvidenceRow label="Alerts allowed" value={String(summary.alertAllowed)} />
+          <EvidenceRow label="Sounds allowed" value={String(summary.soundAllowed)} />
+          <EvidenceRow label="Badges allowed" value={String(summary.badgeAllowed)} />
+          <EvidenceRow label="Application badge" value={String(summary.badgeCount)} />
           <EvidenceRow label="Native pending (Shiftty)" value={String(summary.pendingCount)} />
           <EvidenceRow label="Native delivered (Shiftty)" value={String(summary.deliveredCount)} />
           <EvidenceRow label="Persisted metadata" value={String(summary.persistedCount)} />
