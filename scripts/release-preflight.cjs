@@ -70,7 +70,7 @@ const sourceChecks = [
   ['Jest', 'npm', ['test', '--', '--runInBand']],
   ['SQLite migrations', 'npm', ['run', 'validate:migrations']],
   ['Expo export', 'npm', ['run', 'validate:expo']],
-  ['Expo dependency compatibility', 'npx', ['--no-install', 'expo', 'install', '--check']],
+  ['Expo dependency compatibility', 'npm', ['run', 'validate:expo-dependencies']],
   ['Expo public configuration', 'npx', ['--no-install', 'expo', 'config', '--type', 'public']],
   ['Patch whitespace', 'git', ['diff', '--check']],
 ];

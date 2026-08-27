@@ -7,7 +7,7 @@ These flows exercise only public production UI and the app's real SQLite reposit
 iOS uses the stable legacy bundle identifier:
 
 ```bash
-MAESTRO_CLI_NO_ANALYTICS=1 maestro test -e APP_ID=com.omerportnoy.shifty .maestro/journeys
+MAESTRO_CLI_NO_ANALYTICS=1 maestro test --exclude-tags android -e APP_ID=com.omerportnoy.shifty .maestro/journeys
 ```
 
 Android uses:

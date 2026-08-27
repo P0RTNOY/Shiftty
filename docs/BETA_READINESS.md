@@ -34,7 +34,7 @@ Milestone 6 adds no salary behavior, migration, backup-envelope version, automat
 
 An isolated user-local toolchain provided API 36, Build Tools 36.0.0, Platform Tools 37.0.1, Emulator 37.1.11, NDK 27.1.12297006, CMake 3.22.1, and the API 36 `google_apis` ARM64 image. A Release `com.shifty.app` APK built, installed, and passed all seven Android Maestro journeys using fresh driver processes.
 
-Direct runtime coverage includes first use/persistence, offline cold launch, live shift/open-break process recovery, finalization and report surfaces, 150% shift type, effective-dated weekly threshold crossing without duplicate overtime, evidence neutrality/rule/recalculation/frozen history, finalized zero, Hebrew/English, RTL/LTR, light/dark, increased font, native pickers/keyboards, system Back, and permission UI.
+Direct runtime coverage includes fresh Hebrew onboarding and English onboarding/persistence, offline cold launch, live shift/open-break process recovery, finalization and report surfaces, 150% shift type, effective-dated weekly threshold crossing without duplicate overtime, evidence neutrality/rule/recalculation/frozen history, finalized zero, Hebrew/English, RTL/LTR, light/dark, increased font, native pickers/keyboards, system Back, and permission UI.
 
 Android notification delivery was directly observed foregrounded, backgrounded, and after a plain process kill. Scheduling, dedupe, cancellation, and force-stop/relaunch reconciliation were inspected natively and in SQLite. The two reproduced defects—stale native IDs after force-stop and suppressed foreground presentation—were fixed with focused tests.
 
@@ -52,7 +52,7 @@ The physical foreground banner was not captured, and background/terminated deliv
 
 The GitHub Actions workflow remains read-only, secret-free, non-deploying, time-bounded, and disables checkout credential persistence. It includes release configuration and asset assertions aligned with `release:preflight` without repeating the complete Jest suite. After the final documentation commit, only this branch may be pushed, and the exact SHA must obtain one successful hosted run before handoff.
 
-The Expo SDK 57 dependency graph is intentionally unchanged. `npm audit --omit=dev` reports 16 transitive Expo/Metro developer-toolchain advisories: 12 moderate and 4 high. No compatible non-force repair exists; no forced downgrade is approved.
+The Expo SDK 57 dependency graph is intentionally unchanged. The raw compatibility check reports 13 exact patch notices; release preflight and CI use a deterministic reviewed-pair wrapper that fails if the set changes. `npm audit --omit=dev` reports 16 transitive Expo/Metro developer-toolchain advisories: 12 moderate and 4 high. No compatible non-force repair exists; no forced downgrade is approved.
 
 There is no OTA channel. Stop distributing a defective artifact and build a higher native version from the last verified commit. Never silently downgrade or rewrite a populated SQLite schema. Preserve the complete SQLite container before recovery and use only validated transactional restore.
 

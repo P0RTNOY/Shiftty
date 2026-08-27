@@ -13,6 +13,7 @@
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "validate:expo": "expo export --platform web --output-dir dist-test",
+    "validate:expo-dependencies": "node scripts/validate-expo-dependencies.cjs",
     "validate:migrations": "node scripts/validate-migrations.cjs",
     "validate:release-config": "node scripts/release-preflight.cjs --configuration-only",
     "release:preflight": "node scripts/release-preflight.cjs"

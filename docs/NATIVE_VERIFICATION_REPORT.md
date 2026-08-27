@@ -72,7 +72,7 @@ Milestone 5 remains authoritative for the disposable iOS Simulator Release artif
 
 The workflow is least-privilege, non-deploying, secret-free, time-bounded, and credential persistence is disabled. It now includes release configuration and asset assertions. Documentation is committed before push and does not predict the run. The milestone handoff records the final SHA, workflow URL/run ID, and conclusion after the exact-SHA run.
 
-No migrations, backup-envelope changes, salary-total changes, automatic historical recalculation, or persisted trust state were introduced. Existing public identifiers and frozen snapshots remain unchanged. The accepted eight Expo SDK 57 patch notices and 16 transitive audit advisories remain dependency boundaries; no upgrade or forced audit fix was performed.
+No migrations, backup-envelope changes, salary-total changes, automatic historical recalculation, or persisted trust state were introduced. Existing public identifiers and frozen snapshots remain unchanged. The current 13 exact Expo SDK 57 patch notices and 16 transitive audit advisories remain dependency boundaries; no upgrade or forced audit fix was performed. A deterministic wrapper accepts only the reviewed Expo notice set and fails on drift.
 
 Evidence-based verdict: `SOURCE_READY_NATIVE_BLOCKED`.
 

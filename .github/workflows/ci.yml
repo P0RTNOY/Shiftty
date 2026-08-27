@@ -52,7 +52,7 @@ jobs:
         run: npm run validate:expo
 
       - name: Check Expo dependency compatibility
-        run: npx --no-install expo install --check
+        run: npm run validate:expo-dependencies
 
       - name: Resolve Expo public configuration
         run: npx --no-install expo config --type public
