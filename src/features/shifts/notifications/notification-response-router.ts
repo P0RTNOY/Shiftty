@@ -25,13 +25,20 @@ interface OwnedShiftResponse {
 export function readOwnedShiftResponse(response: Notifications.NotificationResponse): OwnedShiftResponse | null {
   const data = response.notification.request.content.data;
   const shiftId = data?.shiftId;
-  const responseKey = response.notification.request.identifier;
+  const requestIdentifier = response.notification.request.identifier;
+  const deliveredAt = response.notification.date;
+  const actionIdentifier = response.actionIdentifier;
 
   if (data?.owner !== NOTIFICATION_OWNER) return null;
   if (typeof shiftId !== 'string' || shiftId.length === 0 || shiftId.length > MAX_SHIFT_ID_LENGTH) return null;
-  if (typeof responseKey !== 'string' || responseKey.length === 0) return null;
+  if (typeof requestIdentifier !== 'string' || requestIdentifier.length === 0) return null;
+  if (typeof deliveredAt !== 'number' || !Number.isFinite(deliveredAt)) return null;
+  if (typeof actionIdentifier !== 'string' || actionIdentifier.length === 0) return null;
 
-  return { responseKey, shiftId };
+  return {
+    responseKey: `${requestIdentifier}:${deliveredAt}:${actionIdentifier}`,
+    shiftId,
+  };
 }
 
 export function createNotificationResponseRouter(dependencies: NotificationResponseRouterDependencies) {

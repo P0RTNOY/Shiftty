@@ -5,11 +5,15 @@ import {
   readOwnedShiftResponse,
 } from '@/features/shifts/notifications/notification-response-router';
 
-function response(data: Record<string, unknown>, identifier = 'native-response-1'): Notifications.NotificationResponse {
+function response(
+  data: Record<string, unknown>,
+  identifier = 'native-response-1',
+  date = 1_777_777_777_000,
+): Notifications.NotificationResponse {
   return {
     actionIdentifier: 'expo.modules.notifications.actions.DEFAULT',
     notification: {
-      date: Date.now(),
+      date,
       request: {
         identifier,
         content: {
@@ -29,7 +33,7 @@ function response(data: Record<string, unknown>, identifier = 'native-response-1
 describe('notification response routing', () => {
   it('accepts only owned responses with a bounded shift reference', () => {
     expect(readOwnedShiftResponse(response({ owner: 'shifty', shiftId: 'shift-1' }))).toEqual({
-      responseKey: 'native-response-1',
+      responseKey: 'native-response-1:1777777777000:expo.modules.notifications.actions.DEFAULT',
       shiftId: 'shift-1',
     });
     expect(readOwnedShiftResponse(response({ owner: 'other', shiftId: 'shift-1' }))).toBeNull();
@@ -53,6 +57,22 @@ describe('notification response routing', () => {
     expect(navigation.openCalendar).not.toHaveBeenCalled();
     expect(clearLastResponse).toHaveBeenCalledTimes(1);
     expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it('routes a later delivery that reuses the same native request identifier', async () => {
+    const shifts = { getById: jest.fn().mockResolvedValue({ id: 'shift-1' }) };
+    const navigation = { openShift: jest.fn(), openCalendar: jest.fn() };
+    const route = createNotificationResponseRouter({
+      shifts,
+      navigation,
+      clearLastResponse: jest.fn().mockResolvedValue(undefined),
+      reportError: jest.fn(),
+    });
+
+    await expect(route(response({ owner: 'shifty', shiftId: 'shift-1' }, 'stable-request', 1_000))).resolves.toBe(true);
+    await expect(route(response({ owner: 'shifty', shiftId: 'shift-1' }, 'stable-request', 2_000))).resolves.toBe(true);
+
+    expect(navigation.openShift).toHaveBeenCalledTimes(2);
   });
 
   it('routes stale or missing shift references safely to the calendar', async () => {
