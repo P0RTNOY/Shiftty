@@ -8,6 +8,7 @@ import { shiftSchema } from '@/domain/entities';
 import { useNotificationReconciler } from '@/features/shifts/hooks/use-notification-reconciler';
 import { useRepositories } from '@/features/shifts/hooks/use-repositories';
 import {
+  cleanupM7QaShifts,
   countOwnedNotifications,
   isM7NativeEvidenceEnabled,
 } from '@/features/shifts/notifications/m7-native-evidence';
@@ -38,7 +39,7 @@ export default function M7NativeEvidenceScreen() {
   const enabled = isM7NativeEvidenceEnabled();
   const { colors } = useAppTheme();
   const repositories = useRepositories();
-  const { reconcileAll } = useNotificationReconciler();
+  const { cancelForShift, reconcileAll } = useNotificationReconciler();
   const [summary, setSummary] = useState<EvidenceSummary | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -106,8 +107,8 @@ export default function M7NativeEvidenceScreen() {
       const shiftId = `${QA_SHIFT_ID_PREFIX}${scenario}`;
       const existingShift = await repositories.shifts.getById(shiftId);
       if (existingShift) {
+        await cancelForShift(shiftId);
         await repositories.shifts.deleteMany([shiftId]);
-        await reconcileAll(now);
       }
       const scheduledStart = new Date(now.getTime() + delaySeconds * 1_000);
       const scheduledEnd = new Date(scheduledStart.getTime() + 60 * 60_000);
@@ -140,8 +141,11 @@ export default function M7NativeEvidenceScreen() {
     setActionStatus(null);
     try {
       const qaShifts = (await repositories.shifts.list()).filter((shift) => shift.id.startsWith(QA_SHIFT_ID_PREFIX));
-      await repositories.shifts.deleteMany(qaShifts.map((shift) => shift.id));
-      await reconcileAll(new Date());
+      await cleanupM7QaShifts(qaShifts.map((shift) => shift.id), {
+        cancelForShift,
+        deleteMany: (shiftIds) => repositories.shifts.deleteMany(shiftIds),
+        reconcile: () => reconcileAll(new Date()),
+      });
       const delivered = await Notifications.getPresentedNotificationsAsync();
       await Promise.all(delivered
         .filter(({ request }) => request.content.data?.owner === 'shifty')

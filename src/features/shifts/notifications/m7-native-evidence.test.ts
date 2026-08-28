@@ -52,4 +52,17 @@ describe('Milestone 7 native evidence privacy projection', () => {
     ];
     expect(countOwnedNotifications(notifications)).toBe(2);
   });
+
+  it('cancels native requests before deleting QA shifts and reconciling', async () => {
+    const { cleanupM7QaShifts } = jest.requireActual<typeof import('./m7-native-evidence')>('./m7-native-evidence');
+    const calls: string[] = [];
+
+    await cleanupM7QaShifts(['qa-1', 'qa-2'], {
+      cancelForShift: async (shiftId) => { calls.push(`cancel:${shiftId}`); },
+      deleteMany: async (shiftIds) => { calls.push(`delete:${shiftIds.join(',')}`); },
+      reconcile: async () => { calls.push('reconcile'); },
+    });
+
+    expect(calls).toEqual(['cancel:qa-1', 'cancel:qa-2', 'delete:qa-1,qa-2', 'reconcile']);
+  });
 });

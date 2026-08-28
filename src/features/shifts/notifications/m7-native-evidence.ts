@@ -8,6 +8,12 @@ interface NotificationWithOwner {
   };
 }
 
+interface QaShiftCleanupOperations {
+  cancelForShift: (shiftId: string) => Promise<void>;
+  deleteMany: (shiftIds: string[]) => Promise<void>;
+  reconcile: () => Promise<void>;
+}
+
 export function isM7NativeEvidenceEnabled(): boolean {
   const actualBundleIdentifier = Constants.expoConfig?.ios?.bundleIdentifier;
   const expectedQaBundleIdentifier = process.env.EXPO_PUBLIC_M7_NATIVE_EVIDENCE_BUNDLE_ID;
@@ -24,4 +30,15 @@ export function countOwnedNotifications(
   owner = 'shifty',
 ): number {
   return notifications.filter((notification) => notification.content.data?.owner === owner).length;
+}
+
+export async function cleanupM7QaShifts(
+  shiftIds: string[],
+  operations: QaShiftCleanupOperations,
+): Promise<void> {
+  for (const shiftId of shiftIds) {
+    await operations.cancelForShift(shiftId);
+  }
+  await operations.deleteMany(shiftIds);
+  await operations.reconcile();
 }
