@@ -24,7 +24,7 @@ The app is local-first and currently has no required runtime secrets or remote s
 
 ## Dependency advisory boundary
 
-The raw SDK 57 compatibility check currently reports 13 exact patch-level notices. Dependencies are intentionally unchanged in this evidence-only milestone. The deterministic repository wrapper accepts only the reviewed installed/expected pairs, emits the original Expo output, and fails if that set changes; CI and release preflight use the wrapper while the required raw command remains recorded as an accepted nonzero advisory boundary. `npm audit --omit=dev` reports 16 transitive Expo/Metro toolchain findings: 12 moderate and 4 high. The high findings are the `image-size` denial-of-service advisories reached through Metro; the moderate group includes `uuid` through Expo's Xcode configuration tooling. The non-force audit dry run remains unable to produce a compatible repair, while the force proposal downgrades to incompatible Expo-era packages, including Expo 46 and `expo-sharing` 14. No forced audit rewrite is approved. Track an SDK-compatible upstream Metro/Expo resolution and do not process untrusted image inputs through developer tooling in the meantime.
+The raw SDK 57 compatibility check currently reports 12 exact patch-level notices. Milestone 8 removed `expo-dev-client` and its launcher/menu subtree so production artifacts cannot contain development-client behavior; retained dependency versions remain locked. The deterministic repository wrapper accepts only the reviewed installed/expected pairs, emits the original Expo output, and fails if that set changes; CI and release preflight use the wrapper while the required raw command remains recorded as an accepted nonzero advisory boundary. `npm audit --omit=dev` reports 16 transitive Expo/Metro toolchain findings: 12 moderate and 4 high. The high findings are the `image-size` denial-of-service advisories reached through Metro; the moderate group includes `uuid` through Expo's Xcode configuration tooling. The non-force audit dry run remains unable to produce a compatible repair, while the force proposal downgrades to incompatible Expo-era packages, including Expo 46 and `expo-sharing` 14. No forced audit rewrite is approved. Track an SDK-compatible upstream Metro/Expo resolution and do not process untrusted image inputs through developer tooling in the meantime.
 
 ## Source preflight
 
@@ -35,7 +35,7 @@ npm ci
 npm run release:preflight
 ```
 
-The preflight validates release configuration and assets, type-checks, lints, runs the complete Jest suite and migration validator, exports the Expo web application, verifies SDK dependency compatibility, resolves the public Expo configuration, and checks patch whitespace. A non-zero result is a source blocker.
+The preflight validates release configuration and assets, type-checks, lints, runs the complete Jest suite and migration validator, exports the Expo web application, verifies SDK dependency compatibility, resolves the public Expo configuration, creates and scans a fresh production-mode iOS Hermes export for forbidden QA/development-client surfaces, and checks patch whitespace. A non-zero result is a source blocker.
 
 The final checklist printed separately by the command is external: authenticated EAS access, Apple/Google program and signing access, store metadata, physical devices, and any future optional service configuration. Those checks cannot be inferred from a green source tree.
 
@@ -47,19 +47,16 @@ npx eas-cli@22.4.0 whoami
 
 ## Local native builds
 
-Regenerate and compile native dependencies after an Expo module update:
+Install JavaScript dependencies before regenerating CocoaPods, then compile native dependencies:
 
 ```bash
+npm ci
+(cd ios && pod install)
 npx expo run:ios
 npx expo run:android
 ```
 
-For an iOS Simulator development client:
-
-```bash
-npx expo run:ios
-npx expo start --dev-client
-```
+For local iOS development, `npx expo run:ios` uses the normal Debug/Metro path. The repository no longer installs `expo-dev-client`; the EAS development-named profiles are standalone internal builds rather than development clients. Re-adding a development client requires a separate source change and must not contaminate the production dependency graph or artifact.
 
 These commands prove only the platform actually built and launched. An unavailable Android SDK/emulator, physical device, or signing team must be recorded as an external blocker, not as a pass.
 
@@ -85,7 +82,7 @@ The QA app used a distinct container and was removed after verification. The pro
 
 ## EAS builds
 
-Development clients:
+Standalone internal development builds:
 
 ```bash
 npx eas-cli@22.4.0 build --platform ios --profile development-simulator
@@ -115,7 +112,15 @@ The repository intentionally defines no automatic submit step. Review artifacts,
 
 `.github/workflows/ci.yml` runs locked installation and the complete source gate on pushes and pull requests. It has read-only repository permission, does not persist the checkout credential, receives no deployment secrets, cancels superseded runs, is time-bounded, and never builds, publishes, signs, or submits an application. Release configuration and asset assertions are included without needlessly running the full Jest suite twice.
 
-Milestone 7 authorizes pushing only `codex/physical-ios-notification-verification` to trigger this existing workflow. Commit the native evidence documentation before pushing, make no commit after success, and require one green hosted run for the exact final SHA. Record the workflow URL, run ID, SHA, and conclusion in the handoff rather than predicting a future hosted result in tracked documentation. Do not open or merge a pull request.
+Milestone 8 pushed only `codex/ios-testflight-distribution-candidate` and did not open or merge a pull request. Product SHA `75bd38268d83226f121421e2964d2c174b54d094` passed hosted run 33186767702. The final documentation-only commit receives the complete local gate and a second exact-SHA hosted run; no commit is permitted after that result.
+
+### Milestone 8 production-signing boundary
+
+Milestone 8 product source `75bd38268d83226f121421e2964d2c174b54d094` passed hosted CI run 33186767702. Its exact-SHA unsigned arm64 Release resolves `com.omerportnoy.shifty` version `0.1.0 (1)` and passes the production QA/dev-client resource audit with matching application dSYM UUID. This does not establish a monotonic TestFlight build number, production signing, or App Store validation.
+
+Before any signed archive, use official authenticated App Store Connect access to verify that the application record exists and inspect every build for marketing version `0.1.0`. The selected build number must exceed the highest uploaded value. EAS remote version state is currently uninitialized and must not be treated as App Store history. If the application record is absent, stop the record-creation track until Platforms, Name, Primary Language, Bundle ID, SKU, and User Access are explicitly supplied.
+
+No local/EAS App Store Connect API key, Apple Distribution identity, or matching App Store profile was available during Milestone 8 source preparation. Do not create metadata, upload, or guess a build number from this state. After official record/history inspection, reuse existing distribution material when possible; otherwise create no more than the one authorized Apple Distribution certificate, revoke nothing, and create one matching App Store profile. Build and submission remain separate: retrieve and inspect the archive, verify hashes/signature/entitlements/profile/dSYMs/resources, and run App Store validation before a single upload.
 
 ## Rollback boundary
 

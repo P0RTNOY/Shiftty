@@ -2,15 +2,42 @@
 
 Candidate date: 2026-08-28
 
-Branch: `codex/physical-ios-notification-verification`
+Branch: `codex/ios-testflight-distribution-candidate`
 
-Milestone base: `8c33ee4de27bbb1d13e30d81261d903526488c74`
+Milestone 8 base: `ac3ed516d0c6309e817b0c3094cc9f2dc9485e49`
 
-Initial notification-response fix: `2c69b0d6b56bb57d9906360a2557c70fea8bdf0d`
+Milestone 8 product-bearing source: `75bd38268d83226f121421e2964d2c174b54d094`
 
-Final product-bearing and tested source: `cca7c2b17f84bdc437eb5a5b9ea63f13aa172a7d`
+Hosted product verification: [run 33186767702](https://github.com/P0RTNOY/Shiftty/actions/runs/33186767702), passed
 
 Detailed evidence: [`MILESTONE_7_PHYSICAL_IOS_NOTIFICATIONS.md`](MILESTONE_7_PHYSICAL_IOS_NOTIFICATIONS.md)
+
+## Milestone 8 production-artifact preparation
+
+| Evidence class | Result |
+| --- | --- |
+| Exact product source | Passed: 140 suites, 701 tests, migrations, web export, resolved config, production route/bundle audit, and whitespace |
+| Hosted CI | Passed: run 33186767702 for exact SHA `75bd38268d83226f121421e2964d2c174b54d094` |
+| Unsigned arm64 Release | Passed after `npm ci` followed by fresh `pod install`; identity `com.omerportnoy.shifty` `0.1.0 (1)` |
+| QA/dev-client artifact audit | Passed for the unsigned artifact: no M7 route/control/flag identifiers, QA resource, dev-client/launcher/menu package marker, native dev-menu marker, or dev-client resource |
+| dSYM | Passed: application executable and dSYM UUID both `0F38E514-CBB0-3409-847C-614D4C628C19` |
+| Production signing | Blocked: zero local Apple Distribution identities and zero matching App Store profiles; none created |
+| App Store Connect record/build inventory | Blocked: no authenticated API/CLI visibility; public-store absence does not prove record absence |
+| Archive validation/upload/processing | Not performed |
+| Internal TestFlight assignment/install | Not performed |
+| Dogfood backup/upgrade/smoke | Not performed; installed dogfood application remains untouched |
+
+The exact unsigned executable SHA-256 is `f3cff253b26516632bd3460aebca855c2d45c5fbf1d54b6effce77fed0fe65ab`; embedded JS SHA-256 is `6427e95acd10a58359e342d2dea508c2b10bf8a37594c48ecf94134fd4381f4a`. It is arm64, resolves version `0.1.0 (1)`, uses only the production `shifty` URL scheme, has no dev-launcher local-network metadata, and has synchronized icon/launch assets. Repeated dependency warnings from Expo/React Native headers and script phases were non-blocking for this unsigned compile; no archive/App Store warning classification is claimed.
+
+Two attempted builds after `npm ci` failed because the previously generated CocoaPods/module-link state predated the reinstalled `node_modules`, leaving Expo SQLite C symbols unavailable to Swift. Running `pod install` after `npm ci`—the native dependency order used by EAS—left Git clean and produced the successful clean build above. This is recorded as build-environment ordering, not a product runtime defect.
+
+The source audit removed the M7 filesystem route, helper, synthetic notification creation, pending/delivered inspection, invalidation and QA cleanup controls from the production graph. `expo-dev-client`, launcher/menu pods and resources, `exp+shifty`, and Bonjour/local-network dev metadata are absent. Expo itself contains a generic JavaScript capability probe for `NativeModules.EXDevLauncher`; no corresponding native module or behavior is linked. The production notification response lifecycle/router and all M7 delivery fixes are unchanged.
+
+The available local credential state has one valid Apple Development identity and no Apple Distribution identity. One unexpired development profile matches the production App ID and configured team; no App Store profile is present. EAS reports no iOS build credentials and no App Store Connect API keys. App Store Connect application identity and build history therefore remain unknown rather than absent. No certificate/profile/key was created or revoked, and source build `1` is not treated as monotonic until App Store Connect history is inspected.
+
+Verdict: **`SOURCE_READY_DISTRIBUTION_BLOCKED`**. No signed archive, IPA, App Store validation, upload, processing, export-compliance interaction, internal group, tester, TestFlight installation, dogfood backup, database read, data comparison, or production smoke claim is made.
+
+The remaining sections preserve the inherited Milestone 7 physical-notification evidence and its original evidence boundaries.
 
 ## Evidence policy
 
@@ -83,6 +110,6 @@ Read-only QA database inspection passed integrity and foreign-key checks. `schem
 
 Milestone 6 remains authoritative for the isolated Android Release/runtime/notification/export/restore matrix. Milestone 5 remains authoritative for iOS Simulator Release artifact readback and document-picker restore. No change here requires those accepted full matrices to be repeated.
 
-Dependencies remain unchanged. The raw Expo command retains 13 reviewed patch notices; the wrapper must accept exactly those. `npm audit --omit=dev` retains 16 transitive Expo/Metro developer-toolchain advisories (12 moderate, 4 high), with no compatible non-force repair and no authorized forced downgrade.
+At the Milestone 7 boundary, dependencies were unchanged and the raw Expo command retained 13 reviewed patch notices. Milestone 8 subsequently removed only the development-client subtree; the current wrapper accepts exactly 12 notices. `npm audit --omit=dev` remains at 16 transitive Expo/Metro developer-toolchain advisories (12 moderate, 4 high), with no compatible non-force repair and no authorized forced downgrade.
 
 All required physical notification scenarios, QA cleanup, setting restoration, final SQLite checks, and QA-only uninstall pass. The complete local gate and exact-final-SHA hosted CI remain before the handoff verdict. Production signing, archive, TestFlight, App Store, and distribution remain unverified and unauthorized.

@@ -2,15 +2,27 @@
 
 Status date: 2026-08-28
 
-Branch: `codex/physical-ios-notification-verification`
+Branch: `codex/ios-testflight-distribution-candidate`
 
-Milestone base: `8c33ee4de27bbb1d13e30d81261d903526488c74`
+Milestone 8 base: `ac3ed516d0c6309e817b0c3094cc9f2dc9485e49`
 
-Initial notification-response fix: `2c69b0d6b56bb57d9906360a2557c70fea8bdf0d`
+Milestone 8 product-bearing source: `75bd38268d83226f121421e2964d2c174b54d094`
 
-Final product-bearing and tested source: `cca7c2b17f84bdc437eb5a5b9ea63f13aa172a7d`
+Milestone 8 product hosted CI: [run 33186767702](https://github.com/P0RTNOY/Shiftty/actions/runs/33186767702), passed for the exact product SHA
 
-The final documentation SHA and exact-SHA hosted result are recorded in the milestone handoff.
+The final documentation SHA and its exact-SHA hosted result are recorded in the milestone handoff.
+
+## Milestone 8 source and distribution boundary
+
+Milestone 8 removes the concluded M7 evidence route and helper from the production route graph, removes `expo-dev-client` and its native launcher/menu dependency subtree, and adds deterministic source/resolved-config/native-bundle gates. The tracked production Info.plist now exposes only the `shifty` URL scheme and no dev-launcher Bonjour/local-network metadata. The native marketing version is synchronized to `0.1.0`, Release no longer pins an Apple Development identity, the tracked AppIcon matches the configured Expo icon byte-for-byte, and the launch storyboard no longer references a missing asset. The production notification-response lifecycle and its M7 fixes remain unchanged.
+
+The exact product SHA passed `npm ci`, type-check, lint, **140/140 suites and 701/701 tests**, empty and v1-v9 migration validation, web export, the deterministic 12-notice Expo compatibility wrapper, public-config resolution, a fresh native Hermes production-route/bundle audit, and patch-whitespace validation. The required raw Expo command returned the same 12 reviewed patch notices. `npm audit --omit=dev` still reports 16 transitive findings: 12 moderate, 4 high, and 0 critical. Hosted CI passed every step for the exact product SHA in run 33186767702.
+
+After `npm ci` and a fresh production `pod install`, Xcode 26.6 built an exact-SHA unsigned generic-device Release for arm64 as `com.omerportnoy.shifty` version `0.1.0` build `1`. Its executable SHA-256 is `f3cff253b26516632bd3460aebca855c2d45c5fbf1d54b6effce77fed0fe65ab`; embedded JS SHA-256 is `6427e95acd10a58359e342d2dea508c2b10bf8a37594c48ecf94134fd4381f4a`; executable and application dSYM both report UUID `0F38E514-CBB0-3409-847C-614D4C628C19`. The diagnostic artifact contains no M7 route/control/environment strings, QA identifiers, dev-client/launcher/menu package strings, native dev-menu marker, or corresponding named resources. Expo core retains its generic `EXDevLauncher` native-module capability probe in JavaScript, but the module, pods, resources, URL scheme, and behavior are absent. This unsigned build is production-artifact preparation, not a signed archive or App Store validation.
+
+Distribution remains blocked before signing. Read-only inspection found no local Apple Distribution identity, no matching App Store distribution profile, no EAS iOS build credentials, and no EAS/local/GitHub App Store Connect API key. The configured production App ID and Apple team are evidenced by an unexpired development profile, but App Store Connect application-record existence and uploaded-build history cannot be read without an official authenticated App Store Connect flow. EAS remote iOS version state is uninitialized, so source build `1` is not accepted as the final monotonic TestFlight build number. No certificate or profile was created; no App Store record or internal group was created; no signed archive, validation, upload, processing, tester assignment, TestFlight installation, backup export, or dogfood mutation occurred.
+
+Milestone 8 therefore ends at **`SOURCE_READY_DISTRIBUTION_BLOCKED`**. Resume only after official authenticated read access establishes the App Store Connect record and highest build number. If the record is absent, obtain the required Platforms, Name, Primary Language, Bundle ID, SKU, and User Access values before creating it. If it exists, resolve a higher build number, inspect certificate capacity, create at most the one authorized Apple Distribution certificate only if necessary, and continue archive validation before any upload.
 
 ## Product and legal boundary
 
@@ -19,6 +31,8 @@ Shiftty is a Hebrew-first, local-first shift and gross-pay estimation assistant 
 The estimator does not fully model statutory weekly overtime, automatic holiday or religious-calendar status, weekly-rest entitlement, employer permits or agreements, tax, National Insurance, pension, deductions, benefits, or net pay. It is not payroll, legal advice, or an Israeli labor-law compliance product. PDF and CSV use estimate/missing/stale terminology; ICS is strictly calendar-only.
 
 Milestone 7 adds no salary concept, entitlement, premium, migration, backup-envelope version, automatic recalculation, dependency upgrade, or public identifier change. It closes physical-iPhone evidence and fixes only defects reproduced in notification response routing and QA cleanup order.
+
+The following sections preserve the inherited Milestone 7 physical-notification evidence and its original evidence boundaries.
 
 ## Evidence summary
 
@@ -52,7 +66,7 @@ Direct taps on notifications delivered while the process was backgrounded and te
 
 ## Source, dependencies, CI, and rollback
 
-The Expo SDK 57 dependency graph is intentionally unchanged. The raw compatibility command reports the reviewed 13 patch notices, while the repository wrapper accepts only that exact set and fails on drift. `npm audit --omit=dev` retains 16 transitive Expo/Metro developer-toolchain advisories: 12 moderate and 4 high. No forced downgrade or dependency update was performed.
+At the Milestone 7 boundary, the Expo SDK 57 dependency graph was unchanged and the raw compatibility command reported 13 reviewed patch notices. Milestone 8 subsequently removed only the development-client subtree, reducing the current reviewed set to 12; retained dependency versions did not change. `npm audit --omit=dev` remains at 16 transitive Expo/Metro developer-toolchain advisories: 12 moderate and 4 high. No forced downgrade or dependency-version update was performed.
 
 The existing GitHub Actions workflow is non-deploying and must pass for the exact final SHA after this documentation is committed. No post-success commit is permitted. The workflow result belongs in the handoff because documentation must be committed before the run.
 

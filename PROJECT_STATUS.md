@@ -2,6 +2,20 @@
 
 Last updated: 2026-08-28
 
+## Production Signing and Internal TestFlight Candidate — 2026-08-28
+
+Milestone 8 starts from final Milestone 7 documentation SHA `ac3ed516d0c6309e817b0c3094cc9f2dc9485e49` on branch `codex/ios-testflight-distribution-candidate`. The product-bearing source is `75bd38268d83226f121421e2964d2c174b54d094`; hosted CI [run 33186767702](https://github.com/P0RTNOY/Shiftty/actions/runs/33186767702) passed every job step for that exact SHA.
+
+Production-gating work removes the concluded M7 evidence filesystem route, helper, synthetic notification/inspection/invalidation/cleanup controls, and evidence variables from the production graph. `expo-dev-client` plus launcher/menu native dependencies and resources are removed. Native configuration now exposes only the stable `shifty` URL scheme, removes dev-launcher network metadata, synchronizes Xcode and Expo marketing version `0.1.0`, leaves Release signing automatic without pinning Apple Development, synchronizes the native AppIcon, and removes a missing launch-screen asset reference. The production notification-response lifecycle and response-dedupe fixes are unchanged. Static/resolved-config and fresh Hermes-bundle validators now run in release preflight and hosted CI.
+
+Exact product-source verification passed `npm ci`, type-check, zero-warning lint, **140/140 Jest suites and 701/701 tests**, empty and v1-v9 migration validation, web export, the exact 12-notice Expo compatibility wrapper, public-config resolution, production route/bundle audit, CI YAML parsing, and patch-whitespace checks. The raw Expo command returned the expected nonzero 12 notices. `npm audit --omit=dev` remains at 16 transitive findings: 12 moderate, 4 high, and 0 critical.
+
+After the correct native order—`npm ci`, then `pod install`—Xcode 26.6 produced an exact-SHA unsigned generic-device arm64 Release as `com.omerportnoy.shifty` `0.1.0 (1)`. Executable SHA-256 is `f3cff253b26516632bd3460aebca855c2d45c5fbf1d54b6effce77fed0fe65ab`; embedded JS SHA-256 is `6427e95acd10a58359e342d2dea508c2b10bf8a37594c48ecf94134fd4381f4a`; executable and application dSYM UUID both equal `0F38E514-CBB0-3409-847C-614D4C628C19`. No M7 route/control/flag identifier, QA resource, dev-client/launcher/menu package marker, native dev-menu marker, or development-client named resource was present. This is unsigned artifact preparation, not an archive or App Store validation.
+
+Distribution is blocked at official App Store Connect visibility and signing. The machine has no Apple Distribution identity and no matching App Store profile; EAS has no iOS build credentials or App Store Connect API key; no local or GitHub App Store credential was found. App Store Connect record existence and uploaded-build history therefore remain unknown, and EAS remote iOS version state is uninitialized. Source build `1` is not accepted as the final monotonic TestFlight build number. No certificate/profile/key, App Store record, internal group, tester assignment, archive, IPA, validation, upload, processing, TestFlight installation, backup, database read, or dogfood mutation occurred. The existing production dogfood application remains installed and untouched.
+
+Verdict: **`SOURCE_READY_DISTRIBUTION_BLOCKED`**. Resume Milestone 8 only through an official authenticated App Store Connect flow: verify the existing record and highest build number first; if the record is absent, obtain the required record fields before creation. Then resolve a higher build number and production credentials before archive validation. No public distribution, external testing, pull request, merge, or App Store review submission occurred.
+
 ## Physical iPhone Notification Evidence Closure — 2026-08-28
 
 Milestone 7 is based on `8c33ee4de27bbb1d13e30d81261d903526488c74` on branch `codex/physical-ios-notification-verification`. The initial notification-response fix is `2c69b0d6b56bb57d9906360a2557c70fea8bdf0d`; the final product-bearing and tested source is `cca7c2b17f84bdc437eb5a5b9ea63f13aa172a7d`. The final documentation SHA and exact-SHA hosted run are recorded in the handoff after the required commit/push sequence.
