@@ -62,6 +62,16 @@ function validateReleaseConfiguration() {
   ]) {
     sourceAssertion(`Configured asset is missing: ${asset}`, Boolean(asset) && existsSync(resolve(projectRoot, asset)));
   }
+
+  const productionConfig = spawnSync(process.execPath, ['scripts/validate-production-ios-config.cjs'], {
+    cwd: projectRoot,
+    env: { ...process.env, CI: '1', NODE_ENV: 'production' },
+    stdio: 'inherit',
+  });
+  sourceAssertion(
+    'Production iOS source and resolved configuration validation must pass.',
+    !productionConfig.error && productionConfig.status === 0,
+  );
 }
 
 const sourceChecks = [
@@ -72,6 +82,7 @@ const sourceChecks = [
   ['Expo export', 'npm', ['run', 'validate:expo']],
   ['Expo dependency compatibility', 'npm', ['run', 'validate:expo-dependencies']],
   ['Expo public configuration', 'npx', ['--no-install', 'expo', 'config', '--type', 'public']],
+  ['Production iOS surface', 'npm', ['run', 'validate:production-surface']],
   ['Patch whitespace', 'git', ['diff', '--check']],
 ];
 

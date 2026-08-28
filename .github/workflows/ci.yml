@@ -57,5 +57,8 @@ jobs:
       - name: Resolve Expo public configuration
         run: npx --no-install expo config --type public
 
+      - name: Validate production iOS route and bundle surface
+        run: npm run validate:production-surface
+
       - name: Check patch whitespace
         run: git diff --check
