@@ -4,8 +4,8 @@ const { spawnSync } = require('node:child_process');
 
 const acceptedPatchNotices = new Map([
   ['@expo/metro-runtime@57.0.13', '~57.0.14'],
-  ['expo@57.0.16', '~57.0.17'],
-  ['expo-constants@57.0.14', '~57.0.15'],
+  ['expo@57.0.16', '~57.0.18'],
+  ['expo-constants@57.0.14', '~57.0.16'],
   ['expo-dev-client@57.0.15', '~57.0.16'],
   ['expo-file-system@57.0.5', '~57.0.6'],
   ['expo-linking@57.0.7', '~57.0.8'],
