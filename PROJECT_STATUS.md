@@ -1,6 +1,24 @@
 # Shiftty Project Status
 
-Last updated: 2026-08-27
+Last updated: 2026-08-28
+
+## Physical iPhone Notification Evidence Closure — 2026-08-28
+
+Milestone 7 is based on `8c33ee4de27bbb1d13e30d81261d903526488c74` on branch `codex/physical-ios-notification-verification`. The initial notification-response fix is `2c69b0d6b56bb57d9906360a2557c70fea8bdf0d`; the final product-bearing and tested source is `cca7c2b17f84bdc437eb5a5b9ea63f13aa172a7d`. The final documentation SHA and exact-SHA hosted run are recorded in the handoff after the required commit/push sequence.
+
+A signed physical-arm64 Release built with Xcode 26.6 and the existing Apple Development identity/team. Its executable SHA-256 is `66e367e8ff3ee2782626c55e658170f7d193c0321347fe1b91178c6e744b9a24`. It installed side by side as `com.omerportnoy.shifty.m7qa` on iPhone 15 Pro Max, iOS 26.6, with an isolated application container. The production dogfood bundle/database remained installed and untouched. Temporary QA native configuration, signing material, private device metadata, screenshots, logs, and containers are absent from production/native source and configuration commits; sanitized documentation retains only the required identity evidence.
+
+Direct physical evidence now passes first permission/no reprompt, native alert/sound/badge state, singular scheduling, repeated reconciliation and relaunch dedupe, foreground presentation, background delivery, delivery after SIGKILL, both background and terminated notification taps routing to the intended Shift details, cancellation beyond the original trigger, and native-only invalidation followed by exactly-one recreation. The protected Mirroring path did not provide a foreground screenshot, but direct observation plus callbacks and exactly-one count change corroborate presentation. A Mac continuity click was not accepted as a substitute for either physical tap.
+
+The bounded lifecycle passed live-shift background/foreground and cold persistence, unpaid-break background/foreground continuity, SIGKILL/cold recovery with the break still open, break completion, finalization, and deterministic finalized readback after another cold launch. QA SQLite returned `integrity_check = ok`, zero foreign-key rows, all nine application migrations exactly once, zero open breaks, one expected new current snapshot, and no duplicate-current or historical-snapshot rewrite.
+
+The device remained in Asia/Jerusalem. A QA-only fail-closed harness exercised the production resolver: the 2026 fall-back overlap selected the earlier `+03:00` instant and the spring gap normalized forward to 03:30. Scheduling survived relaunch/reconciliation without duplication. The global timezone and automatic-timezone control were not changed. Hebrew onboarding ran within QA; the final ordinary launch returned to the baseline English locale.
+
+Two reproduced defects were fixed narrowly. A root notification-response lifecycle now validates ownership and shift existence, routes valid responses once, handles missing data safely, and reports unexpected failures. QA cleanup now cancels native requests through the production reconciler before deleting test shifts, preventing orphan delivery; the binary was rebuilt and D7/D8 reran successfully. Final audit corrections replaced the tracked temporary QA identifier with a fail-closed externally supplied non-production build input and keyed response dedupe by delivery/action as well as request identifier, so a later rescheduled delivery is not suppressed. No salary rule, total, migration, Backup V1 format, frozen snapshot, dependency, or production public identifier changed.
+
+The current source run passes **140/140 Jest suites and 707/707 tests**; the focused notification set passes 10/10 suites and 56/56 tests, response routing passes 5/5, and zoned-time passes 5/5 under each of four host timezones. Migration, Expo export/configuration, release preflight, and patch-whitespace checks also pass; the exact final documentation HEAD still receives the complete gate, final SQLite, and independent-diff checks before push. Raw Expo compatibility retains the reviewed 13 SDK 57 patch notices; two expected-patch allowlist entries advanced with live Expo metadata, while installed dependencies remained locked. `npm audit --omit=dev` retains 16 transitive developer-toolchain advisories (12 moderate, 4 high), with no forced update.
+
+All required physical notification scenarios pass. Production-repository cleanup reached zero native/persisted notification state; final QA SQLite remained healthy with zero notification-test shifts/records; Screen Sharing notifications were visibly restored to `Off`; and only the QA app was uninstalled while dogfood remained installed. If the exact documentation-HEAD local gate and exact-SHA hosted CI pass, the handoff may report **`BETA_READY`** for a controlled beta candidate. Production signing, archive, TestFlight, App Store, and distribution remain separate and unauthorized. Detailed evidence is in `docs/MILESTONE_7_PHYSICAL_IOS_NOTIFICATIONS.md`.
 
 ## External Native Evidence Closure — 2026-08-27
 

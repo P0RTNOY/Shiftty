@@ -1,16 +1,16 @@
 # Beta readiness
 
-Status date: 2026-08-27
+Status date: 2026-08-28
 
-Branch: `codex/external-native-evidence-closure`
+Branch: `codex/physical-ios-notification-verification`
 
-Milestone base: `c2730d7cda7e08fd99631d2e91438862468f9222`
+Milestone base: `8c33ee4de27bbb1d13e30d81261d903526488c74`
 
-Final product-bearing source candidate: `58ab0820cda2d8ff79eee886b87758d5000a8232`
+Initial notification-response fix: `2c69b0d6b56bb57d9906360a2557c70fea8bdf0d`
 
-Original full native-matrix candidate: `f89d798fb68769a0b5a819fbf0d8c3467134b9fc`
+Final product-bearing and tested source: `cca7c2b17f84bdc437eb5a5b9ea63f13aa172a7d`
 
-Final source SHA: recorded in the milestone handoff after exact-SHA hosted verification
+The final documentation SHA and exact-SHA hosted result are recorded in the milestone handoff.
 
 ## Product and legal boundary
 
@@ -18,48 +18,46 @@ Shiftty is a Hebrew-first, local-first shift and gross-pay estimation assistant 
 
 The estimator does not fully model statutory weekly overtime, automatic holiday or religious-calendar status, weekly-rest entitlement, employer permits or agreements, tax, National Insurance, pension, deductions, benefits, or net pay. It is not payroll, legal advice, or an Israeli labor-law compliance product. PDF and CSV use estimate/missing/stale terminology; ICS is strictly calendar-only.
 
-Milestone 6 adds no salary concept, entitlement, premium, migration, backup-envelope version, automatic recalculation, or public identifier change. It fixes two reproduced Android local-notification defects and one hosted portability defect in the existing deterministic fall-back overlap rule, then adds verification automation/documentation.
+Milestone 7 adds no salary concept, entitlement, premium, migration, backup-envelope version, automatic recalculation, dependency upgrade, or public identifier change. It closes physical-iPhone evidence and fixes only defects reproduced in notification response routing and QA cleanup order.
 
 ## Evidence summary
 
 | Evidence class | Result | Boundary |
 | --- | --- | --- |
-| Source automation before final docs | Passed | 138/138 suites, 693/693 tests; focused overlap tests pass under four host timezones; final exact-commit gate still required |
-| iOS Simulator | Inherited passed evidence | Milestone 5 Release artifact readback, real document-picker restore, semantic backup comparison, and database checks |
-| Android emulator | Passed | Isolated API 36 ARM64 Release build and full runtime/notification/export/restore matrix |
-| Physical iPhone | Partial pass | Side-by-side QA Release lifecycle, RTL/LTR, share sheet, permission, scheduling/dedupe, and database health passed; required notification delivery/cancellation/timezone states remain unverified |
-| Physical Android | Not tested | No physical Android device was supplied or required to substitute for the authorized emulator |
-| Hosted GitHub Actions | Rerun pending | Run 33068224029 exposed the host-timezone overlap defect after earlier steps passed; exact final SHA must pass the existing non-deploying workflow |
-| Production signing/distribution | Not tested | QA development signing is not production-bundle/archive/TestFlight/App Store/Google Play evidence |
+| Source automation before final docs | Passed | 140/140 suites, 707/707 tests; focused notifications 10/10 suites and 56/56 tests; exact final-documentation-HEAD gate still required |
+| iOS Simulator | Inherited passed evidence | Milestone 5 Release artifact readback, document-picker restore, semantic backup comparison, and database checks remain valid |
+| Android emulator | Inherited passed evidence | Milestone 6 isolated API 36 ARM64 Release matrix remains valid; the shared notification fixes have focused regression coverage |
+| Physical iPhone | Passed | Corrected side-by-side QA Release passed lifecycle, permission, dedupe, foreground/background/terminated delivery, background and terminated tap routing, cancellation, stale-ID reconciliation, deterministic timezone behavior, database health, cleanup/restoration, and QA-only uninstall |
+| Physical Android | Not tested | Not supplied or required to replace accepted emulator evidence |
+| Hosted GitHub Actions | Pending | Run only after the documentation commit; require success for the exact final SHA |
+| Production signing/distribution | Not tested | QA development signing does not prove archive, TestFlight, App Store, or distribution readiness |
 
-## Android closure
+## Physical iPhone closure
 
-An isolated user-local toolchain provided API 36, Build Tools 36.0.0, Platform Tools 37.0.1, Emulator 37.1.11, NDK 27.1.12297006, CMake 3.22.1, and the API 36 `google_apis` ARM64 image. A Release `com.shifty.app` APK built, installed, and passed all seven Android Maestro journeys using fresh driver processes.
+The final QA artifact was built from corrected source as a signed physical-arm64 Release and installed side by side as `com.omerportnoy.shifty.m7qa` on an iPhone 15 Pro Max running iOS 26.6. Deep/strict signature verification passed. The existing dogfood bundle and database were never touched.
 
-Direct runtime coverage includes fresh Hebrew onboarding and English onboarding/persistence, offline cold launch, live shift/open-break process recovery, finalization and report surfaces, 150% shift type, effective-dated weekly threshold crossing without duplicate overtime, evidence neutrality/rule/recalculation/frozen history, finalized zero, Hebrew/English, RTL/LTR, light/dark, increased font, native pickers/keyboards, system Back, and permission UI.
+Direct evidence now covers first permission grant/no reprompt, alert/sound/badge policy, one-reminder scheduling, repeated reconciliation and relaunch dedupe, foreground presentation, background delivery, delivery after SIGKILL, terminated cold-tap navigation, pre-trigger cancellation beyond the original trigger, and native-only invalidation followed by exactly-one recreation. The deterministic production timezone resolver demonstrated the earlier fall-back instant and forward-normalized spring gap without changing global phone settings.
 
-Android notification delivery was directly observed foregrounded, backgrounded, and after a plain process kill. Scheduling, dedupe, cancellation, and force-stop/relaunch reconciliation were inspected natively and in SQLite. The two reproduced defects—stale native IDs after force-stop and suppressed foreground presentation—were fixed with focused tests.
+The bounded live journey passed shift persistence, unpaid-break background/foreground continuity, SIGKILL/cold recovery with the break open, break completion, finalization, and deterministic finalized readback after another cold launch. QA SQLite integrity was `ok`, foreign-key checks returned zero rows, all nine application migrations remained present exactly once, and one expected new finalized snapshot was created without rewriting history.
 
-Production UI generated PDF, CSV, calendar-only ICS, and backup artifacts through real Android native workflows. Independent parsing passed. DocumentsUI replace-restored the established complex V1 backup; cold relaunch restored the active shift/open break; completing it preserved seven historical snapshots and created exactly one new snapshot. SQLite integrity was `ok` with zero foreign-key violations. Full hashes and semantic results are in [`MILESTONE_6_EXTERNAL_NATIVE_EVIDENCE.md`](MILESTONE_6_EXTERNAL_NATIVE_EVIDENCE.md).
+Detailed privacy-safe evidence and timestamps are in [`MILESTONE_7_PHYSICAL_IOS_NOTIFICATIONS.md`](MILESTONE_7_PHYSICAL_IOS_NOTIFICATIONS.md).
 
-## Physical iPhone boundary
+## Defects and limitations
 
-An exact-product Release built with the existing Apple Development identity and installed side-by-side on the iPhone 15 Pro Max, iOS 26.6, as `com.omerportnoy.shifty.m6qa`. The production dogfood bundle and database were never touched.
+The physical matrix reproduced two application defects. Notification responses were consumed without leaving the QA harness route, so a root lifecycle and safe once-only router were added. The QA cleanup removed persisted metadata before native cancellation, so it now cancels through the production reconciler before deleting QA data. Both have focused tests and passed direct post-fix device reruns. Final review also hardened response dedupe so a later delivery reusing a request identifier is distinct from a true duplicate; the exact final artifact includes that source and the focused regression.
 
-Direct QA passed onboarding/persistence, background and SIGKILL/cold active-break recovery, clock-out/finalization, Reports, a native CSV share sheet, English LTR, Hebrew RTL, permission grant, one-reminder scheduling, and relaunch dedupe. QA SQLite integrity remained `ok`, and no matching crash report was found.
+The foreground banner could not be captured through protected iPhone Mirroring, but presentation was directly observed and independently corroborated by native callbacks and exactly-one delivered-state change; this is a capture limitation, not a delivery failure. A global timezone change was unnecessary and intentionally avoided. Automatic-timezone state was not directly read or modified.
 
-The physical foreground banner was not captured, and background/terminated delivery, notification tap, pre-trigger cancellation, and timezone variation were not directly verified. Maestro could not enumerate physical iOS, while a temporary XCUITest runner was blocked by the free profile's three-app device limit. No dogfood or unrelated app was removed to bypass it. This is the remaining native blocker.
+Direct taps on notifications delivered while the process was backgrounded and terminated both opened the intended Shift details once. A Mac continuity click was explicitly rejected as evidence. Production-repository cleanup reached zero native pending, delivered, and persisted counts; final SQLite remained healthy; Screen Sharing notifications were visibly restored to `Off`; and only the QA bundle was uninstalled.
 
-## Source, CI, dependencies, and rollback
+## Source, dependencies, CI, and rollback
 
-The GitHub Actions workflow remains read-only, secret-free, non-deploying, time-bounded, and disables checkout credential persistence. It includes release configuration and asset assertions aligned with `release:preflight` without repeating the complete Jest suite. Run `33068224029` at `9dccc7b216f35d04df0f9f311ed13154855f56f7` passed install, release configuration, typecheck, and lint, then failed the ambiguous Jerusalem fall-back test under the hosted timezone. The reproduced correction selects the earlier valid target-zone instant independently of the host. After the final documentation commit, only this branch may be pushed, and the exact SHA must obtain one successful hosted run before handoff.
+The Expo SDK 57 dependency graph is intentionally unchanged. The raw compatibility command reports the reviewed 13 patch notices, while the repository wrapper accepts only that exact set and fails on drift. `npm audit --omit=dev` retains 16 transitive Expo/Metro developer-toolchain advisories: 12 moderate and 4 high. No forced downgrade or dependency update was performed.
 
-The Expo SDK 57 dependency graph is intentionally unchanged. The raw compatibility check reports 13 exact patch notices; release preflight and CI use a deterministic reviewed-pair wrapper that fails if the set changes. `npm audit --omit=dev` reports 16 transitive Expo/Metro developer-toolchain advisories: 12 moderate and 4 high. No compatible non-force repair exists; no forced downgrade is approved.
+The existing GitHub Actions workflow is non-deploying and must pass for the exact final SHA after this documentation is committed. No post-success commit is permitted. The workflow result belongs in the handoff because documentation must be committed before the run.
 
-There is no OTA channel. Stop distributing a defective artifact and build a higher native version from the last verified commit. Never silently downgrade or rewrite a populated SQLite schema. Preserve the complete SQLite container before recovery and use only validated transactional restore.
+There is no OTA channel. Rollback means stop distributing a defective artifact and build a higher native version from the last verified commit. Never silently downgrade or rewrite a populated SQLite schema; preserve the complete container and use only validated transactional restore.
 
 ## Verdict
 
-Evidence-based verdict: `SOURCE_READY_NATIVE_BLOCKED`.
-
-The Android runtime gap is closed, and the physical lifecycle/signing path is substantially proven without touching dogfood. Beta readiness is still blocked because the required physical-iPhone notification delivery/cancellation/timezone matrix is incomplete. Hosted CI is also pending until the exact final commit is pushed and observed. Production signing and store submission remain separate, unauthorized work.
+All required physical notification scenarios and device cleanup/restoration pass. If the final local gate passes and hosted CI succeeds for the exact final SHA, the handoff verdict becomes `BETA_READY`. That verdict means evidence supports a controlled beta candidate; it does not mean production signing, archiving, TestFlight, store review, or distribution occurred.

@@ -73,7 +73,15 @@ The original `f89d798fb68769a0b5a819fbf0d8c3467134b9fc` product commit built as 
 
 The existing `com.omerportnoy.shifty` dogfood application and database are protected. They were not installed over, launched, cleared, uninstalled, or modified. Do not use same-bundle installation as a shortcut for future verification.
 
-Milestone 5's disposable iOS Simulator Release artifact/readback and real document-picker restore evidence remains valid and was not repeated. The final correction was rebuilt and rerun on Android. The physical-iPhone matrix remains tied to `f89d798` because the device became unavailable before the corrected source could be rebuilt and installed; do not treat that physical evidence as an exact-`58ab082` run.
+Milestone 5's disposable iOS Simulator Release artifact/readback and real document-picker restore evidence remains valid and was not repeated. The final correction was rebuilt and rerun on Android. Milestone 7 supersedes the remaining physical-iPhone blocker with a corrected-source candidate.
+
+### Verified Milestone 7 physical-iPhone candidate
+
+On 2026-08-28, final product-bearing source `cca7c2b17f84bdc437eb5a5b9ea63f13aa172a7d` built as a physical-arm64 Release with temporary bundle `com.omerportnoy.shifty.m7qa`, isolated scheme `shifty-m7qa`, the existing Apple Development identity/team, and development provisioning for the connected device. The executable SHA-256 was `66e367e8ff3ee2782626c55e658170f7d193c0321347fe1b91178c6e744b9a24`, and the embedded JS SHA-256 was `9682256a286fc18b951f643ff7ece8cedb1d072899f2e1aa5f193015c73b77f1`. Deep/strict signing and physical-arm64 build checks passed on the iPhone 15 Pro Max / iOS 26.6 toolchain using Xcode 26.6 Release. The exact artifact installed over only the isolated QA bundle, launched its fail-closed evidence route, completed cleanup, and was uninstalled; the production dogfood bundle remained installed and untouched.
+
+The candidate includes the initial notification-response fix at `2c69b0d6b56bb57d9906360a2557c70fea8bdf0d` plus QA-only harness layout, cleanup, fail-closed build gating, and the final production response-dedupe hardening at `cca7c2b17f84bdc437eb5a5b9ea63f13aa172a7d`. Direct device checks passed permission/no-reprompt, dedupe, foreground/background/terminated delivery, background and terminated tap routing, cancellation beyond trigger, stale-native-ID recreation, deterministic overlap/gap policy, active/open-break recovery, finalization, and SQLite integrity. Exact timestamps and evidence boundaries are in `MILESTONE_7_PHYSICAL_IOS_NOTIFICATIONS.md`.
+
+The QA app used a distinct container and was removed after verification. The production dogfood application/database remained protected and untouched. The generated QA Xcode project, scheme/bundle/team overrides, profile material, device identifier, logs, screenshots, and container are absent from production/native source and configuration commits; sanitized documentation retains only the QA identity evidence required by the milestone. This development-signed QA artifact does not prove production-bundle signing, an archive, TestFlight, App Store, or distribution readiness.
 
 ## EAS builds
 
@@ -107,7 +115,7 @@ The repository intentionally defines no automatic submit step. Review artifacts,
 
 `.github/workflows/ci.yml` runs locked installation and the complete source gate on pushes and pull requests. It has read-only repository permission, does not persist the checkout credential, receives no deployment secrets, cancels superseded runs, is time-bounded, and never builds, publishes, signs, or submits an application. Release configuration and asset assertions are included without needlessly running the full Jest suite twice.
 
-Milestone 6 authorizes pushing only `codex/external-native-evidence-closure` to trigger this existing workflow. Commit the native evidence documentation before pushing, make no documentation-only commit after success, and require one green hosted run for the exact final SHA. Record the workflow URL, run ID, SHA, and conclusion in the handoff rather than predicting a future hosted result in tracked documentation. Do not open or merge a pull request.
+Milestone 7 authorizes pushing only `codex/physical-ios-notification-verification` to trigger this existing workflow. Commit the native evidence documentation before pushing, make no commit after success, and require one green hosted run for the exact final SHA. Record the workflow URL, run ID, SHA, and conclusion in the handoff rather than predicting a future hosted result in tracked documentation. Do not open or merge a pull request.
 
 ## Rollback boundary
 
