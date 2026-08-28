@@ -193,65 +193,59 @@ export default function M7NativeEvidenceScreen() {
       ) : null}
       {failed ? <Text accessibilityRole="alert" style={{ color: colors.danger }}>Diagnostic refresh failed.</Text> : null}
       {actionStatus ? <Text style={{ color: colors.textMuted }}>{actionStatus}</Text> : null}
-      <TouchableOpacity
-        accessibilityRole="button"
-        disabled={busy}
-        onPress={() => void refresh()}
-        style={[styles.button, { backgroundColor: colors.primary, opacity: busy ? 0.6 : 1 }]}
-      >
-        <Text style={[styles.buttonText, { color: colors.onPrimary }]}>Refresh native state</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        accessibilityRole="button"
-        disabled={busy}
-        onPress={() => void reconcileAndRefresh()}
-        style={[styles.button, { backgroundColor: colors.primary, opacity: busy ? 0.6 : 1 }]}
-      >
-        <Text style={[styles.buttonText, { color: colors.onPrimary }]}>Run production reconciliation</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        accessibilityRole="button"
-        disabled={busy}
-        onPress={() => void scheduleBoundedQaShift('foreground')}
-        style={[styles.button, { backgroundColor: colors.primary, opacity: busy ? 0.6 : 1 }]}
-      >
-        <Text style={[styles.buttonText, { color: colors.onPrimary }]}>Schedule foreground scenario (+45s)</Text>
-      </TouchableOpacity>
-      {(['background', 'terminated'] as const).map((scenario) => (
+      <View style={styles.actionGrid}>
         <TouchableOpacity
           accessibilityRole="button"
           disabled={busy}
-          key={scenario}
-          onPress={() => void scheduleBoundedQaShift(scenario)}
+          onPress={() => void refresh()}
           style={[styles.button, { backgroundColor: colors.primary, opacity: busy ? 0.6 : 1 }]}
         >
-          <Text style={[styles.buttonText, { color: colors.onPrimary }]}>Schedule {scenario} scenario (+45s)</Text>
+          <Text style={[styles.buttonText, { color: colors.onPrimary }]}>Refresh native state</Text>
         </TouchableOpacity>
-      ))}
-      <TouchableOpacity
-        accessibilityRole="button"
-        disabled={busy}
-        onPress={() => void scheduleBoundedQaShift('cancellation', 120)}
-        style={[styles.button, { backgroundColor: colors.primary, opacity: busy ? 0.6 : 1 }]}
-      >
-        <Text style={[styles.buttonText, { color: colors.onPrimary }]}>Schedule cancellation scenario (+120s)</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        accessibilityRole="button"
-        disabled={busy}
-        onPress={() => void invalidateOwnedNativeRequests()}
-        style={[styles.button, { backgroundColor: colors.surface, opacity: busy ? 0.6 : 1 }]}
-      >
-        <Text style={[styles.buttonText, { color: colors.text }]}>Invalidate owned native request (D8)</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        accessibilityRole="button"
-        disabled={busy}
-        onPress={() => void cleanupBoundedQaShifts()}
-        style={[styles.button, { backgroundColor: colors.surface, opacity: busy ? 0.6 : 1 }]}
-      >
-        <Text style={[styles.buttonText, { color: colors.text }]}>Remove QA notification shifts</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          disabled={busy}
+          onPress={() => void reconcileAndRefresh()}
+          style={[styles.button, { backgroundColor: colors.primary, opacity: busy ? 0.6 : 1 }]}
+        >
+          <Text style={[styles.buttonText, { color: colors.onPrimary }]}>Run production reconciliation</Text>
+        </TouchableOpacity>
+        {(['foreground', 'background', 'terminated'] as const).map((scenario) => (
+          <TouchableOpacity
+            accessibilityRole="button"
+            disabled={busy}
+            key={scenario}
+            onPress={() => void scheduleBoundedQaShift(scenario)}
+            style={[styles.button, { backgroundColor: colors.primary, opacity: busy ? 0.6 : 1 }]}
+          >
+            <Text style={[styles.buttonText, { color: colors.onPrimary }]}>Schedule {scenario} (+45s)</Text>
+          </TouchableOpacity>
+        ))}
+        <TouchableOpacity
+          accessibilityRole="button"
+          disabled={busy}
+          onPress={() => void scheduleBoundedQaShift('cancellation', 120)}
+          style={[styles.button, { backgroundColor: colors.primary, opacity: busy ? 0.6 : 1 }]}
+        >
+          <Text style={[styles.buttonText, { color: colors.onPrimary }]}>Schedule cancellation (+120s)</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          disabled={busy}
+          onPress={() => void invalidateOwnedNativeRequests()}
+          style={[styles.button, { backgroundColor: colors.surface, opacity: busy ? 0.6 : 1 }]}
+        >
+          <Text style={[styles.buttonText, { color: colors.text }]}>Invalidate native request (D8)</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          disabled={busy}
+          onPress={() => void cleanupBoundedQaShifts()}
+          style={[styles.button, { backgroundColor: colors.surface, opacity: busy ? 0.6 : 1 }]}
+        >
+          <Text style={[styles.buttonText, { color: colors.text }]}>Remove QA notification shifts</Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 }
@@ -267,14 +261,23 @@ function EvidenceRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  actionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
   button: {
     alignItems: 'center',
     borderRadius: 10,
-    padding: spacing.md,
+    flexBasis: '48%',
+    justifyContent: 'center',
+    minHeight: 56,
+    padding: spacing.sm,
   },
   buttonText: {
-    fontSize: typography.body,
+    fontSize: typography.caption,
     fontWeight: '700',
+    textAlign: 'center',
   },
   card: {
     borderRadius: 12,
