@@ -17,6 +17,7 @@ interface SalaryTrustDisclosureProps {
   result?: PayCalculationResult;
   status?: SalaryCalculationStatus;
   onOpenSalarySettings?: () => void;
+  showTrustState?: boolean;
 }
 
 export function SalaryTrustDisclosure({
@@ -24,6 +25,7 @@ export function SalaryTrustDisclosure({
   result,
   status,
   onOpenSalarySettings,
+  showTrustState = true,
 }: SalaryTrustDisclosureProps) {
   const { colors } = useAppTheme();
   const { formatDate, isRtl, t } = useTranslation();
@@ -37,6 +39,7 @@ export function SalaryTrustDisclosure({
   const align = isRtl ? 'right' : 'left';
   const includedKeys = resolveIncludedKeys(result, mode, usesDefaultOvertime, usesConfiguredWeeklyOvertime, trustState);
   const specialIntervals = mode === 'calculation' ? result?.specialIntervalEvaluations ?? [] : [];
+  const isMissingCalculation = mode === 'calculation' && !result;
   const notModeledKeys: TranslationKey[] = [
     ...(usesConfiguredWeeklyOvertime ? [] : ['salary.assumptionWeeklyOvertime'] as const),
     'salary.assumptionAutomaticHolidays',
@@ -48,10 +51,10 @@ export function SalaryTrustDisclosure({
     testID="salary-trust-disclosure"
     style={[styles.container, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}
   >
-    {trustState ? <Text style={[styles.state, { color: trustState === 'unavailable' ? colors.warning : colors.text, textAlign: align }]}>
+    {showTrustState && trustState ? <Text accessibilityRole={trustState === 'unavailable' ? 'alert' : undefined} style={[styles.state, { color: trustState === 'unavailable' ? colors.warning : colors.text, textAlign: align }]}>
       {t(trustState === 'unavailable' ? 'salary.trustUnavailable' : trustState === 'basic_estimate' ? 'salary.trustBasic' : 'salary.trustConfigured')}
     </Text> : null}
-    <Text style={[styles.intro, { color: colors.textMuted, textAlign: align }]}>{t('salary.basedOnSettings')}</Text>
+    {mode === 'generic' || trustState !== 'unavailable' ? <Text style={[styles.intro, { color: colors.textMuted, textAlign: align }]}>{t('salary.basedOnSettings')}</Text> : null}
     {usesDefaultOvertime && trustState !== 'unavailable' ? <View style={styles.defaultAssumption}>
       <Text style={[styles.explanation, { color: colors.text, textAlign: align }]}>{t('salary.defaultOvertimeApplied')}</Text>
       {onOpenSalarySettings ? <SecondaryButton label={t('salary.openSettings')} onPress={onOpenSalarySettings} /> : null}
@@ -64,12 +67,14 @@ export function SalaryTrustDisclosure({
       style={({ pressed }) => [styles.disclosure, { borderColor: colors.border, opacity: pressed ? 0.75 : 1 }]}
     >
       <Text style={[styles.disclosureText, { color: colors.primary, textAlign: align }]}>
-        {t(expanded ? 'salary.hideDetails' : 'salary.showDetails')}
+        {t(isMissingCalculation
+          ? expanded ? 'salary.hideEstimateAssumptions' : 'salary.showEstimateAssumptions'
+          : expanded ? 'salary.hideDetails' : 'salary.showDetails')}
       </Text>
     </Pressable>
 
     {expanded ? <View style={styles.details}>
-      <AssumptionList title={t('salary.assumptionsIncluded')} translationKeys={includedKeys} />
+      {includedKeys.length > 0 ? <AssumptionList title={t('salary.assumptionsIncluded')} translationKeys={includedKeys} /> : null}
       {specialIntervals.length > 0 ? <View testID="salary-special-intervals" style={styles.list}>
         <Text style={[styles.listTitle, { color: colors.text, textAlign: align }]}>{t('salary.specialIntervalsIncluded')}</Text>
         {status === 'stale' ? <Text style={[styles.intervalText, { color: colors.textMuted, textAlign: align }]}>{t('salary.specialIntervalStoredPrevious')}</Text> : null}
@@ -172,7 +177,7 @@ function resolveIncludedKeys(
   usesConfiguredWeeklyOvertime: boolean,
   trustState: SalaryTrustState | undefined,
 ): TranslationKey[] {
-  if (mode === 'generic' || !result) return [
+  if (mode === 'generic') return [
     'salary.assumptionHourlyRate',
     'salary.assumptionWorkingRange',
     'salary.assumptionBreaks',
@@ -180,6 +185,7 @@ function resolveIncludedKeys(
     'salary.assumptionOvertime',
     'salary.assumptionExtras',
   ];
+  if (!result) return [];
 
   const keys: TranslationKey[] = [];
   if (result.resolvedBaseHourlyRateMinor !== undefined) keys.push('salary.assumptionHourlyRate');

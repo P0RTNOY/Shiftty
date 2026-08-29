@@ -213,6 +213,7 @@ export function ShiftForm({ mode, workplaces, roles = [], templates = [], initia
             ? <Choice checked={field.value === initialShift.shiftTemplateId} label={`${initialShift.shiftTypeNameSnapshot} · ${(initialShift.shiftTypePayMultiplierBasisPoints ?? 10_000) / 100}%`} onPress={() => field.onChange(initialShift.shiftTemplateId!)} />
             : null}
           {templates.map((template) => <Choice key={template.id} checked={field.value === template.id} label={`${template.name} · ${(template.payMultiplierBasisPoints ?? 10_000) / 100}%`} testID="e2e-shift-type-option" onPress={() => {
+            if (field.value === template.id) return;
             if (template.workplaceId) setValue('workplaceId', template.workplaceId, { shouldDirty: true });
             if (template.roleId && roles.some((role) => role.id === template.roleId && !role.isArchived && role.workplaceId === (template.workplaceId ?? workplaceId))) setValue('roleId', template.roleId, { shouldDirty: true });
             field.onChange(template.id);

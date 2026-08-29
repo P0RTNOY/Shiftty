@@ -26,7 +26,7 @@ export function SalaryBreakdown({ result, status, onRecalculate, onOpenSalarySet
       <Text accessibilityRole="alert" style={[styles.title, { color: colors.warning, textAlign: align }]}>{t(status === 'stale' ? 'salary.stale' : 'salary.trustUnavailable')}</Text>
       {exceedsMaximumDuration ? <Text style={[styles.warning, { color: colors.warning, textAlign: align }]}>{t('salary.issues.shiftDurationExceedsMaximum')}</Text> : null}
       {onRecalculate ? <PrimaryButton label={t('salary.recalculate')} onPress={onRecalculate} testID="e2e-salary-recalculate" /> : null}
-      <SalaryTrustDisclosure onOpenSalarySettings={onOpenSalarySettings} result={result} status={status} />
+      <SalaryTrustDisclosure onOpenSalarySettings={onOpenSalarySettings} result={result} showTrustState={false} status={status} />
     </View>;
   }
 

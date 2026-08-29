@@ -60,12 +60,17 @@ it('shows a simple salary estimate and discloses calculation details on request'
 
 it('keeps stale and missing salary warnings visible without disclosure', () => {
   const { unmount } = renderApp(<SalaryBreakdown result={result} status="stale" />);
-  expect(screen.getByText('החישוב אינו מעודכן')).toBeTruthy();
+  expect(screen.getAllByText('החישוב אינו מעודכן')).toHaveLength(1);
+  expect(screen.queryByText('הערכת השכר אינה זמינה')).toBeNull();
+  expect(screen.queryByText('החישוב מבוסס על הגדרות השכר שהזנת.')).toBeNull();
   expect(screen.queryByText(new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(result.totalGrossPayMinor! / 100))).toBeNull();
   unmount();
 
   renderApp(<SalaryBreakdown onRecalculate={jest.fn()} status="estimated" />);
+  expect(screen.getAllByText('הערכת השכר אינה זמינה')).toHaveLength(1);
   expect(screen.getByRole('alert', { name: 'הערכת השכר אינה זמינה' })).toBeTruthy();
+  expect(screen.queryByText('החישוב מבוסס על הגדרות השכר שהזנת.')).toBeNull();
+  expect(screen.queryByTestId('e2e-salary-total')).toBeNull();
 });
 
 it('labels the 125% and 150% overtime tiers in the Hebrew breakdown', () => {

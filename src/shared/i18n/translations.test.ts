@@ -38,6 +38,8 @@ it('uses estimate vocabulary for calculated pay in Hebrew and English', () => {
   expect(en['salary.summaryTitle']).toBe('Estimated pay for this shift');
   expect(en['reports.earnedAmount']).toBe('Total estimated pay: {{amount}}');
   expect(en['salary.basedOnSettings']).toBe('Based on the pay settings you configured.');
+  expect(he['salary.showEstimateAssumptions']).toBe('מה משפיע על הערכות שכר?');
+  expect(en['salary.showEstimateAssumptions']).toBe('What affects pay estimates?');
 });
 
 it('uses ordinary clock-in and clock-out language in the core shift flow', () => {

@@ -33,6 +33,19 @@ function EvidenceLocaleHarness({ result }: { result: typeof defaultResult }) {
 }
 
 describe('SalaryTrustDisclosure', () => {
+  it('does not describe a missing calculation as configured or included', () => {
+    renderApp(<SalaryTrustDisclosure status="not_calculated" />);
+
+    expect(screen.getAllByText('הערכת השכר אינה זמינה')).toHaveLength(1);
+    expect(screen.getByRole('alert', { name: 'הערכת השכר אינה זמינה' })).toBeTruthy();
+    expect(screen.queryByText('החישוב מבוסס על הגדרות השכר שהזנת.')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'איך חושב הסכום?' })).toBeNull();
+    fireEvent.press(screen.getByRole('button', { name: 'מה משפיע על הערכות שכר?' }));
+    expect(screen.queryByText('מה נכלל בחישוב')).toBeNull();
+    expect(screen.getByText('מה עדיין לא מחושב במלואו')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'הסתרת הנחות הערכת השכר' })).toBeTruthy();
+  });
+
   it('uses accessible progressive disclosure in Hebrew RTL and English LTR', () => {
     renderApp(<LocaleHarness />);
     const hebrewDisclosure = screen.getByRole('button', { name: 'איך חושב הסכום?' });

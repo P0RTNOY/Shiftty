@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 
 import type { Workplace } from '@/domain/entities';
+import { getShiftRangeDurationMinutes } from '@/domain/services';
 import { ShiftForm } from '@/features/shifts/components/shift-form';
 import { createShift } from '@/test/fixtures';
 import { renderApp } from '@/test/render';
@@ -182,6 +183,39 @@ describe('ShiftForm', () => {
       shiftTypePayMultiplierBasisPoints: 15_000,
       scheduledEnd: expect.stringContaining('07:00'),
     }), undefined));
+  });
+
+  it('preserves a cross-midnight override when the selected shift type is pressed again', async () => {
+    const onSave = jest.fn();
+    const nightType = { id: 'night', name: 'לילה', defaultStartTime: '18:00', defaultEndTime: '03:00', payMultiplierBasisPoints: 15_000, expectedBreakMinutes: 0, isArchived: false, workplaceId: 'work-1', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' };
+    const typedShift = createShift({
+      status: 'scheduled',
+      workplaceId: 'work-1',
+      shiftTemplateId: 'night',
+      shiftTypeNameSnapshot: 'לילה',
+      shiftTypePayMultiplierBasisPoints: 15_000,
+      scheduledStart: '2026-08-10T18:00:00+03:00',
+      scheduledEnd: '2026-08-11T03:00:00+03:00',
+      expectedBreakMinutes: 0,
+    });
+    renderApp(<ShiftForm initialShift={typedShift} mode="scheduled" onSave={onSave} templates={[nightType]} workplaces={[workplace]} />);
+
+    fireEvent.changeText(screen.getByLabelText('התחלה'), '17:30');
+    fireEvent.changeText(screen.getByLabelText('סיום'), '05:30');
+    fireEvent.press(screen.getByRole('radio', { name: 'לילה · 150%' }));
+    expect(screen.getByLabelText('התחלה')).toHaveProp('value', '17:30');
+    expect(screen.getByLabelText('סיום')).toHaveProp('value', '05:30');
+    fireEvent.press(screen.getByRole('button', { name: 'שמירה' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(onSave.mock.calls[0][0]).toMatchObject({
+      shiftTemplateId: 'night',
+      shiftTypeNameSnapshot: 'לילה',
+      shiftTypePayMultiplierBasisPoints: 15_000,
+      scheduledStart: expect.stringContaining('2026-08-10T17:30:00'),
+      scheduledEnd: expect.stringContaining('2026-08-11T05:30:00'),
+    });
+    expect(getShiftRangeDurationMinutes(onSave.mock.calls[0][0].scheduledStart, onSave.mock.calls[0][0].scheduledEnd)).toBe(720);
   });
 
   it('infers a past ordinary shift as completed with actual/payable values and no automatic break', async () => {
