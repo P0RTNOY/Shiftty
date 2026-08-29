@@ -9,7 +9,7 @@ import { renderApp } from '@/test/render';
 const mockDeleteMany = jest.fn();
 const mockClear = jest.fn();
 
-const mockCompletedShift = createShift({
+const completedShift = createShift({
   status: 'completed',
   scheduledStart: undefined,
   scheduledEnd: undefined,
@@ -23,10 +23,12 @@ const mockCompletedShift = createShift({
   completedAt: '2026-08-09T16:00:00+03:00',
   salaryCalculationStatus: 'finalized',
 });
+let mockShift = completedShift;
+let mockIncludeSalaryResult = true;
 
 jest.mock('expo-router', () => ({
   router: { back: jest.fn(), push: jest.fn(), replace: jest.fn() },
-  useLocalSearchParams: () => ({ id: mockCompletedShift.id }),
+  useLocalSearchParams: () => ({ id: mockShift.id }),
 }));
 jest.mock('@/features/settings/store/app-store', () => ({
   useAppStore: (selector: (state: unknown) => unknown) => selector({ activeShift: null, setActiveShift: jest.fn() }),
@@ -38,7 +40,7 @@ jest.mock('@/features/shifts/hooks/use-repositories', () => ({
   }),
 }));
 jest.mock('@/features/shifts/hooks/use-shifts', () => ({
-  useShift: () => ({ shift: mockCompletedShift, loading: false, error: null, refresh: jest.fn(), clear: mockClear }),
+  useShift: () => ({ shift: mockShift, loading: false, error: null, refresh: jest.fn(), clear: mockClear }),
 }));
 jest.mock('@/features/shifts/hooks/use-shift-templates', () => ({ useShiftTemplates: () => ({ templates: [] }) }));
 jest.mock('@/features/workplaces/hooks/use-workplaces', () => ({
@@ -50,16 +52,20 @@ jest.mock('@/features/pay-rules', () => ({
     const { calculateSalary } = jest.requireActual('@/domain/services');
     const { createSalaryProfile } = jest.requireActual('@/test/fixtures');
     const result = calculateSalary({
-      shift: mockCompletedShift,
+      shift: mockShift,
       profile: createSalaryProfile({ baseHourlyRateMinor: 6_000 }),
       rules: [], breaks: [], holidayIntervals: [], calculatedAt: '2026-08-09T16:00:00+03:00',
     });
-    return { summary: { resultsByShiftId: { [mockCompletedShift.id]: result } }, coordinator: {} };
+    return { summary: { resultsByShiftId: mockIncludeSalaryResult ? { [mockShift.id]: result } : {} }, coordinator: {} };
   },
 }));
 
 describe('ShiftDetailsScreen deletion', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    mockShift = completedShift;
+    mockIncludeSalaryResult = true;
+    jest.clearAllMocks();
+  });
 
   it('permanently deletes a non-recurring completed shift without scheduled timestamps', async () => {
     jest.spyOn(Alert, 'alert').mockImplementation((_title, _body, buttons) => buttons?.[1]?.onPress?.());
@@ -67,7 +73,7 @@ describe('ShiftDetailsScreen deletion', () => {
 
     fireEvent.press(screen.getByRole('button', { name: 'מחיקה' }));
 
-    await waitFor(() => expect(mockDeleteMany).toHaveBeenCalledWith([mockCompletedShift.id]));
+    await waitFor(() => expect(mockDeleteMany).toHaveBeenCalledWith([completedShift.id]));
     expect(mockClear).toHaveBeenCalledTimes(1);
     expect(router.replace).toHaveBeenCalledWith('/calendar');
   });
@@ -80,5 +86,39 @@ describe('ShiftDetailsScreen deletion', () => {
     expect(screen.queryByText('שכר סופי')).toBeNull();
     fireEvent.press(screen.getByRole('button', { name: 'פתיחת הגדרות שכר' }));
     expect(router.push).toHaveBeenCalledWith('/settings/salary');
+  });
+
+  it('presents a complete live calculation for a scheduled not-calculated shift as an estimate', () => {
+    mockShift = createShift({
+      id: 'scheduled-live-estimate',
+      status: 'scheduled',
+      salaryCalculationStatus: 'not_calculated',
+      scheduledStart: '2026-08-30T17:30:00+03:00',
+      scheduledEnd: '2026-08-31T05:30:00+03:00',
+      expectedBreakMinutes: 0,
+    });
+
+    renderApp(<ShiftDetailsScreen />);
+
+    expect(screen.getByTestId('e2e-salary-total')).toBeTruthy();
+    expect(screen.getByText('הערכת שכר בסיסית')).toBeTruthy();
+    expect(screen.queryByText('הערכת השכר אינה זמינה')).toBeNull();
+  });
+
+  it('keeps a scheduled shift unavailable when no live calculation result exists', () => {
+    mockShift = createShift({
+      id: 'scheduled-missing-estimate',
+      status: 'scheduled',
+      salaryCalculationStatus: 'not_calculated',
+      scheduledStart: '2026-08-30T17:30:00+03:00',
+      scheduledEnd: '2026-08-31T05:30:00+03:00',
+      expectedBreakMinutes: 0,
+    });
+    mockIncludeSalaryResult = false;
+
+    renderApp(<ShiftDetailsScreen />);
+
+    expect(screen.getAllByText('הערכת השכר אינה זמינה')).toHaveLength(1);
+    expect(screen.queryByTestId('e2e-salary-total')).toBeNull();
   });
 });

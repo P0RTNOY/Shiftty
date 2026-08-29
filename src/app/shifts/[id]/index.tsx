@@ -121,7 +121,7 @@ export default function ShiftDetailsScreen() {
       onOpenSalarySettings={() => router.push('/settings/salary')}
       onRecalculate={shift.status === 'completed' ? () => void recalculateSalary() : undefined}
       result={salary.summary?.resultsByShiftId[shift.id]}
-      status={shift.salaryCalculationStatus}
+      status={shift.status === 'scheduled' || shift.status === 'active' ? 'estimated' : shift.salaryCalculationStatus}
     /> : null}
     <RecurrenceScopeChooser onChoose={(scope) => pendingAction ? void applyAction(pendingAction, scope) : undefined} onDismiss={() => setPendingAction(null)} visible={pendingAction !== null} />
   </AppScreen>;
