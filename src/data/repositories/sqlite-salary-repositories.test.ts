@@ -2,6 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { SqlitePayRuleRepository, SqliteSalaryCalculationRepository, SqliteSalaryProfileRepository } from '@/data/repositories';
 import { calculateSalary } from '@/domain/services';
+import { weeklyRestPayRuleId } from '@/domain/services/weekly-rest-pay-rule-service';
 import { createPayRule, createSalaryProfile, createShift } from '@/test/fixtures';
 
 describe('SQLite salary repositories', () => {
@@ -45,6 +46,10 @@ describe('SQLite salary repositories', () => {
     expect(database.withTransactionAsync).toHaveBeenCalledTimes(1);
     expect(database.runAsync).toHaveBeenCalledTimes(5);
     expect(database.runAsync.mock.calls[2]?.[0]).toContain('INSERT INTO pay_rules');
+    expect(database.runAsync.mock.calls[2]?.[0]).toContain('CASE WHEN id = ? THEN ?');
+    expect(database.runAsync.mock.calls[2]?.slice(1)).toEqual(expect.arrayContaining([
+      weeklyRestPayRuleId(previous.id), weeklyRestPayRuleId(next.id),
+    ]));
     expect(database.runAsync.mock.calls[3]?.[0]).toContain('INSERT INTO weekly_rest_schedules');
     expect(database.runAsync.mock.calls[4]?.[0]).toContain('UPDATE workplaces');
     expect(database.runAsync.mock.calls[1]?.slice(1)).toEqual(expect.arrayContaining([1, 1, 2400, 15000, 'gross']));

@@ -2,7 +2,7 @@ import { fireEvent, screen } from '@testing-library/react-native';
 
 import { calculateSalary } from '@/domain/services';
 import { SalaryBreakdown } from '@/features/pay-rules/components/salary-breakdown';
-import { createSalaryProfile, createShift } from '@/test/fixtures';
+import { createCalendarEvidenceInterval, createPayRule, createSalaryProfile, createShift } from '@/test/fixtures';
 import { renderApp } from '@/test/render';
 
 const result = calculateSalary({
@@ -37,6 +37,31 @@ const overLimitResult = calculateSalary({
   }),
   profile: createSalaryProfile({ baseHourlyRateMinor: 6_000 }),
   rules: [], breaks: [], holidayIntervals: [], calculatedAt: '2026-07-15T20:01:00+03:00',
+});
+
+const weeklyRestOvertimeResult = calculateSalary({
+  shift: createShift({
+    scheduledStart: '2026-08-29T17:30:00+03:00',
+    scheduledEnd: '2026-08-30T05:30:00+03:00',
+    expectedBreakMinutes: 0,
+    hourlyRateSnapshotMinor: 0,
+  }),
+  profile: createSalaryProfile({ baseHourlyRateMinor: 6_000 }),
+  rules: [createPayRule({
+    id: 'weekly-rest-rate',
+    premiumFamily: 'special_interval',
+    conditions: [{ type: 'specialInterval', intervalTypes: ['weekly_rest'] }],
+    effect: { type: 'multiplier', basisPoints: 15_000 },
+  })],
+  breaks: [],
+  holidayIntervals: [],
+  specialIntervals: [createCalendarEvidenceInterval({
+    id: 'weekly-rest-occurrence',
+    type: 'weekly_rest',
+    start: '2026-08-28T18:00:00+03:00',
+    end: '2026-08-30T18:00:00+03:00',
+  })],
+  calculatedAt: '2026-08-29T17:00:00+03:00',
 });
 
 it('shows a simple salary estimate and discloses calculation details on request', () => {
@@ -75,6 +100,10 @@ it('keeps stale and missing salary warnings visible without disclosure', () => {
 
 it('labels the 125% and 150% overtime tiers in the Hebrew breakdown', () => {
   renderApp(<SalaryBreakdown result={tieredResult} status="estimated" />);
+
+  expect(screen.getByText(/8 שעות × 100%.*2 שעות × 125%.*2 שעות × 150%/)).toBeTruthy();
+  expect(screen.getByText('חלוקה לפי תעריפים')).toBeTruthy();
+  expect(screen.getByText('תוספות שעות')).toBeTruthy();
   fireEvent.press(screen.getByRole('button', { name: 'פירוט סכומים' }));
 
   expect(screen.getByText(/שעות נוספות 125%/)).toBeTruthy();
@@ -96,6 +125,13 @@ it('labels weekly overtime segments with their configured threshold and multipli
   fireEvent.press(screen.getByRole('button', { name: 'פירוט סכומים' }));
 
   expect(screen.getByText(/שעות נוספות שבועיות אחרי 42 שעות · 125%/)).toBeTruthy();
+});
+
+it('shows the combined weekly-rest and overtime tiers before expanding the details', () => {
+  renderApp(<SalaryBreakdown result={weeklyRestOvertimeResult} status="estimated" />);
+
+  expect(screen.getByTestId('e2e-salary-total').props.accessibilityLabel).toBe('117000');
+  expect(screen.getByText(/8 שעות × 150%.*2 שעות × 175%.*2 שעות × 200%/)).toBeTruthy();
 });
 
 it('shows frozen evidence names on the exact salary segments they overlap', () => {

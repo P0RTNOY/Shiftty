@@ -2,10 +2,11 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { resolveWeeklyRestOccurrences } from '@/domain/services';
-import type { EvidenceSourceKind, WeeklyRestSchedule } from '@/domain/entities';
-import { FormField, PrimaryButton, TimeField } from '@/shared/components';
+import type { EvidenceSourceKind, PayRule, WeeklyRestSchedule } from '@/domain/entities';
+import { FormField, PrimaryButton, SecondaryButton, TimeField } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { radius, spacing, typography, useAppTheme } from '@/shared/theme';
+import { parsePercentageToBasisPoints } from '@/shared/utils/money';
 
 import { WeekdayPicker } from './weekday-picker';
 
@@ -24,14 +25,31 @@ export interface WeeklyRestSettingsDraft {
 
 interface Props {
   schedule?: WeeklyRestSchedule | null;
+  managedPayRule?: PayRule;
+  advancedPayRules?: readonly PayRule[];
+  managedRuleBlocked?: boolean;
   timezone: string;
   workplaceId: string;
   salaryProfileId: string;
   previewFrom?: string;
   onSave: (draft: WeeklyRestSettingsDraft) => void | Promise<void>;
+  onSavePayRule?: (multiplierBasisPoints: number) => void | Promise<void>;
+  onOpenAdvancedRules?: () => void;
 }
 
-export function WeeklyRestSettings({ schedule, timezone, workplaceId, salaryProfileId, previewFrom, onSave }: Props) {
+export function WeeklyRestSettings({
+  schedule,
+  managedPayRule,
+  advancedPayRules = [],
+  managedRuleBlocked = false,
+  timezone,
+  workplaceId,
+  salaryProfileId,
+  previewFrom,
+  onSave,
+  onSavePayRule,
+  onOpenAdvancedRules,
+}: Props) {
   const { colors } = useAppTheme();
   const { formatDate, isRtl, locale, t } = useTranslation();
   const [enabled, setEnabled] = useState(schedule?.enabled ?? false);
@@ -43,10 +61,14 @@ export function WeeklyRestSettings({ schedule, timezone, workplaceId, salaryProf
   const [sourceTitle, setSourceTitle] = useState(schedule?.sourceTitle ?? '');
   const [sourceUrl, setSourceUrl] = useState(schedule?.sourceUrl ?? '');
   const [confirmed, setConfirmed] = useState(false);
+  const [scheduleDirty, setScheduleDirty] = useState(false);
+  const [multiplierPercent, setMultiplierPercent] = useState(
+    managedPayRule?.effect.type === 'multiplier' ? String(managedPayRule.effect.basisPoints / 100) : '',
+  );
   const align = isRtl ? 'right' : 'left';
   const direction = isRtl ? 'row-reverse' : 'row';
   const invalidateConfirmation = () => setConfirmed(false);
-  const update = (operation: () => void) => { operation(); invalidateConfirmation(); };
+  const update = (operation: () => void) => { operation(); setScheduleDirty(true); invalidateConfirmation(); };
   const preview = useMemo(() => {
     if (!enabled || !label.trim()) return undefined;
     const now = previewFrom ?? new Date().toISOString();
@@ -68,6 +90,12 @@ export function WeeklyRestSettings({ schedule, timezone, workplaceId, salaryProf
     }
   }, [enabled, endTime, endWeekday, label, previewFrom, salaryProfileId, schedule, startTime, startWeekday, timezone, workplaceId]);
   const canSave = !enabled || Boolean(preview && confirmed);
+  const payMultiplierBasisPoints = parsePayMultiplier(multiplierPercent);
+  const canSavePayRule = Boolean(schedule?.enabled
+    && !scheduleDirty
+    && !managedRuleBlocked
+    && payMultiplierBasisPoints !== undefined
+    && onSavePayRule);
 
   return <View testID="weekly-rest-settings" style={[styles.card, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
     <View testID="weekly-rest-switch-row" style={[styles.switchRow, { flexDirection: direction }]}>
@@ -134,6 +162,38 @@ export function WeeklyRestSettings({ schedule, timezone, workplaceId, salaryProf
       })}
       testID="e2e-weekly-rest-save"
     />
+
+    {schedule?.enabled ? <View testID="weekly-rest-pay-settings" style={[styles.payCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <Text style={[styles.title, { color: colors.text, textAlign: align }]}>{t('salary.weeklyRestPayTitle')}</Text>
+      <Text style={[styles.body, { color: colors.textMuted, textAlign: align }]}>{t('salary.weeklyRestPaySummary')}</Text>
+      {managedRuleBlocked ? <Text accessibilityRole="alert" style={[styles.body, { color: colors.warning, textAlign: align }]}>{t('salary.weeklyRestPayManagedConflict')}</Text> : <>
+        <FormField
+          accessibilityLabel={t('salary.weeklyRestPayMultiplier')}
+          keyboardType="decimal-pad"
+          label={t('salary.weeklyRestPayMultiplier')}
+          onChangeText={setMultiplierPercent}
+          selectTextOnFocus
+          style={styles.machineInput}
+          testID="e2e-weekly-rest-pay-multiplier"
+          value={multiplierPercent}
+        />
+        <Text style={[styles.body, { color: colors.textMuted, textAlign: align }]}>{t('salary.weeklyRestPayMultiplierHelp')}</Text>
+        {!managedPayRule ? <Text accessibilityRole="alert" style={[styles.body, { color: colors.warning, textAlign: align }]}>{t('salary.weeklyRestPayMissing')}</Text> : null}
+        {scheduleDirty ? <Text accessibilityRole="alert" style={[styles.body, { color: colors.warning, textAlign: align }]}>{t('salary.weeklyRestPayUnsavedWindow')}</Text> : null}
+        <PrimaryButton
+          disabled={!canSavePayRule}
+          label={managedPayRule ? t('salary.weeklyRestPayUpdate') : t('salary.weeklyRestPaySave')}
+          onPress={() => payMultiplierBasisPoints !== undefined && onSavePayRule ? void onSavePayRule(payMultiplierBasisPoints) : undefined}
+          testID="e2e-weekly-rest-pay-save"
+        />
+      </>}
+      {advancedPayRules.length > 0 ? <View style={styles.advancedRules}>
+        <Text style={[styles.previewTitle, { color: colors.text, textAlign: align }]}>{t('salary.weeklyRestAdvancedRules')}</Text>
+        {advancedPayRules.map((rule) => <Text key={rule.id} style={[styles.body, { color: colors.textMuted, textAlign: align }]}>{formatRuleSummary(rule, t('rules.enabled'), t('rules.disabled'))}</Text>)}
+        <Text style={[styles.body, { color: colors.warning, textAlign: align }]}>{t('salary.weeklyRestAdvancedRulesWarning')}</Text>
+      </View> : null}
+      {onOpenAdvancedRules ? <SecondaryButton label={t('salary.weeklyRestOpenAdvancedRules')} onPress={onOpenAdvancedRules} /> : null}
+    </View> : null}
   </View>;
 }
 
@@ -147,6 +207,20 @@ function formatExactRange(start: string, end: string, timezone: string, _locale:
   return `${formatDate(start, options)} – ${formatDate(end, options)}`;
 }
 
+function parsePayMultiplier(value: string): number | undefined {
+  try {
+    const basisPoints = parsePercentageToBasisPoints(value);
+    return basisPoints >= 10_000 ? basisPoints : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function formatRuleSummary(rule: PayRule, enabled: string, disabled: string): string {
+  const multiplier = rule.effect.type === 'multiplier' ? ` · ${rule.effect.basisPoints / 100}%` : '';
+  return `${rule.name}${multiplier} · ${rule.isEnabled ? enabled : disabled}`;
+}
+
 const styles = StyleSheet.create({
   card: { borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, gap: spacing.md, padding: spacing.md },
   switchRow: { alignItems: 'center', gap: spacing.md, justifyContent: 'space-between', minHeight: 48 },
@@ -155,6 +229,8 @@ const styles = StyleSheet.create({
   body: { fontSize: typography.body, lineHeight: 22 },
   fields: { gap: spacing.md },
   preview: { borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, gap: spacing.xs, padding: spacing.md },
+  payCard: { borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, gap: spacing.sm, padding: spacing.md },
+  advancedRules: { gap: spacing.xs },
   previewTitle: { fontWeight: '800' },
   machineText: { fontVariant: ['tabular-nums'], lineHeight: 22, writingDirection: 'ltr' },
   machineInput: { textAlign: 'left', writingDirection: 'ltr' },

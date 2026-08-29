@@ -13,6 +13,7 @@ import {
 } from '@/domain/entities';
 import type { PayRuleRepository, SalaryCalculationRepository, SalaryProfileRepository } from '@/domain/repositories';
 import { resolveWeeklyRestOccurrences } from '@/domain/services/weekly-rest-occurrence-service';
+import { weeklyRestPayRuleId } from '@/domain/services/weekly-rest-pay-rule-service';
 import { formatLocalDateKey } from '@/shared/utils/zoned-time';
 
 interface SalaryProfileRow {
@@ -45,9 +46,9 @@ export class SqliteSalaryProfileRepository implements SalaryProfileRepository {
       await this.save(next, true);
       await this.database.runAsync(`INSERT INTO pay_rules (id, salary_profile_id, name, priority, conditions_json, effect_json, can_stack,
         premium_family, is_enabled, effective_from, effective_to, created_at, updated_at)
-        SELECT id || '__version__' || ?, ?, name, priority, conditions_json, effect_json, can_stack,
+        SELECT CASE WHEN id = ? THEN ? ELSE id || '__version__' || ? END, ?, name, priority, conditions_json, effect_json, can_stack,
           premium_family, is_enabled, effective_from, effective_to, ?, ? FROM pay_rules WHERE salary_profile_id = ?;`,
-      next.id, next.id, next.createdAt, next.updatedAt, previous.id);
+      weeklyRestPayRuleId(previous.id), weeklyRestPayRuleId(next.id), next.id, next.id, next.createdAt, next.updatedAt, previous.id);
       await this.database.runAsync(`INSERT INTO weekly_rest_schedules (
         id, workplace_id, salary_profile_id, label, start_weekday, start_time, end_weekday, end_time,
         enabled, confirmed_at, source_kind, source_title, source_url, preset_id, preset_version,

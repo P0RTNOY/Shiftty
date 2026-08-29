@@ -7,6 +7,11 @@ import {
 } from '@/data/repositories/sqlite-calendar-evidence-repositories';
 import { SqlitePayRuleRepository, SqliteSalaryProfileRepository } from '@/data/repositories/sqlite-salary-repositories';
 import type { CalendarEvidenceInterval, WeeklyRestSchedule } from '@/domain/entities';
+import {
+  buildManagedWeeklyRestPayRule,
+  classifyWeeklyRestPayRules,
+  weeklyRestPayRuleId,
+} from '@/domain/services/weekly-rest-pay-rule-service';
 import { createRealSqliteDb } from '@/test-utils/real-sqlite';
 import { createPayRule, createSalaryProfile } from '@/test/fixtures';
 
@@ -227,6 +232,47 @@ describe('SQLite calendar-evidence repositories', () => {
       enabled: true, confirmedAt: timestamp,
     });
     expect(cloned?.id).not.toBe(enabled.id);
+  });
+
+  it('remaps the simple weekly-rest rate into a profile version without leaving a stronger duplicate', async () => {
+    const payRules = new SqlitePayRuleRepository(db);
+    await payRules.save(buildManagedWeeklyRestPayRule({
+      salaryProfileId: 'profile',
+      multiplierBasisPoints: 15_000,
+      name: 'Weekly-rest rate',
+      timestamp,
+    }));
+    const profiles = new SqliteSalaryProfileRepository(db);
+    const previous = createSalaryProfile({
+      id: 'profile', workplaceId: 'wp', effectiveFrom: '2026-01-01', effectiveTo: '2026-08-31',
+      createdAt: timestamp, updatedAt: timestamp,
+    });
+    const next = createSalaryProfile({
+      id: 'profile-next', workplaceId: 'wp', effectiveFrom: '2026-09-01',
+      createdAt: '2026-08-25T00:00:00Z', updatedAt: '2026-08-25T00:00:00Z',
+    });
+
+    await profiles.createVersion(previous, next);
+
+    const cloned = await payRules.listForProfile(next.id);
+    expect(cloned).toHaveLength(1);
+    expect(cloned[0]).toMatchObject({
+      id: weeklyRestPayRuleId(next.id),
+      salaryProfileId: next.id,
+      effect: { type: 'multiplier', basisPoints: 15_000 },
+    });
+    expect(classifyWeeklyRestPayRules(cloned, next.id)).toMatchObject({ managed: cloned[0], advanced: [] });
+
+    await payRules.save(buildManagedWeeklyRestPayRule({
+      salaryProfileId: next.id,
+      multiplierBasisPoints: 12_500,
+      name: 'Weekly-rest rate',
+      timestamp: '2026-08-26T00:00:00Z',
+      existing: cloned[0],
+    }));
+    const lowered = await payRules.listForProfile(next.id);
+    expect(lowered).toHaveLength(1);
+    expect(lowered[0]).toMatchObject({ effect: { type: 'multiplier', basisPoints: 12_500 } });
   });
 });
 

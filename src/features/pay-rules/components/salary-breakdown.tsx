@@ -35,6 +35,7 @@ export function SalaryBreakdown({ result, status, onRecalculate, onOpenSalarySet
   const hasLegacyBaseOnlyCalculation = result.issues.some((issue) => issue.code === 'no_pay_rules_configured');
   const shiftTypeMultiplier = result.shiftTypeMultiplierBasisPoints ?? 10_000;
   const weeklyRuleLabel = resolveWeeklyRuleLabel(result, locale, t);
+  const rateTierSummary = formatRateTierSummary(result, locale);
   const effectiveShiftTypeRate = result.resolvedBaseHourlyRateMinor === undefined
     ? undefined
     : Math.round(result.resolvedBaseHourlyRateMinor * shiftTypeMultiplier / 10_000);
@@ -47,6 +48,8 @@ export function SalaryBreakdown({ result, status, onRecalculate, onOpenSalarySet
     {result.resolvedBaseHourlyRateMinor !== undefined ? <Row label={t('salary.baseHourlyRate')} value={formatCurrency(result.resolvedBaseHourlyRateMinor)} /> : null}
     <Row label={t('salary.shiftTypeMultiplier')} value={`${shiftTypeMultiplier / 100}%`} />
     {effectiveShiftTypeRate !== undefined ? <Row label={t('salary.effectiveHourlyRate')} value={formatCurrency(effectiveShiftTypeRate)} /> : null}
+    {rateTierSummary ? <Row label={t('salary.rateTiers')} value={rateTierSummary} /> : null}
+    {result.premiumPayMinor > 0 ? <Row label={t('salary.premiumPay')} value={formatCurrency(result.premiumPayMinor)} /> : null}
     {hasLegacyBaseOnlyCalculation ? <Text accessibilityRole="alert" style={[styles.warning, { color: colors.warning, textAlign: align }]}>{t('salary.noPayRules')}</Text> : null}
     {hasLegacyBaseOnlyCalculation && onRecalculate ? <PrimaryButton label={t('salary.applyDefaultOvertime')} onPress={onRecalculate} /> : null}
     <SalaryTrustDisclosure onOpenSalarySettings={onOpenSalarySettings} result={result} status={status} />
@@ -92,7 +95,7 @@ export function SalaryBreakdown({ result, status, onRecalculate, onOpenSalarySet
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   const { colors } = useAppTheme();
   const { isRtl } = useTranslation();
-  return <View style={[styles.row, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}><Text style={{ color: colors.textMuted }}>{label}</Text><Text style={{ color: colors.text, fontWeight: strong ? '800' : '600' }}>{value}</Text></View>;
+  return <View style={[styles.row, { flexDirection: isRtl ? 'row-reverse' : 'row' }]}><Text style={{ color: colors.textMuted, flexShrink: 0 }}>{label}</Text><Text style={{ color: colors.text, flex: 1, flexShrink: 1, fontWeight: strong ? '800' : '600', textAlign: isRtl ? 'left' : 'right' }}>{value}</Text></View>;
 }
 
 function resolveWeeklyRuleLabel(
@@ -110,6 +113,20 @@ function resolveWeeklyRuleLabel(
     threshold: formatDurationLong(regularMinutes, locale),
     multiplier: multiplierBasisPoints / 100,
   });
+}
+
+function formatRateTierSummary(result: PayCalculationResult, locale: 'he' | 'en'): string | undefined {
+  const minutesByMultiplier = new Map<number, number>();
+  for (const segment of result.segments) {
+    minutesByMultiplier.set(
+      segment.multiplierBasisPoints,
+      (minutesByMultiplier.get(segment.multiplierBasisPoints) ?? 0) + segment.minutes,
+    );
+  }
+  if (minutesByMultiplier.size === 1 && minutesByMultiplier.has(10_000)) return undefined;
+  return [...minutesByMultiplier.entries()]
+    .map(([basisPoints, minutes]) => `${formatDurationLong(minutes, locale)} × ${basisPoints / 100}%`)
+    .join(' · ');
 }
 
 const styles = StyleSheet.create({

@@ -1,6 +1,16 @@
 # Shiftty Project Status
 
-Last updated: 2026-08-28
+Last updated: 2026-08-29
+
+## Dynamic Weekly-Rest Pay Configuration — 2026-08-29
+
+Weekly-rest salary settings now keep the recurring interval and its pay effect explicit while making the two-stage workflow discoverable on one profile-scoped screen. A user first selects and confirms any local weekday/time window—for example, Friday 18:00 through Sunday 18:00—and can then save an independent total-rate multiplier such as 150%. Shiftty still does not infer Saturday, sunset, religion, entitlement, agreement coverage, or a legally required multiplier.
+
+The simplified multiplier control creates or updates only its deterministic, enabled, non-stacking `specialInterval: weekly_rest` pay rule. It does not overwrite disabled/advanced rules or an incompatible rule-ID collision; other weekly-rest rules remain visible with state and link to the advanced editor. Effective-dated profile versioning remaps the managed rule to the new profile instead of leaving a stronger duplicate. Returning from advanced rules refreshes the simple value, while window edits invalidate confirmation and block simple rate changes until the interval is saved again. No schema, migration, backup-envelope, persisted trust-state, salary snapshot, dependency, or historical total changed.
+
+Shift Details now labels the shift-type percentage as the base shift-type multiplier and shows grouped effective rate tiers plus the premium amount before the expandable breakdown. The exact Saturday 17:30–Sunday 05:30 regression at ₪60/hour verifies the default overtime estimate as 8 hours at 100%, 2 hours at 125%, and 2 hours at 150% (₪810). With a user-confirmed Friday 18:00–Sunday 18:00 interval and 150% weekly-rest rule, the same shift resolves to 8 hours at 150%, 2 hours at 175%, and 2 hours at 200% (₪1,170).
+
+Fresh source verification passed type checking, zero-warning lint, **141/141 Jest suites and 716/716 tests**, empty and v1–v9 migration validation, Expo web export of all 37 static routes, the accepted exact 12-notice Expo SDK 57 patch baseline, public Expo configuration, production iOS configuration/surface audits, and `git diff --check`. Dependencies remain locked. Native artifact, physical installation, launch, and data-preservation results will be reported in the exact-commit handoff after that build is verified.
 
 ## Production Signing and Internal TestFlight Candidate — 2026-08-28
 

@@ -42,7 +42,7 @@ The disclosure also says what is **not fully modeled**:
 - employer-specific agreements; and
 - deductions, tax, pension, National Insurance, and other net-pay components.
 
-Confirmed evidence intervals and recurring weekly-rest occurrences can be supplied to the pure engine entirely offline, but Shiftty does not automatically determine which dates, rest choices, agreements, permits, or entitlements apply. Calendar evidence has no salary effect without a separate applicable pay rule. The current engine produces gross estimates only.
+Confirmed evidence intervals and recurring weekly-rest occurrences can be supplied to the pure engine entirely offline, but Shiftty does not automatically determine which dates, rest choices, agreements, permits, or entitlements apply. Calendar evidence has no salary effect without a separate applicable pay rule. The weekly-rest settings card therefore uses two explicit stages: save and confirm the profile-specific recurring window, then optionally save its total-rate multiplier. Both values remain editable and separately persisted; no Saturday, sunset, religion, entitlement, or universal 150% rule is inferred. The current engine produces gross estimates only.
 
 ## Default overtime assumption
 
@@ -52,7 +52,7 @@ Any persisted shift- or day-scoped worked-minute multiplier rule, including a di
 
 ## Screens, reports, and exports
 
-Salary Settings, Shift Details, active tracking, quick clock-out review, Home, and Reports use the shared estimate terminology and trust handling. Numeric Home totals are hidden when the relevant completed-shift salary set contains a missing, incomplete, stale, or otherwise unavailable result.
+Salary Settings, Shift Details, active tracking, quick clock-out review, Home, and Reports use the shared estimate terminology and trust handling. Shift Details exposes the actual grouped rate tiers and premium amount before the expandable component breakdown, so the shift-type baseline cannot be mistaken for the final overtime/special-rate composition. Numeric Home totals are hidden when the relevant completed-shift salary set contains a missing, incomplete, stale, or otherwise unavailable result.
 
 The authoritative monthly report keeps its existing row and total semantics:
 

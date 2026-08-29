@@ -67,6 +67,10 @@ Local wall-clock boundaries are resolved in the salary profile's IANA timezone, 
 
 The weekly-rest schedule and the workweek used for weekly-overtime accumulation are intentionally separate. Choosing a rest interval does not change the workweek start or weekly threshold, and configuring a workweek does not create weekly-rest evidence.
 
+The settings flow keeps the schedule and its pay effect as two explicit save stages on the same card. First, the user selects and confirms the recurring local window. After that persisted window is active, the card exposes an optional total-rate percentage backed by a normal profile-scoped `specialInterval: weekly_rest` pay rule. For example, `150%` means a total 1.5-times base rate, not an additional 150% premium. The simple control owns only the enabled deterministic `weekly-rest-pay:<profile-id>` rule and never rewrites an incompatible, disabled, effective-dated, stacking, or otherwise advanced rule. Other matching rules remain visible by name/state and can be reviewed in the advanced editor. Effective-dated salary-profile versioning remaps the managed ID to the new profile so lowering a rate cannot leave a stronger cloned duplicate behind.
+
+This same-screen workflow does not couple the underlying records or imply an atomic combined save. A window can remain active with no pay effect, and the UI states that explicitly. Editing the window requires a new confirmation before its simple pay rule can be changed. Disabling the recurring window does not delete pay rules because they may also apply to separately confirmed manual `weekly_rest` intervals.
+
 ## Preset and source provenance
 
 This foundation intentionally includes one small, reviewable fixture instead of a broad national calendar:
@@ -162,7 +166,7 @@ Replace restore writes active and archived evidence/schedules, including optiona
 
 ## Settings, reports, and exports
 
-Advanced Salary Settings exposes **חגים ומנוחה שבועית / Holidays & weekly rest** without changing the hourly-rate-first setup. The flow supports a disabled-by-default recurring schedule, an exact occurrence preview, manual profile- or workplace-scoped intervals, source metadata, the reviewed representative preset, explicit confirmation, rule-effect status, direct navigation to a type-scoped pay-rule editor, edit, archive/restore, and confirmed deletion.
+Advanced Salary Settings exposes **חגים ומנוחה שבועית / Holidays & weekly rest** without changing the hourly-rate-first setup. The flow supports a disabled-by-default recurring schedule, an exact occurrence preview, explicit two-stage weekly-rest window/rate configuration, manual profile- or workplace-scoped intervals, source metadata, the reviewed representative preset, rule-effect status, direct navigation to the advanced type-scoped pay-rule editor, edit, archive/restore, and confirmed deletion.
 
 All copy is translated. Disclosure controls announce expanded/collapsed state, choices expose radio/checkbox/switch state, touch controls retain native roles, and logical layout follows RTL/LTR. Dates, times, percentages, and URLs use directionally isolated, wrapping text; evidence type/effect is stated in words and not represented by color alone.
 
@@ -174,10 +178,18 @@ ICS remains calendar-only. It exports no salary amount, evidence provenance, sou
 
 This foundation does not provide automatic calendar synchronization, a comprehensive Israeli or worldwide holiday dataset, religious-calendar calculations, sunset boundaries, employee or employer entitlement decisions, permit verification, agreement interpretation, night-work presets, taxes, National Insurance, pension, deductions, benefits, or net pay. Imported sources are user-confirmed inputs, not independently authenticated legal evidence.
 
-The included fixture demonstrates a safe versioned preset workflow; it is not a complete calendar. Users must review exact boundaries and configure a separate pay rule that reflects their own verified arrangement. Professional payroll or legal review remains necessary where correctness or entitlement matters.
+The included fixture demonstrates a safe versioned preset workflow; it is not a complete calendar. Users must review exact boundaries and explicitly save a separate pay rule—using the same weekly-rest card or the advanced editor—that reflects their own verified arrangement. Professional payroll or legal review remains necessary where correctness or entitlement matters.
 
 ## Verification recorded for this milestone
 
 The 2026-08-25 repository gate passed type checking and linting; 131 Jest suites containing 652 tests passed; Migration 9 validation passed for empty and v1–v9 databases; the Expo web export produced 37 static routes; public Expo configuration generation passed; and `git diff --check` passed after the documentation update. `expo install --check` continues to report the accepted baseline of eight SDK 57 patch-level notices, and dependencies were not updated.
 
 The current Debug development client built, installed, and launched on the booted iPhone 17 Pro simulator running iOS 26.5. A representative profile database upgraded to Migration 9, and the Holidays & weekly rest settings route was visually inspected in Hebrew and with English localized copy, including the disabled recurring-rest state and legal-safety disclosure. The dev-client connection did not remain stable enough to claim the complete manual interaction matrix. Manual interval creation, configured-rule results, Shift Details, Reports, Dynamic Type extremes, and the native accessibility tree remain automated-only for this milestone. Android and physical-device verification were not performed.
+
+## Dynamic weekly-rest configuration follow-up — 2026-08-29
+
+The profile-scoped weekly-rest card now makes the existing evidence/rule separation actionable in one place. After the user saves and confirms an arbitrary recurring weekday/time window, a second explicit control can create or update a dedicated total-rate rule for `weekly_rest`. It starts empty rather than assuming 150%. Advanced matching rules are listed separately, incompatible managed-ID collisions are never overwritten, and changing an unsaved window blocks the simple rule update.
+
+Shift Details now exposes grouped effective rate tiers and premium pay before the expandable component list. Automated coverage fixes the reported workplace example: Friday 18:00 through Sunday 18:00 at a user-entered 150% total rate. A Saturday 17:30 through Sunday 05:30 12-hour shift at ₪60/hour resolves to 480 minutes at 150%, 120 minutes at 175%, and 120 minutes at 200%, totaling ₪1,170. Without the explicit weekly-rest rule, the unchanged product-default overtime remains 480 minutes at 100%, 120 minutes at 125%, and 120 minutes at 150%, totaling ₪810.
+
+The complete source gate passed type checking, zero-warning lint, 141 Jest suites containing 716 tests, empty and v1–v9 migration validation, Expo export of 37 static routes, the accepted exact 12-notice SDK 57 compatibility baseline, public configuration, production iOS configuration/surface audits, and patch-whitespace validation. No migration, dependency, backup format, stored snapshot, or historical total changed.

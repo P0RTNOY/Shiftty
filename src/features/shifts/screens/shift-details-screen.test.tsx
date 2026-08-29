@@ -93,14 +93,15 @@ describe('ShiftDetailsScreen deletion', () => {
       id: 'scheduled-live-estimate',
       status: 'scheduled',
       salaryCalculationStatus: 'not_calculated',
-      scheduledStart: '2026-08-30T17:30:00+03:00',
-      scheduledEnd: '2026-08-31T05:30:00+03:00',
+      scheduledStart: '2026-08-29T17:30:00+03:00',
+      scheduledEnd: '2026-08-30T05:30:00+03:00',
       expectedBreakMinutes: 0,
     });
 
     renderApp(<ShiftDetailsScreen />);
 
-    expect(screen.getByTestId('e2e-salary-total')).toBeTruthy();
+    expect(screen.getByTestId('e2e-salary-total').props.accessibilityLabel).toBe('81000');
+    expect(screen.getByText(/8 שעות × 100%.*2 שעות × 125%.*2 שעות × 150%/)).toBeTruthy();
     expect(screen.getByText('הערכת שכר בסיסית')).toBeTruthy();
     expect(screen.queryByText('הערכת השכר אינה זמינה')).toBeNull();
   });

@@ -307,6 +307,56 @@ describe('SalaryCalculationCoordinator', () => {
     ]);
   });
 
+  it('combines a profile-specific Friday-to-Sunday rest rate with overnight overtime tiers', async () => {
+    const shift = createShift({
+      scheduledStart: '2026-08-29T17:30:00+03:00',
+      scheduledEnd: '2026-08-30T05:30:00+03:00',
+      expectedBreakMinutes: 0,
+      hourlyRateSnapshotMinor: 0,
+    });
+    const profile = createSalaryProfile({ baseHourlyRateMinor: 6000 });
+    const schedule = createWeeklyRestSchedule({
+      startWeekday: 5,
+      startTime: '18:00',
+      endWeekday: 0,
+      endTime: '18:00',
+      enabled: true,
+      confirmedAt: '2026-08-28T17:00:00+03:00',
+    });
+    const rule = createPayRule({
+      id: 'weekly-rest-rate',
+      premiumFamily: 'special_interval',
+      conditions: [{ type: 'specialInterval', intervalTypes: ['weekly_rest'] }],
+      effect: { type: 'multiplier', basisPoints: 15_000 },
+    });
+    const deps = repositories({
+      salaryProfiles: { listByWorkplace: jest.fn().mockResolvedValue([profile]), getById: jest.fn() } as unknown as SalaryCoordinatorRepositories['salaryProfiles'],
+      payRules: { listForProfile: jest.fn().mockResolvedValue([rule]) } as unknown as SalaryCoordinatorRepositories['payRules'],
+      calendarEvidenceIntervals: { listOverlapping: jest.fn().mockResolvedValue([]) } as unknown as NonNullable<SalaryCoordinatorRepositories['calendarEvidenceIntervals']>,
+      weeklyRestSchedules: { getForProfile: jest.fn().mockResolvedValue(schedule) } as unknown as NonNullable<SalaryCoordinatorRepositories['weeklyRestSchedules']>,
+    });
+
+    const result = await new SalaryCalculationCoordinator(deps).previewShift(shift, '2026-08-29T17:00:00+03:00');
+
+    expect(result.segments.map((segment) => [segment.localDate, segment.minutes, segment.multiplierBasisPoints])).toEqual([
+      ['2026-08-29', 390, 15_000],
+      ['2026-08-30', 90, 15_000],
+      ['2026-08-30', 120, 17_500],
+      ['2026-08-30', 120, 20_000],
+    ]);
+    expect(result).toMatchObject({
+      payableMinutes: 720,
+      regularMinutes: 0,
+      specialRateMinutes: 720,
+      basePayMinor: 72_000,
+      premiumPayMinor: 45_000,
+      totalGrossPayMinor: 117_000,
+    });
+    expect(result.specialIntervalEvaluations).toEqual([
+      expect.objectContaining({ type: 'weekly_rest', contributedToEstimate: true }),
+    ]);
+  });
+
   it('isolates profile-scoped evidence by the effective-dated resolved profile', async () => {
     const oldProfile = createSalaryProfile({ id: 'old-profile', effectiveFrom: '2026-01-01', effectiveTo: '2026-06-30', baseHourlyRateMinor: 6000 });
     const currentProfile = createSalaryProfile({ id: 'current-profile', effectiveFrom: '2026-07-01', baseHourlyRateMinor: 6000 });

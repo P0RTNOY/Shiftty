@@ -18,6 +18,10 @@ import { CalendarEvidencePresetPreview } from '@/features/pay-rules/components/c
 import { SpecialPayIntervalCard } from '@/features/pay-rules/components/special-pay-interval-card';
 import { SpecialPayIntervalForm, type SpecialPayIntervalDraft } from '@/features/pay-rules/components/special-pay-interval-form';
 import { WeeklyRestSettings, type WeeklyRestSettingsDraft } from '@/features/pay-rules/components/weekly-rest-settings';
+import {
+  buildManagedWeeklyRestPayRule,
+  classifyWeeklyRestPayRules,
+} from '@/domain/services/weekly-rest-pay-rule-service';
 import { useRepositories } from '@/features/shifts/hooks/use-repositories';
 import { AppScreen, EmptyState, SecondaryButton } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
@@ -37,6 +41,7 @@ export default function HolidaysRestScreen() {
   const [editing, setEditing] = useState<CalendarEvidenceInterval>();
   const [error, setError] = useState(false);
   const align = isRtl ? 'right' : 'left';
+  const weeklyRestPayRules = classifyWeeklyRestPayRules(rules, profileId);
 
   const refresh = useCallback(async () => {
     if (!profileId) { setProfile(null); return; }
@@ -117,6 +122,23 @@ export default function HolidaysRestScreen() {
     }
   };
 
+  const saveWeeklyRestPayRule = async (multiplierBasisPoints: number) => {
+    if (!profile) return;
+    const timestamp = new Date().toISOString();
+    try {
+      await repositories.payRules.save(buildManagedWeeklyRestPayRule({
+        salaryProfileId: profile.id,
+        multiplierBasisPoints,
+        name: t('salary.weeklyRestPayRuleName'),
+        timestamp,
+        existing: weeklyRestPayRules.managed,
+      }));
+      await refresh();
+    } catch {
+      setError(true);
+    }
+  };
+
   const applyPreset = async () => {
     if (!profile) return;
     const timestamp = new Date().toISOString();
@@ -162,12 +184,21 @@ export default function HolidaysRestScreen() {
     </View>
     {error ? <Text accessibilityRole="alert" style={{ color: colors.danger, textAlign: align }}>{t('common.error')}</Text> : null}
     <WeeklyRestSettings
-      key={schedule?.updatedAt ?? 'new-weekly-rest'}
+      key={[
+        schedule?.updatedAt ?? 'new-weekly-rest',
+        weeklyRestPayRules.managed?.updatedAt ?? 'no-managed-rule',
+        weeklyRestPayRules.managedIdCollision?.updatedAt ?? 'no-managed-collision',
+      ].join(':')}
+      advancedPayRules={weeklyRestPayRules.advanced}
+      managedPayRule={weeklyRestPayRules.managed}
+      managedRuleBlocked={Boolean(weeklyRestPayRules.managedIdCollision)}
       salaryProfileId={profile.id}
       schedule={schedule}
       timezone={profile.timezone}
       workplaceId={profile.workplaceId}
+      onOpenAdvancedRules={() => router.push(`/settings/salary/rules?profileId=${profile.id}&kind=specialInterval&intervalType=weekly_rest`)}
       onSave={saveSchedule}
+      onSavePayRule={saveWeeklyRestPayRule}
     />
     <CalendarEvidencePresetPreview preset={IL_CIVIL_SERVICE_INDEPENDENCE_DAY_2026_PRESET} onApply={applyPreset} />
     <View style={styles.section}>

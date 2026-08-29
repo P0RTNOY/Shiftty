@@ -3,13 +3,15 @@ import { Alert } from 'react-native';
 import { router } from 'expo-router';
 
 import HolidaysRestScreen from '@/app/settings/salary/holidays-rest';
-import { createCalendarEvidenceInterval, createSalaryProfile } from '@/test/fixtures';
+import { createCalendarEvidenceInterval, createSalaryProfile, createWeeklyRestSchedule } from '@/test/fixtures';
 import { renderApp } from '@/test/render';
 
 const interval = createCalendarEvidenceInterval({ name: 'חג מוגדר' });
 const mockDelete = jest.fn().mockResolvedValue(undefined);
 const mockListForScope = jest.fn().mockResolvedValue([interval]);
 const mockGetProfile = jest.fn().mockResolvedValue(createSalaryProfile({ name: 'שכר קיץ' }));
+const mockSavePayRule = jest.fn().mockResolvedValue(undefined);
+let mockSchedule: ReturnType<typeof createWeeklyRestSchedule> | null = null;
 let mockFocusInvoked = false;
 
 jest.mock('expo-router', () => ({
@@ -21,13 +23,13 @@ jest.mock('@/features/shifts/hooks/use-repositories', () => ({
   useRepositories: () => ({
     salaryProfiles: { getById: mockGetProfile },
     calendarEvidenceIntervals: { listForScope: mockListForScope, save: jest.fn(), archive: jest.fn(), delete: mockDelete },
-    weeklyRestSchedules: { getForProfile: jest.fn().mockResolvedValue(null), save: jest.fn() },
-    payRules: { listForProfile: jest.fn().mockResolvedValue([]) },
+    weeklyRestSchedules: { getForProfile: jest.fn().mockImplementation(() => Promise.resolve(mockSchedule)), save: jest.fn() },
+    payRules: { listForProfile: jest.fn().mockResolvedValue([]), save: mockSavePayRule },
   }),
 }));
 
 describe('HolidaysRestScreen', () => {
-  beforeEach(() => { jest.clearAllMocks(); mockFocusInvoked = false; });
+  beforeEach(() => { jest.clearAllMocks(); mockFocusInvoked = false; mockSchedule = null; });
 
   it('loads the profile-scoped advanced settings and opens a type-scoped pay-rule editor', async () => {
     renderApp(<HolidaysRestScreen />);
@@ -55,5 +57,29 @@ describe('HolidaysRestScreen', () => {
     await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('evidence-1'));
     expect(screen.getByText(/הערכות שכר שמורות/)).toBeTruthy();
     alert.mockRestore();
+  });
+
+  it('saves an explicit weekly-rest multiplier and links to the preselected advanced editor', async () => {
+    mockSchedule = createWeeklyRestSchedule({
+      startWeekday: 5, startTime: '18:00', endWeekday: 0, endTime: '18:00',
+      enabled: true, confirmedAt: '2026-08-28T17:00:00+03:00',
+    });
+    renderApp(<HolidaysRestScreen />);
+
+    await screen.findByTestId('weekly-rest-pay-settings');
+    fireEvent.changeText(screen.getByLabelText('תעריף כולל במנוחה השבועית (%)'), '150');
+    fireEvent.press(screen.getByRole('button', { name: 'שמירת תעריף מנוחה שבועית' }));
+
+    await waitFor(() => expect(mockSavePayRule).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'weekly-rest-pay:profile-1',
+      salaryProfileId: 'profile-1',
+      conditions: [{ type: 'specialInterval', intervalTypes: ['weekly_rest'] }],
+      effect: { type: 'multiplier', basisPoints: 15_000 },
+      premiumFamily: 'special_interval',
+      canStack: false,
+    })));
+
+    fireEvent.press(screen.getByRole('button', { name: 'פתיחת כללי תשלום מתקדמים' }));
+    expect(router.push).toHaveBeenCalledWith('/settings/salary/rules?profileId=profile-1&kind=specialInterval&intervalType=weekly_rest');
   });
 });
