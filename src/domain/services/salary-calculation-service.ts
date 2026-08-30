@@ -19,7 +19,7 @@ import { formatLocalDateKey, resolveLocalDateTime } from '@/shared/utils/zoned-t
 import { resolveHourlyRate } from './rate-resolution-service';
 import { MAX_SHIFT_DURATION_MINUTES } from './shift-duration-policy';
 
-export const SALARY_ENGINE_VERSION = '1.5.0';
+export const SALARY_ENGINE_VERSION = '1.6.0';
 export const DEFAULT_OVERTIME_TIER_ONE_RULE_ID = 'system-default-overtime-8-to-10-hours';
 export const DEFAULT_OVERTIME_TIER_TWO_RULE_ID = 'system-default-overtime-10-to-12-hours';
 export const DEFAULT_OVERTIME_TIER_ONE_RULE_NAME = 'salary.defaultOvertimeTierOneName';
@@ -216,7 +216,7 @@ function calculateSalaryInternal(input: SalaryCalculationInput, analyzeSpecialCo
   if (grossMinutes > MAX_SHIFT_DURATION_MINUTES) {
     issues.push({
       code: 'shift_duration_exceeds_maximum',
-      severity: 'error',
+      severity: 'warning',
       messageKey: 'salary.issues.shiftDurationExceedsMaximum',
       metadata: { maximumMinutes: MAX_SHIFT_DURATION_MINUTES, grossMinutes },
     });

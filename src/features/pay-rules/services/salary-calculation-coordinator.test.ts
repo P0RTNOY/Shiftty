@@ -357,6 +357,121 @@ describe('SalaryCalculationCoordinator', () => {
     ]);
   });
 
+  it('recalculates the real 12-hour-1-minute completed weekly-rest shift without truncating pay', async () => {
+    const shift = createShift({
+      id: 'real-weekly-rest-shift',
+      status: 'completed',
+      actualStart: '2026-08-29T17:23:00+03:00',
+      actualEnd: '2026-08-30T05:24:00+03:00',
+      payableStart: '2026-08-29T17:23:00+03:00',
+      payableEnd: '2026-08-30T05:24:00+03:00',
+      payableBreakMinutes: 0,
+      payableSource: 'actual',
+      completedAt: '2026-08-30T05:24:00+03:00',
+      expectedBreakMinutes: 0,
+      hourlyRateSnapshotMinor: 6000,
+      salaryCalculationStatus: 'incomplete',
+    });
+    const profile = createSalaryProfile({ baseHourlyRateMinor: 6000 });
+    const schedule = createWeeklyRestSchedule({
+      startWeekday: 5,
+      startTime: '18:00',
+      endWeekday: 0,
+      endTime: '18:00',
+      enabled: true,
+      confirmedAt: '2026-08-28T17:00:00+03:00',
+    });
+    const rule = createPayRule({
+      id: 'weekly-rest-rate',
+      premiumFamily: 'special_interval',
+      conditions: [{ type: 'specialInterval', intervalTypes: ['weekly_rest'] }],
+      effect: { type: 'multiplier', basisPoints: 15_000 },
+    });
+    const currentResult = calculateSalary({
+      shift,
+      profile,
+      rules: [rule],
+      breaks: [],
+      holidayIntervals: [],
+      specialIntervals: [],
+      calculatedAt: shift.completedAt!,
+      ignoreHistoricalSnapshot: true,
+    });
+    const legacyResult = {
+      ...currentResult,
+      engineVersion: '1.5.0',
+      totalGrossPayMinor: undefined,
+      issues: currentResult.issues.map((issue) => issue.code === 'shift_duration_exceeds_maximum'
+        ? { ...issue, severity: 'error' as const }
+        : issue),
+    };
+    const legacySnapshotV1 = {
+      id: 'legacy-over-limit-snapshot-v1',
+      shiftId: shift.id,
+      version: 1,
+      status: 'incomplete' as const,
+      salaryProfileId: profile.id,
+      result: legacyResult,
+      isCurrent: false,
+      createdAt: shift.completedAt!,
+    };
+    const legacySnapshot = {
+      ...legacySnapshotV1,
+      id: 'legacy-over-limit-snapshot-v2',
+      version: 2,
+      result: { ...legacyResult, calculatedAt: '2026-08-30T07:04:44+03:00' },
+      isCurrent: true,
+      createdAt: '2026-08-30T07:04:44+03:00',
+    };
+    const legacyV1Json = JSON.stringify(legacySnapshotV1.result);
+    const legacyV2Json = JSON.stringify(legacySnapshot.result);
+    const saveSnapshot = jest.fn().mockResolvedValue(undefined);
+    const deps = repositories({
+      shifts: { list: jest.fn().mockResolvedValue([shift]) } as unknown as SalaryCoordinatorRepositories['shifts'],
+      salaryProfiles: {
+        listByWorkplace: jest.fn().mockResolvedValue([profile]),
+        getById: jest.fn().mockResolvedValue(profile),
+      } as unknown as SalaryCoordinatorRepositories['salaryProfiles'],
+      payRules: { listForProfile: jest.fn().mockResolvedValue([rule]) } as unknown as SalaryCoordinatorRepositories['payRules'],
+      calendarEvidenceIntervals: { listOverlapping: jest.fn().mockResolvedValue([]) } as unknown as NonNullable<SalaryCoordinatorRepositories['calendarEvidenceIntervals']>,
+      weeklyRestSchedules: { getForProfile: jest.fn().mockResolvedValue(schedule) } as unknown as NonNullable<SalaryCoordinatorRepositories['weeklyRestSchedules']>,
+      salaryCalculations: {
+        listCurrentForShifts: jest.fn().mockResolvedValue([legacySnapshot]),
+        listHistory: jest.fn().mockResolvedValue([legacySnapshotV1, legacySnapshot]),
+        saveSnapshot,
+      } as unknown as SalaryCoordinatorRepositories['salaryCalculations'],
+    });
+    const coordinator = new SalaryCalculationCoordinator(deps);
+
+    const preview = await coordinator.previewShift(shift, '2026-08-30T10:00:00+03:00', undefined, true);
+    const finalized = await coordinator.finalizeCompletedShift(shift, '2026-08-30T10:00:00+03:00', true);
+
+    expect(preview.segments.map((segment) => [segment.localDate, segment.minutes, segment.multiplierBasisPoints])).toEqual([
+      ['2026-08-29', 397, 15_000],
+      ['2026-08-30', 83, 15_000],
+      ['2026-08-30', 120, 17_500],
+      ['2026-08-30', 121, 20_000],
+    ]);
+    expect(preview).toMatchObject({
+      payableMinutes: 721,
+      basePayMinor: 72_100,
+      premiumPayMinor: 45_100,
+      totalGrossPayMinor: 117_200,
+      engineVersion: '1.6.0',
+      issues: expect.arrayContaining([
+        expect.objectContaining({ code: 'shift_duration_exceeds_maximum', severity: 'warning' }),
+      ]),
+    });
+    expect(finalized).toMatchObject({
+      version: 3,
+      status: 'finalized',
+      result: { totalGrossPayMinor: 117_200, engineVersion: '1.6.0' },
+    });
+    expect(saveSnapshot).toHaveBeenCalledWith(finalized);
+    expect(JSON.stringify(legacySnapshotV1.result)).toBe(legacyV1Json);
+    expect(JSON.stringify(legacySnapshot.result)).toBe(legacyV2Json);
+  });
+
   it('isolates profile-scoped evidence by the effective-dated resolved profile', async () => {
     const oldProfile = createSalaryProfile({ id: 'old-profile', effectiveFrom: '2026-01-01', effectiveTo: '2026-06-30', baseHourlyRateMinor: 6000 });
     const currentProfile = createSalaryProfile({ id: 'current-profile', effectiveFrom: '2026-07-01', baseHourlyRateMinor: 6000 });

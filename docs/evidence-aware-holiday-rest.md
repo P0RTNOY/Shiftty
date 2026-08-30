@@ -112,11 +112,11 @@ Multiplier rules are resolved by explicit families:
 
 For example, a 175% non-stacking holiday rule, a 150% snapshotted shift type, and a stacking 125% overtime rule resolve to `100% + 75% + 25% = 200%`. A 150% holiday rule and an explicitly stacking 125% weekly-rest rule resolve to 175%, not 275%. Two overlapping custom intervals that match the same 125% rule still apply that rule once.
 
-Fixed bonuses, reimbursements, and minimum-duration adjustments remain once-per-rule, once-per-shift components. Evidence segmentation does not duplicate them. The established workweek accumulation, break, rounding, maximum-duration, and fixed-component policies remain unchanged.
+Fixed bonuses, reimbursements, and minimum-duration adjustments remain once-per-rule, once-per-shift components. Evidence segmentation does not duplicate them. The established workweek accumulation, break, rounding, and fixed-component policies remain unchanged. Engine `1.6.0` retains the 12-hour new/manual input guard while allowing a truthful overdue live shift to keep a numeric estimate for every recorded minute.
 
 ## Frozen salary provenance and Salary Trust
 
-Engine `1.5.0` adds optional `specialIntervalIds` to pay segments and optional `specialIntervalEvaluations` to the result. Each frozen evaluation contains only the bounded information needed for later explanation:
+Engine `1.5.0` added optional `specialIntervalIds` to pay segments and optional `specialIntervalEvaluations` to the result; engine `1.6.0` preserves that snapshot shape. Each frozen evaluation contains only the bounded information needed for later explanation:
 
 - interval and optional schedule ID;
 - name, type, exact start/end, and timezone;
@@ -190,6 +190,6 @@ The current Debug development client built, installed, and launched on the boote
 
 The profile-scoped weekly-rest card now makes the existing evidence/rule separation actionable in one place. After the user saves and confirms an arbitrary recurring weekday/time window, a second explicit control can create or update a dedicated total-rate rule for `weekly_rest`. It starts empty rather than assuming 150%. Advanced matching rules are listed separately, incompatible managed-ID collisions are never overwritten, and changing an unsaved window blocks the simple rule update.
 
-Shift Details now exposes grouped effective rate tiers and premium pay before the expandable component list. Automated coverage fixes the reported workplace example: Friday 18:00 through Sunday 18:00 at a user-entered 150% total rate. A Saturday 17:30 through Sunday 05:30 12-hour shift at ₪60/hour resolves to 480 minutes at 150%, 120 minutes at 175%, and 120 minutes at 200%, totaling ₪1,170. Without the explicit weekly-rest rule, the unchanged product-default overtime remains 480 minutes at 100%, 120 minutes at 125%, and 120 minutes at 150%, totaling ₪810.
+Shift Details now exposes grouped effective rate tiers and premium pay before the expandable component list. Automated coverage fixes the reported workplace example: Friday 18:00 through Sunday 18:00 at a user-entered 150% total rate. The real completed Saturday 17:23 through Sunday 05:24 shift at ₪60/hour resolves to 480 minutes at 150%, 120 minutes at 175%, and 121 minutes at 200%, totaling ₪1,172. Without the explicit weekly-rest rule, the product-default overtime resolves to 480 minutes at 100%, 120 minutes at 125%, and 121 minutes at 150%, totaling ₪811.50. A disabled/unconfirmed weekly-rest schedule or a missing pay rule remains neutral rather than silently assuming Saturday entitlement.
 
-The complete source gate passed type checking, zero-warning lint, 141 Jest suites containing 716 tests, empty and v1–v9 migration validation, Expo export of 37 static routes, the accepted exact 12-notice SDK 57 compatibility baseline, public configuration, production iOS configuration/surface audits, and patch-whitespace validation. No migration, dependency, backup format, stored snapshot, or historical total changed.
+The complete source gate passed type checking, zero-warning lint, 141 Jest suites containing 718 tests, empty and v1–v9 migration validation, Expo export of 37 static routes, the accepted exact 12-notice SDK 57 compatibility baseline, public configuration, production iOS configuration/surface audits, and patch-whitespace validation. No migration, dependency, backup format, stored snapshot, or historical total changed.

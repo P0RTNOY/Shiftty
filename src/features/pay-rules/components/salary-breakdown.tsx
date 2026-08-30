@@ -19,12 +19,14 @@ export function SalaryBreakdown({ result, status, onRecalculate, onOpenSalarySet
   const { formatCurrency, isRtl, locale, t } = useTranslation();
   const [showDetails, setShowDetails] = useState(false);
   const align = isRtl ? 'right' : 'left';
-  const exceedsMaximumDuration = result?.issues.some((issue) => issue.code === 'shift_duration_exceeds_maximum');
+  const durationIssue = result?.issues.find((issue) => issue.code === 'shift_duration_exceeds_maximum');
+  const hasLegacyDurationError = durationIssue?.severity === 'error';
+  const hasLongShiftWarning = durationIssue?.severity === 'warning';
   const trustState = deriveSalaryTrustState(result, status);
   if (trustState === 'unavailable' || !result || result.totalGrossPayMinor === undefined) {
     return <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.warning }]} testID="e2e-salary-unavailable-or-stale">
       <Text accessibilityRole="alert" style={[styles.title, { color: colors.warning, textAlign: align }]}>{t(status === 'stale' ? 'salary.stale' : 'salary.trustUnavailable')}</Text>
-      {exceedsMaximumDuration ? <Text style={[styles.warning, { color: colors.warning, textAlign: align }]}>{t('salary.issues.shiftDurationExceedsMaximum')}</Text> : null}
+      {hasLegacyDurationError ? <Text style={[styles.warning, { color: colors.warning, textAlign: align }]}>{t('salary.issues.shiftDurationLegacyUnavailable')}</Text> : null}
       {onRecalculate ? <PrimaryButton label={t('salary.recalculate')} onPress={onRecalculate} testID="e2e-salary-recalculate" /> : null}
       <SalaryTrustDisclosure onOpenSalarySettings={onOpenSalarySettings} result={result} showTrustState={false} status={status} />
     </View>;
@@ -43,6 +45,7 @@ export function SalaryBreakdown({ result, status, onRecalculate, onOpenSalarySet
     <Text accessibilityRole="header" style={[styles.title, { color: colors.text, textAlign: align }]}>{t('salary.summaryTitle')}</Text>
     <Text style={[styles.status, { color: status === 'stale' ? colors.warning : colors.textMuted, textAlign: align }]}>{summaryStatus}</Text>
     <Text accessibilityLabel={String(result.totalGrossPayMinor)} style={[styles.total, { color: colors.primary, textAlign: align }]} testID="e2e-salary-total">{formatCurrency(result.totalGrossPayMinor)}</Text>
+    {hasLongShiftWarning ? <Text accessibilityRole="alert" style={[styles.warning, { color: colors.warning, textAlign: align }]}>{t('salary.issues.shiftDurationExceedsMaximum')}</Text> : null}
     {result.shiftTypeName ? <Row label={t('salary.shiftType')} value={result.shiftTypeName} /> : null}
     <Row label={t('salary.workingHours')} value={formatDurationLong(result.payableMinutes, locale)} />
     {result.resolvedBaseHourlyRateMinor !== undefined ? <Row label={t('salary.baseHourlyRate')} value={formatCurrency(result.resolvedBaseHourlyRateMinor)} /> : null}

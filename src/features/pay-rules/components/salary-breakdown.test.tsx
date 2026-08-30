@@ -39,6 +39,15 @@ const overLimitResult = calculateSalary({
   rules: [], breaks: [], holidayIntervals: [], calculatedAt: '2026-07-15T20:01:00+03:00',
 });
 
+const legacyOverLimitResult = {
+  ...overLimitResult,
+  engineVersion: '1.5.0',
+  totalGrossPayMinor: undefined,
+  issues: overLimitResult.issues.map((issue) => issue.code === 'shift_duration_exceeds_maximum'
+    ? { ...issue, severity: 'error' as const }
+    : issue),
+};
+
 const weeklyRestOvertimeResult = calculateSalary({
   shift: createShift({
     scheduledStart: '2026-08-29T17:30:00+03:00',
@@ -167,10 +176,21 @@ it('keeps a legitimate finalized zero numeric', () => {
   expect(screen.queryByText('חישוב שכר חסר')).toBeNull();
 });
 
-it('explains why compensation is unavailable for an over-limit recovery record', () => {
+it('shows the over-12-hour warning without hiding the calculated total', () => {
   renderApp(<SalaryBreakdown result={overLimitResult} status="estimated" />);
 
-  expect(screen.getByText('משך המשמרת חורג מהמקסימום המותר של 12 שעות.')).toBeTruthy();
+  expect(screen.getByText('המשמרת ארוכה מ־12 שעות. הערכת השכר ממשיכה לכל זמן העבודה לתשלום שנרשם.')).toBeTruthy();
+  expect(screen.getByTestId('e2e-salary-total')).toBeTruthy();
+  expect(screen.queryByTestId('e2e-salary-unavailable-or-stale')).toBeNull();
+});
+
+it('keeps legacy over-limit snapshots unavailable until explicit recalculation', () => {
+  renderApp(<SalaryBreakdown onRecalculate={jest.fn()} result={legacyOverLimitResult} status="incomplete" />);
+
+  expect(screen.getByText('הערכת השכר אינה זמינה')).toBeTruthy();
+  expect(screen.getByText('משך המשמרת חורג מהמקסימום שנתמך בחישוב השמור. יש לחשב מחדש לפי ההגדרות הנוכחיות.')).toBeTruthy();
+  expect(screen.queryByText(/הערכת השכר ממשיכה/)).toBeNull();
+  expect(screen.queryByTestId('e2e-salary-total')).toBeNull();
 });
 
 it('offers an immediate recalculation for a legacy base-only snapshot', () => {

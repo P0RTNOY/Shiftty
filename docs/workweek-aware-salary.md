@@ -22,7 +22,7 @@ An enabled profile configuration is converted in memory into one ordinary `PayRu
 
 The general rule schema also accepts `workedMinutes` conditions with `scope: 'week'`. Advanced Pay Rules can therefore express additional week-scoped thresholds using the same net/gross basis and multiplier machinery. All week-scoped rules use the owning salary profile's configured workweek start and calculation timezone.
 
-Weekly opt-in complements the existing default per-shift schedule. A weekly rule by itself does not suppress the defaults of 480 net minutes with no overtime premium, the next 120 with a 25% premium, and the next 120 with a 50% premium. On a neutral shift these are 100%, 125%, and 150%; a shift type or ordinary rule may raise the combined multiplier. An explicit persisted shift- or day-scoped worked-minute multiplier, including a disabled one, continues to replace or opt out of those per-shift defaults.
+Weekly opt-in complements the existing default per-shift schedule. A weekly rule by itself does not suppress the defaults of 480 net minutes with no overtime premium, the next 120 with a 25% premium, and every later recorded minute with a 50% premium. On a neutral shift these are 100%, 125%, and 150%; a shift type or ordinary rule may raise the combined multiplier. An explicit persisted shift- or day-scoped worked-minute multiplier, including a disabled one, continues to replace or opt out of those per-shift defaults.
 
 ## Local workweeks and accumulation
 

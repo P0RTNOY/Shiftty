@@ -15,7 +15,7 @@ From Settings, the local app owner can create, edit, archive, restore, duplicate
 - optional weekdays and calendar color;
 - existing optional workplace, role, and salary-profile defaults at the domain/repository boundary.
 
-New types default to a zero-minute break and 100% pay. Morning, Afternoon, and Night are examples the user can configure, not assumptions made by the app. Type defaults and newly entered shifts are limited to 12 hours. Independently of shift types, the salary engine has an explicit default overtime policy: after eight net working hours, the first two overtime hours receive a stacking 25% premium and the next two receive a stacking 50% premium. An explicit configured or disabled worked-minute multiplier rule replaces or opts out of both default tiers.
+New types default to a zero-minute break and 100% pay. Morning, Afternoon, and Night are examples the user can configure, not assumptions made by the app. Type defaults and newly entered shifts are limited to 12 hours. Independently of shift types, the salary engine has an explicit default overtime policy: after eight net working hours, the first two overtime hours receive a stacking 25% premium and every later recorded minute receives a stacking 50% premium. An explicit configured or disabled worked-minute multiplier rule replaces or opts out of both default tiers.
 
 The shift form shows active types as a normal choice. Selecting one copies its default hours and break; all individual time fields remain editable before saving. Fallback clock-in and recurring shifts preserve the same attribution and pay snapshot.
 
@@ -53,7 +53,7 @@ Migration 7 is additive:
 
 Existing shifts therefore calculate exactly as before. Entity schemas accept absent new fields so older result JSON, test fixtures, and backup version 1 payloads remain readable; current SQLite writes normalize absent values to 100%.
 
-The duration policy is deliberately not a database constraint: legacy records and overdue live clock-outs must remain readable and recoverable. Creation/manual-entry boundaries prevent new over-limit shifts; existing over-limit shifts can be shortened or edited without lengthening; and payroll returns an explicit error with no total for any unresolved range over 12 hours.
+The duration policy is deliberately not a database constraint: legacy records and overdue live clock-outs must remain readable and recoverable. Creation/manual-entry boundaries prevent new over-limit shifts, and existing over-limit shifts can be shortened or edited without lengthening. From salary engine `1.6.0`, payroll continues across every recorded minute beyond 12 hours and returns a numeric estimate with a non-blocking warning; the separate 24-hour corruption/display safety limit remains unchanged.
 
 Editing a type never updates existing shifts. Permanent deletion uses `ON DELETE SET NULL` for the live shift reference and removes the live reference from recurrence JSON. Snapshotted name and multiplier values remain. A finalized salary snapshot is not invalidated merely because its source type was deleted. Selecting a different type or multiplier on a completed shift uses the existing stale/recalculate/version-history path.
 

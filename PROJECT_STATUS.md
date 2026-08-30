@@ -1,6 +1,16 @@
 # Shiftty Project Status
 
-Last updated: 2026-08-29
+Last updated: 2026-08-30
+
+## Continuous Long-Shift Estimates and Real Weekly-Rest Recovery — 2026-08-30
+
+Salary engine `1.6.0` no longer discards an otherwise complete gross estimate when a truthful live clock-out exceeds 12 hours. It continues the configured/default overtime tier for every recorded payable minute and exposes a non-blocking long-shift warning. The 12-hour guard for newly entered schedules, manual completed/payable ranges, and shift-type defaults is unchanged, as are legacy-edit protections and the independent 24-hour corruption/display safety limit.
+
+The exact completed workplace regression uses Saturday 2026-08-29 17:23 through Sunday 05:24, zero break, and ₪60/hour. With a confirmed Friday 18:00 through Sunday 18:00 weekly-rest interval and an explicit 150% total-rate rule, it resolves to 480 minutes at 150%, 120 minutes at 175%, and 121 minutes at 200%, totaling ₪1,172. Without those two explicit saved inputs it remains neutral and totals ₪811.50 under default overtime; Shiftty does not infer Saturday entitlement or a legal multiplier.
+
+The physical diagnosis found the existing shift and its prior incomplete engine-1.5.0 snapshots intact. It also found a disabled, unconfirmed Friday-to-Saturday schedule and no pay rule, which explains why no weekly-rest evaluation contributed. Explicit recalculation creates a new snapshot version rather than rewriting either prior incomplete result.
+
+Fresh source verification passed type checking, zero-warning lint, **141/141 Jest suites and 718/718 tests**, empty and v1–v9 migration validation, Expo web export of all 37 static routes, the accepted exact 12-notice Expo SDK 57 compatibility baseline, public Expo configuration, production iOS configuration/surface audits, and patch-whitespace validation. Dependencies, migrations, and backup format remain unchanged. Hosted CI, signed-artifact, in-place installation, data-preservation, configuration, and physical recalculation evidence are reported in the exact-commit handoff after those steps complete.
 
 ## Dynamic Weekly-Rest Pay Configuration — 2026-08-29
 
@@ -202,8 +212,8 @@ The existing Shift Templates architecture now provides the user-facing **Shift T
 - Settings supports create, edit, archive, restore, duplicate, and confirmed permanent deletion of shift types.
 - A type defines default start/end times, break behavior, weekdays/color, and a validated 100%–1000% pay multiplier.
 - Selecting a type prefills shift hours and break while leaving each shift editable. Scheduled, completed, live fallback, duplicate, suggestion, and recurrence paths carry immutable type name/multiplier snapshots.
-- Salary engine `1.3.0` applies the type across the whole payable interval and adds a transparent default overtime policy when no worked-minute multiplier is configured: 480 net minutes at the ordinary applicable rate, 120 minutes with a stacking 25% premium, then 120 minutes with a stacking 50% premium. An explicit or disabled threshold replaces or opts out of both tiers.
-- New schedules, shift-type defaults, manual completed shifts, and manual payable ranges are capped at 12 hours. Overdue live shifts can still be clocked out truthfully; their salary remains explicitly invalid until corrected, and legacy over-limit records remain readable without allowing lengthening.
+- Salary engine `1.3.0` introduced the type and transparent default overtime policy; current engine `1.6.0` applies 480 net minutes at the ordinary applicable rate, 120 minutes with a stacking 25% premium, then every later recorded minute with a stacking 50% premium. An explicit or disabled threshold replaces or opts out of both tiers.
+- New schedules, shift-type defaults, manual completed shifts, and manual payable ranges remain capped at 12 hours. Overdue live shifts can still be clocked out truthfully; engine `1.6.0` now keeps their numeric salary estimate with a warning, while legacy over-limit records remain readable without allowing lengthening.
 - Shift Details and the salary summary show the type, working time, resolved base hourly rate, type multiplier, type-adjusted hourly rate, and gross compensation.
 - Migration 7 gives legacy types/shifts a neutral 100% default, backfills readable names, updates recurrence snapshots and salary-staleness triggers, and preserves finalized history if a type is deleted.
 - Backup export/replace/merge includes the new fields while old version 1 backups remain importable at 100%.

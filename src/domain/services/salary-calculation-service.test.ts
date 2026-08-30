@@ -67,7 +67,7 @@ describe('salary calculation engine', () => {
       basePayMinor: 72_000,
       premiumPayMinor: 9_000,
       totalGrossPayMinor: 81_000,
-      engineVersion: '1.5.0',
+      engineVersion: '1.6.0',
     });
     expect(result.segments.map((segment) => [segment.minutes, segment.multiplierBasisPoints])).toEqual([
       [480, 10_000],
@@ -117,7 +117,7 @@ describe('salary calculation engine', () => {
     expect(result).toMatchObject({ basePayMinor: 72_000, premiumPayMinor: 45_000, totalGrossPayMinor: 117_000 });
   });
 
-  it('marks shifts over 12 hours invalid without reverting their overtime segment', () => {
+  it('continues estimating every recorded minute beyond 12 hours and keeps a non-blocking warning', () => {
     const shift = createShift({
       scheduledStart: '2026-07-15T08:00:00+03:00',
       scheduledEnd: '2026-07-15T20:01:00+03:00',
@@ -128,8 +128,17 @@ describe('salary calculation engine', () => {
     const result = calculate(shift);
 
     expect(result.segments.at(-1)).toMatchObject({ minutes: 121, multiplierBasisPoints: 15_000 });
-    expect(result.issues).toContainEqual(expect.objectContaining({ code: 'shift_duration_exceeds_maximum', severity: 'error' }));
-    expect(result.totalGrossPayMinor).toBeUndefined();
+    expect(result.issues).toContainEqual(expect.objectContaining({
+      code: 'shift_duration_exceeds_maximum',
+      severity: 'warning',
+      metadata: { maximumMinutes: 720, grossMinutes: 721 },
+    }));
+    expect(result).toMatchObject({
+      payableMinutes: 721,
+      basePayMinor: 72_100,
+      premiumPayMinor: 9_050,
+      totalGrossPayMinor: 81_150,
+    });
   });
 
   it('keeps the default overtime threshold across midnight and stacks it onto a shift type', () => {

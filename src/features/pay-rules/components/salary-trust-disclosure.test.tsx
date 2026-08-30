@@ -66,7 +66,7 @@ describe('SalaryTrustDisclosure', () => {
     renderApp(<SalaryTrustDisclosure onOpenSalarySettings={onOpenSalarySettings} result={defaultResult} status="estimated" />);
 
     expect(screen.getByText('הערכת שכר בסיסית')).toBeTruthy();
-    expect(screen.getByText(/8 שעות רגילות, שעתיים ב־125% ושעתיים ב־150%/)).toBeTruthy();
+    expect(screen.getByText(/8 שעות רגילות, השעתיים הבאות ב־125%, ולאחר מכן 150% לכל זמן העבודה שנרשם/)).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();
     fireEvent.press(screen.getByRole('button', { name: 'פתיחת הגדרות שכר' }));
     expect(onOpenSalarySettings).toHaveBeenCalledTimes(1);

@@ -37,7 +37,7 @@ describe('special-interval salary calculation', () => {
     expect(result.segments.map((segment) => [segment.minutes, segment.multiplierBasisPoints])).toEqual([
       [60, 10_000], [120, 15_000], [60, 10_000],
     ]);
-    expect(result).toMatchObject({ basePayMinor: 24_000, premiumPayMinor: 6_000, totalGrossPayMinor: 30_000, engineVersion: '1.5.0' });
+    expect(result).toMatchObject({ basePayMinor: 24_000, premiumPayMinor: 6_000, totalGrossPayMinor: 30_000, engineVersion: '1.6.0' });
     expect(result.specialIntervalEvaluations).toEqual([
       expect.objectContaining({ intervalId: holiday.id, type: 'holiday', start: expect.any(String), end: expect.any(String), appliedRuleIds: ['holiday-pay'], contributedToEstimate: true }),
     ]);
