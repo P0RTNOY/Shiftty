@@ -18,6 +18,7 @@ interface SalaryTrustDisclosureProps {
   status?: SalaryCalculationStatus;
   onOpenSalarySettings?: () => void;
   showTrustState?: boolean;
+  presentation?: 'disclosure' | 'expanded';
 }
 
 export function SalaryTrustDisclosure({
@@ -26,6 +27,7 @@ export function SalaryTrustDisclosure({
   status,
   onOpenSalarySettings,
   showTrustState = true,
+  presentation = 'disclosure',
 }: SalaryTrustDisclosureProps) {
   const { colors } = useAppTheme();
   const { formatDate, isRtl, t } = useTranslation();
@@ -59,7 +61,7 @@ export function SalaryTrustDisclosure({
       <Text style={[styles.explanation, { color: colors.text, textAlign: align }]}>{t('salary.defaultOvertimeApplied')}</Text>
       {onOpenSalarySettings ? <SecondaryButton label={t('salary.openSettings')} onPress={onOpenSalarySettings} /> : null}
     </View> : null}
-    <Pressable
+    {presentation === 'disclosure' ? <Pressable
       accessibilityRole="button"
       accessibilityState={{ expanded }}
       onPress={() => setExpanded((value) => !value)}
@@ -71,9 +73,9 @@ export function SalaryTrustDisclosure({
           ? expanded ? 'salary.hideEstimateAssumptions' : 'salary.showEstimateAssumptions'
           : expanded ? 'salary.hideDetails' : 'salary.showDetails')}
       </Text>
-    </Pressable>
+    </Pressable> : null}
 
-    {expanded ? <View style={styles.details}>
+    {expanded || presentation === 'expanded' ? <View style={styles.details}>
       {includedKeys.length > 0 ? <AssumptionList title={t('salary.assumptionsIncluded')} translationKeys={includedKeys} /> : null}
       {specialIntervals.length > 0 ? <View testID="salary-special-intervals" style={styles.list}>
         <Text style={[styles.listTitle, { color: colors.text, textAlign: align }]}>{t('salary.specialIntervalsIncluded')}</Text>

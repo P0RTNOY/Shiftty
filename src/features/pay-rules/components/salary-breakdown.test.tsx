@@ -77,15 +77,18 @@ it('shows a simple salary estimate and discloses calculation details on request'
   renderApp(<SalaryBreakdown result={result} status="estimated" />);
 
   expect(screen.getByText('שכר משוער')).toBeTruthy();
-  expect(screen.getByText('לילה')).toBeTruthy();
-  expect(screen.getByText('150%')).toBeTruthy();
-  expect(screen.getByText('תעריף שעתי בסיסי')).toBeTruthy();
-  expect(screen.getByText('תעריף שעתי לפי סוג')).toBeTruthy();
+  expect(screen.queryByText('לילה')).toBeNull();
+  expect(screen.queryByText('תעריף שעתי בסיסי')).toBeNull();
+  expect(screen.queryByText('תעריף שעתי לפי סוג')).toBeNull();
   expect(screen.getByText(new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(result.totalGrossPayMinor! / 100))).toBeTruthy();
   expect(screen.queryByText('שכר בסיס')).toBeNull();
   expect(screen.queryByText(/1\.0\.0/)).toBeNull();
 
-  fireEvent.press(screen.getByRole('button', { name: 'פירוט סכומים' }));
+  fireEvent.press(screen.getByRole('button', { name: 'איך חושב הסכום?' }));
+  expect(screen.getByText('לילה')).toBeTruthy();
+  expect(screen.getByText('150%')).toBeTruthy();
+  expect(screen.getByText('תעריף שעתי בסיסי')).toBeTruthy();
+  expect(screen.getByText('תעריף שעתי לפי סוג')).toBeTruthy();
   expect(screen.getByText('שכר בסיס')).toBeTruthy();
   expect(screen.getByLabelText('הערכה בסיסית')).toBeTruthy();
   expect(screen.queryByText(/1\.0\.0/)).toBeNull();
@@ -112,8 +115,9 @@ it('labels the 125% and 150% overtime tiers in the Hebrew breakdown', () => {
 
   expect(screen.getByText(/8 שעות × 100%.*2 שעות × 125%.*2 שעות × 150%/)).toBeTruthy();
   expect(screen.getByText('חלוקה לפי תעריפים')).toBeTruthy();
+  expect(screen.queryByText('תוספות שעות')).toBeNull();
+  fireEvent.press(screen.getByRole('button', { name: 'איך חושב הסכום?' }));
   expect(screen.getByText('תוספות שעות')).toBeTruthy();
-  fireEvent.press(screen.getByRole('button', { name: 'פירוט סכומים' }));
 
   expect(screen.getByText(/שעות נוספות 125%/)).toBeTruthy();
   expect(screen.getByText(/שעות נוספות 150%/)).toBeTruthy();
@@ -131,7 +135,7 @@ it('labels weekly overtime segments with their configured threshold and multipli
       : segment),
   };
   renderApp(<SalaryBreakdown result={weeklyResult} status="estimated" />);
-  fireEvent.press(screen.getByRole('button', { name: 'פירוט סכומים' }));
+  fireEvent.press(screen.getByRole('button', { name: 'איך חושב הסכום?' }));
 
   expect(screen.getByText(/שעות נוספות שבועיות אחרי 42 שעות · 125%/)).toBeTruthy();
 });
@@ -163,7 +167,7 @@ it('shows frozen evidence names on the exact salary segments they overlap', () =
       : segment),
   };
   renderApp(<SalaryBreakdown result={evidenceResult} status="finalized" />);
-  fireEvent.press(screen.getByRole('button', { name: 'פירוט סכומים' }));
+  fireEvent.press(screen.getByRole('button', { name: 'איך חושב הסכום?' }));
 
   expect(screen.getByTestId('salary-segment-special-intervals')).toHaveTextContent('חג שאושר');
 });

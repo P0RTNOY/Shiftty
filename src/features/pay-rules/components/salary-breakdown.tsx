@@ -46,20 +46,18 @@ export function SalaryBreakdown({ result, status, onRecalculate, onOpenSalarySet
     <Text style={[styles.status, { color: status === 'stale' ? colors.warning : colors.textMuted, textAlign: align }]}>{summaryStatus}</Text>
     <Text accessibilityLabel={String(result.totalGrossPayMinor)} style={[styles.total, { color: colors.primary, textAlign: align }]} testID="e2e-salary-total">{formatCurrency(result.totalGrossPayMinor)}</Text>
     {hasLongShiftWarning ? <Text accessibilityRole="alert" style={[styles.warning, { color: colors.warning, textAlign: align }]}>{t('salary.issues.shiftDurationExceedsMaximum')}</Text> : null}
-    {result.shiftTypeName ? <Row label={t('salary.shiftType')} value={result.shiftTypeName} /> : null}
-    <Row label={t('salary.workingHours')} value={formatDurationLong(result.payableMinutes, locale)} />
-    {result.resolvedBaseHourlyRateMinor !== undefined ? <Row label={t('salary.baseHourlyRate')} value={formatCurrency(result.resolvedBaseHourlyRateMinor)} /> : null}
-    <Row label={t('salary.shiftTypeMultiplier')} value={`${shiftTypeMultiplier / 100}%`} />
-    {effectiveShiftTypeRate !== undefined ? <Row label={t('salary.effectiveHourlyRate')} value={formatCurrency(effectiveShiftTypeRate)} /> : null}
     {rateTierSummary ? <Row label={t('salary.rateTiers')} value={rateTierSummary} /> : null}
-    {result.premiumPayMinor > 0 ? <Row label={t('salary.premiumPay')} value={formatCurrency(result.premiumPayMinor)} /> : null}
     {hasLegacyBaseOnlyCalculation ? <Text accessibilityRole="alert" style={[styles.warning, { color: colors.warning, textAlign: align }]}>{t('salary.noPayRules')}</Text> : null}
     {hasLegacyBaseOnlyCalculation && onRecalculate ? <PrimaryButton label={t('salary.applyDefaultOvertime')} onPress={onRecalculate} /> : null}
-    <SalaryTrustDisclosure onOpenSalarySettings={onOpenSalarySettings} result={result} status={status} />
-    <SecondaryButton label={showDetails ? t('salary.hideBreakdown') : t('salary.showBreakdown')} onPress={() => setShowDetails((value) => !value)} testID="e2e-salary-breakdown-toggle" />
+    <SecondaryButton label={showDetails ? t('salary.hideDetails') : t('salary.showDetails')} onPress={() => setShowDetails((value) => !value)} testID="e2e-salary-breakdown-toggle" />
 
     {showDetails ? <View style={styles.details}>
       <Text accessibilityLabel={t(statusKey)} style={{ color: status === 'stale' ? colors.warning : colors.textMuted, textAlign: align }}>{t(statusKey)}</Text>
+      {result.shiftTypeName ? <Row label={t('salary.shiftType')} value={result.shiftTypeName} /> : null}
+      <Row label={t('salary.workingHours')} value={formatDurationLong(result.payableMinutes, locale)} />
+      {result.resolvedBaseHourlyRateMinor !== undefined ? <Row label={t('salary.baseHourlyRate')} value={formatCurrency(result.resolvedBaseHourlyRateMinor)} /> : null}
+      <Row label={t('salary.shiftTypeMultiplier')} value={`${shiftTypeMultiplier / 100}%`} />
+      {effectiveShiftTypeRate !== undefined ? <Row label={t('salary.effectiveHourlyRate')} value={formatCurrency(effectiveShiftTypeRate)} /> : null}
       <Row label={t('salary.basePay')} value={formatCurrency(result.basePayMinor)} />
       <Row label={t('salary.premiumPay')} value={formatCurrency(result.premiumPayMinor)} />
       <Row label={t('salary.minimumAdjustment')} value={formatCurrency(result.minimumDurationAdjustmentMinor)} />
@@ -90,6 +88,7 @@ export function SalaryBreakdown({ result, status, onRecalculate, onOpenSalarySet
           {evidenceNames.length > 0 ? <Text testID="salary-segment-special-intervals" style={{ color: colors.textMuted, textAlign: align }}>{evidenceNames.join(' · ')}</Text> : null}
         </View>;
       })}
+      <SalaryTrustDisclosure onOpenSalarySettings={onOpenSalarySettings} presentation="expanded" result={result} showTrustState={false} status={status} />
       {onRecalculate ? <PrimaryButton label={t('salary.recalculate')} onPress={onRecalculate} testID="e2e-salary-recalculate" /> : null}
     </View> : null}
   </View>;

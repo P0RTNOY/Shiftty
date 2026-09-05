@@ -1,5 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react-native';
-import { useState } from 'react';
+import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { buildManagedWeeklyRestPayRule } from '@/domain/services/weekly-rest-pay-rule-service';
@@ -8,145 +7,121 @@ import { useTranslation } from '@/shared/i18n';
 import { createWeeklyRestSchedule } from '@/test/fixtures';
 import { renderApp } from '@/test/render';
 
-function Harness({ onSave = jest.fn() }: { onSave?: jest.Mock }) {
-  const { setLocale } = useTranslation();
-  const [key] = useState('stable');
-  return <>
-    <Pressable accessibilityRole="button" onPress={() => setLocale('en')}><Text>English</Text></Pressable>
-    <WeeklyRestSettings
-      key={key}
-      previewFrom="2026-08-24T12:00:00+03:00"
-      salaryProfileId="profile-1"
-      timezone="Asia/Jerusalem"
-      workplaceId="workplace-1"
-      onSave={onSave}
-    />
-  </>;
-}
+const commonProps = {
+  previewFrom: '2026-08-24T12:00:00+03:00',
+  salaryProfileId: 'profile-1',
+  timezone: 'Asia/Jerusalem',
+  workplaceId: 'workplace-1',
+};
 
-function PayRuleRefreshHarness() {
-  const schedule = createWeeklyRestSchedule({ enabled: true, confirmedAt: '2026-08-28T17:00:00+03:00' });
-  const initial = buildManagedWeeklyRestPayRule({
-    salaryProfileId: 'profile-1', multiplierBasisPoints: 15_000, name: 'Rest',
-    timestamp: '2026-08-28T17:00:00+03:00',
-  });
-  const [rule, setRule] = useState(initial);
-  return <>
-    <Pressable accessibilityRole="button" onPress={() => setRule(buildManagedWeeklyRestPayRule({
-      salaryProfileId: 'profile-1', multiplierBasisPoints: 12_500, name: 'Rest',
-      timestamp: '2026-08-29T17:00:00+03:00', existing: initial,
-    }))}><Text>Refresh rate</Text></Pressable>
-    <WeeklyRestSettings
-      key={rule.updatedAt}
-      managedPayRule={rule}
-      onSave={jest.fn()}
-      onSavePayRule={jest.fn()}
-      salaryProfileId="profile-1"
-      schedule={schedule}
-      timezone="Asia/Jerusalem"
-      workplaceId="workplace-1"
-    />
-  </>;
+function LocaleButton() {
+  const { setLocale } = useTranslation();
+  return <Pressable accessibilityRole="button" onPress={() => setLocale('en')}><Text>English</Text></Pressable>;
 }
 
 describe('WeeklyRestSettings', () => {
-  it('is disabled by default and progressively reveals a user-confirmed schedule', () => {
+  it('requires one explicit pay choice and submits the confirmed window and total rate together', async () => {
     const onSave = jest.fn();
-    renderApp(<Harness onSave={onSave} />);
+    renderApp(<WeeklyRestSettings {...commonProps} onSave={onSave} />);
 
-    const toggle = screen.getByRole('switch', { name: 'הפעלת מנוחה שבועית' });
-    expect(toggle.props.accessibilityState).toEqual({ checked: false });
-    expect(screen.queryByTestId('weekly-rest-fields')).toBeNull();
-
-    fireEvent(toggle, 'valueChange', true);
-    expect(screen.getByTestId('weekly-rest-preview')).toBeTruthy();
-    expect(screen.getAllByRole('radio', { name: 'יום שישי' }).some((item) => item.props.accessibilityState.checked)).toBe(true);
-    const confirmation = screen.getByRole('checkbox', { name: /בדקתי ואישרתי/ });
-    expect(confirmation.props.accessibilityState).toEqual({ checked: false });
-    expect(screen.getByTestId('weekly-rest-confirmation-mark').props.children).toBe('');
-    expect(screen.getByRole('button', { name: 'שמירת מנוחה שבועית' }).props.accessibilityState).toEqual({ disabled: true });
-
-    fireEvent.press(screen.getAllByRole('radio', { name: 'יום ראשון' })[0]!);
-    expect(screen.getAllByText('✓ א׳')[0]).toBeTruthy();
-    fireEvent.press(confirmation);
-    expect(screen.getByTestId('weekly-rest-confirmation-mark').props.children).toBe('✓');
-    fireEvent.press(screen.getByRole('button', { name: 'שמירת מנוחה שבועית' }));
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ enabled: true, startWeekday: 0, startTime: '18:00', endWeekday: 6, endTime: '18:00', confirmed: true }));
-  });
-
-  it('uses RTL and LTR switch-row layouts and keeps exact values directionally isolated', () => {
-    renderApp(<Harness />);
-    expect(StyleSheet.flatten(screen.getByTestId('weekly-rest-switch-row').props.style).flexDirection).toBe('row-reverse');
     fireEvent(screen.getByRole('switch'), 'valueChange', true);
-    fireEvent.press(screen.getByRole('button', { name: 'English' }));
-    expect(screen.getByText('Weekly rest')).toBeTruthy();
-    expect(StyleSheet.flatten(screen.getByTestId('weekly-rest-switch-row').props.style).flexDirection).toBe('row');
-    expect(StyleSheet.flatten(screen.getByTestId('weekly-rest-preview').props.style).writingDirection).toBe('ltr');
-  });
-
-  it('keeps the workplace window dynamic and saves an explicit total pay rate separately', () => {
-    const onSavePayRule = jest.fn();
-    const schedule = createWeeklyRestSchedule({
-      startWeekday: 5,
-      startTime: '18:00',
-      endWeekday: 0,
-      endTime: '18:00',
-      enabled: true,
-      confirmedAt: '2026-08-28T17:00:00+03:00',
-    });
-    renderApp(<WeeklyRestSettings
-      onSave={jest.fn()}
-      onSavePayRule={onSavePayRule}
-      previewFrom="2026-08-24T12:00:00+03:00"
-      salaryProfileId="profile-1"
-      schedule={schedule}
-      timezone="Asia/Jerusalem"
-      workplaceId="workplace-1"
-    />);
-
-    expect(screen.getAllByRole('radio', { name: 'יום שישי' }).some((item) => item.props.accessibilityState.checked)).toBe(true);
-    expect(screen.getAllByRole('radio', { name: 'יום ראשון' }).some((item) => item.props.accessibilityState.checked)).toBe(true);
-    expect(screen.getByText(/עדיין אין לו כלל תשלום/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'שמירת תעריף מנוחה שבועית' }).props.accessibilityState).toEqual({ disabled: true });
-
+    expect(screen.getByRole('button', { name: 'שמירת הגדרות המנוחה השבועית' }).props.accessibilityState).toEqual({ disabled: true });
+    fireEvent.press(screen.getByRole('radio', { name: 'תשלום בתעריף מיוחד' }));
     fireEvent.changeText(screen.getByLabelText('תעריף כולל במנוחה השבועית (%)'), '150');
-    fireEvent.press(screen.getByRole('button', { name: 'שמירת תעריף מנוחה שבועית' }));
+    fireEvent.press(screen.getAllByRole('radio', { name: 'יום ראשון' })[1]!);
+    fireEvent.press(screen.getByRole('checkbox', { name: /בדקתי ואישרתי/ }));
+    fireEvent.press(screen.getByRole('button', { name: 'שמירת הגדרות המנוחה השבועית' }));
 
-    expect(onSavePayRule).toHaveBeenCalledWith(15_000);
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledTimes(1);
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+        enabled: true,
+        startWeekday: 5,
+        startTime: '18:00',
+        endWeekday: 0,
+        endTime: '18:00',
+        confirmed: true,
+        payChoice: { kind: 'managed_rate', multiplierBasisPoints: 15_000 },
+      }));
+    });
+    expect(screen.queryByTestId('e2e-weekly-rest-pay-save')).toBeNull();
   });
 
-  it('refreshes the simple percentage when an advanced edit changes the managed rule', () => {
-    renderApp(<PayRuleRefreshHarness />);
-    expect(screen.getByLabelText('תעריף כולל במנוחה השבועית (%)').props.value).toBe('150');
+  it('allows an explicit tracking-only configuration through the same save', async () => {
+    const onSave = jest.fn();
+    renderApp(<WeeklyRestSettings {...commonProps} onSave={onSave} />);
 
-    fireEvent.press(screen.getByRole('button', { name: 'Refresh rate' }));
+    fireEvent(screen.getByRole('switch'), 'valueChange', true);
+    fireEvent.press(screen.getByRole('radio', { name: 'מעקב בלבד, ללא תוספת בסיסית' }));
+    fireEvent.press(screen.getByRole('checkbox', { name: /בדקתי ואישרתי/ }));
+    fireEvent.press(screen.getByRole('button', { name: 'שמירת הגדרות המנוחה השבועית' }));
 
-    expect(screen.getByLabelText('תעריף כולל במנוחה השבועית (%)').props.value).toBe('125');
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ payChoice: { kind: 'tracking_only' } }));
+    });
   });
 
-  it('shows a disabled managed-ID rule as advanced and never offers a silent re-enable', () => {
+  it('updates an existing managed rate without requiring interval reconfirmation', async () => {
+    const onSave = jest.fn();
+    const schedule = createWeeklyRestSchedule({ enabled: true, confirmedAt: '2026-08-28T17:00:00+03:00' });
+    const managedPayRule = buildManagedWeeklyRestPayRule({
+      salaryProfileId: 'profile-1', multiplierBasisPoints: 15_000, name: 'Rest', timestamp: '2026-08-28T17:00:00+03:00',
+    });
+    renderApp(<WeeklyRestSettings {...commonProps} managedPayRule={managedPayRule} onSave={onSave} schedule={schedule} />);
+
+    expect(screen.getByRole('checkbox', { name: /בדקתי ואישרתי/ }).props.accessibilityState).toEqual({ checked: true });
+    fireEvent.changeText(screen.getByLabelText('תעריף כולל במנוחה השבועית (%)'), '125');
+    fireEvent.press(screen.getByRole('button', { name: 'שמירת הגדרות המנוחה השבועית' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+        confirmed: true,
+        payChoice: { kind: 'managed_rate', multiplierBasisPoints: 12_500 },
+      }));
+    });
+  });
+
+  it('invalidates confirmation when the weekly-rest window changes', () => {
+    const schedule = createWeeklyRestSchedule({ enabled: true, confirmedAt: '2026-08-28T17:00:00+03:00' });
+    renderApp(<WeeklyRestSettings {...commonProps} onSave={jest.fn()} schedule={schedule} />);
+
+    const confirmation = screen.getByRole('checkbox', { name: /בדקתי ואישרתי/ });
+    expect(confirmation.props.accessibilityState).toEqual({ checked: true });
+    fireEvent.press(screen.getAllByRole('radio', { name: 'יום ראשון' })[0]!);
+    expect(screen.getByRole('checkbox', { name: /בדקתי ואישרתי/ }).props.accessibilityState).toEqual({ checked: false });
+    expect(screen.getByRole('button', { name: 'שמירת הגדרות המנוחה השבועית' }).props.accessibilityState).toEqual({ disabled: true });
+  });
+
+  it('preserves an incompatible managed-ID rule and keeps bilingual directional layout', async () => {
+    const onSave = jest.fn();
     const schedule = createWeeklyRestSchedule({ enabled: true, confirmedAt: '2026-08-28T17:00:00+03:00' });
     const disabled = {
       ...buildManagedWeeklyRestPayRule({
-        salaryProfileId: 'profile-1', multiplierBasisPoints: 15_000, name: 'Rest',
-        timestamp: '2026-08-28T17:00:00+03:00',
+        salaryProfileId: 'profile-1', multiplierBasisPoints: 15_000, name: 'Rest', timestamp: '2026-08-28T17:00:00+03:00',
       }),
       isEnabled: false,
     };
-    renderApp(<WeeklyRestSettings
-      advancedPayRules={[disabled]}
-      managedRuleBlocked
-      onOpenAdvancedRules={jest.fn()}
-      onSave={jest.fn()}
-      onSavePayRule={jest.fn()}
-      salaryProfileId="profile-1"
-      schedule={schedule}
-      timezone="Asia/Jerusalem"
-      workplaceId="workplace-1"
-    />);
+    renderApp(<>
+      <LocaleButton />
+      <WeeklyRestSettings
+        {...commonProps}
+        advancedPayRules={[disabled]}
+        managedRuleBlocked
+        onOpenAdvancedRules={jest.fn()}
+        onSave={onSave}
+        schedule={schedule}
+      />
+    </>);
 
-    expect(screen.getByRole('alert', { name: /הכלל מושבת או משתמש בהגדרות מתקדמות/ })).toBeTruthy();
-    expect(screen.getByText(/Rest · 150% · מושבת/)).toBeTruthy();
     expect(screen.queryByTestId('e2e-weekly-rest-pay-multiplier')).toBeNull();
+    expect(StyleSheet.flatten(screen.getByTestId('weekly-rest-switch-row').props.style).flexDirection).toBe('row-reverse');
+    fireEvent.press(screen.getByRole('button', { name: 'שמירת הגדרות המנוחה השבועית' }));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ payChoice: { kind: 'advanced_preserved' } }));
+    });
+
+    fireEvent.press(screen.getByRole('button', { name: 'English' }));
+    expect(screen.getByText('Weekly rest')).toBeTruthy();
+    expect(StyleSheet.flatten(screen.getByTestId('weekly-rest-switch-row').props.style).flexDirection).toBe('row');
   });
 });

@@ -1,5 +1,18 @@
 # Frontend Simplification Plan
 
+## 2026-09-05 implementation note
+
+The six-phase Simple Salary UX milestone implements the salary/settings/Shift Details portion of this plan while preserving all advanced engine capability:
+
+- Settings now has four top-level destinations: Workplaces, Salary & premiums, Notifications, and Data & backup.
+- Shift types are under Workplaces; exports, backup/restore, privacy, and suggestion-history clearing are under Data & backup.
+- Salary opens on a resolved current-profile overview, with editing and profile history behind explicit actions.
+- Weekly rest and one-time special dates each use one reviewed atomic save for their simple evidence-and-pay configuration.
+- Shift Details is information-first, with compact salary and a state-aware More actions sheet.
+- Hebrew/English interactions are covered, and time values remain LTR inside RTL screens.
+
+The original proposal below remains as design history. Its proposed Settings rows and route-removal ideas are not the current navigation contract; existing routes are preserved for compatibility. See [`MILESTONE_9_SIMPLE_SALARY_UX.md`](MILESTONE_9_SIMPLE_SALARY_UX.md) for the implemented scope and remaining native-validation boundary.
+
 ## 1. New Product Principles
 > **Powerful engine, extremely simple interface.**
 

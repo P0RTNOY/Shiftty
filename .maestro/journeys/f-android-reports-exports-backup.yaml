@@ -52,7 +52,9 @@ tags:
 - tapOn:
     id: e2e-tab-settings
 - tapOn:
-    id: e2e-settings-backup
+    id: e2e-settings-data
+- tapOn:
+    id: e2e-data-backup
 - assertVisible:
     id: e2e-backup-export
 - assertVisible:

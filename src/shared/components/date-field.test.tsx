@@ -1,6 +1,6 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { fireEvent, screen } from '@testing-library/react-native';
-import { Platform } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 
 import { DateField, TimeField } from '@/shared/components/date-field';
 import { renderApp } from '@/test/render';
@@ -56,7 +56,12 @@ describe('TimeField', () => {
   it('shows a 24-hour time as a picker button without a text input', () => {
     renderApp(<TimeField label="כניסה" onChange={jest.fn()} value="08:05" />);
 
-    expect(screen.getByText('08:05')).toBeTruthy();
+    const time = screen.getByText('08:05');
+    expect(time).toBeTruthy();
+    expect(StyleSheet.flatten(time.props.style)).toMatchObject({
+      textAlign: 'left',
+      writingDirection: 'ltr',
+    });
     expect(screen.getByRole('button', { name: 'כניסה' })).toHaveProp('accessibilityValue', { text: '08:05' });
     expect(screen.queryByDisplayValue('08:05')).toBeNull();
   });

@@ -14,6 +14,7 @@ import {
 import type { PayRuleRepository, SalaryCalculationRepository, SalaryProfileRepository } from '@/domain/repositories';
 import { resolveWeeklyRestOccurrences } from '@/domain/services/weekly-rest-occurrence-service';
 import { weeklyRestPayRuleId } from '@/domain/services/weekly-rest-pay-rule-service';
+import { specialIntervalPayRuleProfilePrefix } from '@/domain/services/special-interval-pay-rule-service';
 import { formatLocalDateKey } from '@/shared/utils/zoned-time';
 
 interface SalaryProfileRow {
@@ -46,9 +47,15 @@ export class SqliteSalaryProfileRepository implements SalaryProfileRepository {
       await this.save(next, true);
       await this.database.runAsync(`INSERT INTO pay_rules (id, salary_profile_id, name, priority, conditions_json, effect_json, can_stack,
         premium_family, is_enabled, effective_from, effective_to, created_at, updated_at)
-        SELECT CASE WHEN id = ? THEN ? ELSE id || '__version__' || ? END, ?, name, priority, conditions_json, effect_json, can_stack,
+        SELECT CASE
+          WHEN id = ? THEN ?
+          WHEN id LIKE ? THEN ? || substr(id, length(?) + 1)
+          ELSE id || '__version__' || ?
+        END, ?, name, priority, conditions_json, effect_json, can_stack,
           premium_family, is_enabled, effective_from, effective_to, ?, ? FROM pay_rules WHERE salary_profile_id = ?;`,
-      weeklyRestPayRuleId(previous.id), weeklyRestPayRuleId(next.id), next.id, next.id, next.createdAt, next.updatedAt, previous.id);
+      weeklyRestPayRuleId(previous.id), weeklyRestPayRuleId(next.id),
+      `${specialIntervalPayRuleProfilePrefix(previous.id)}%`, specialIntervalPayRuleProfilePrefix(next.id), specialIntervalPayRuleProfilePrefix(previous.id),
+      next.id, next.id, next.createdAt, next.updatedAt, previous.id);
       await this.database.runAsync(`INSERT INTO weekly_rest_schedules (
         id, workplace_id, salary_profile_id, label, start_weekday, start_time, end_weekday, end_time,
         enabled, confirmed_at, source_kind, source_title, source_url, preset_id, preset_version,
@@ -100,26 +107,40 @@ export class SqlitePayRuleRepository implements PayRuleRepository {
   async save(input: PayRule): Promise<void> {
     const rule = payRuleSchema.parse(input);
     await this.database.withTransactionAsync(async () => {
-      const previous = await this.getById(rule.id);
-      const staleIds = await collectSpecialRuleAffectedShiftIds(this.database, previous, rule);
-      await this.database.runAsync(`INSERT INTO pay_rules (id, salary_profile_id, name, priority, conditions_json, effect_json, can_stack, premium_family, is_enabled, effective_from, effective_to, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET salary_profile_id=excluded.salary_profile_id,
-        name=excluded.name, priority=excluded.priority, conditions_json=excluded.conditions_json, effect_json=excluded.effect_json,
-        can_stack=excluded.can_stack, premium_family=excluded.premium_family, is_enabled=excluded.is_enabled, effective_from=excluded.effective_from,
-        effective_to=excluded.effective_to, updated_at=excluded.updated_at;`, ...toRuleParams(rule));
-      await markSalaryStaleMany(this.database, staleIds);
+      await upsertPayRuleInTransaction(this.database, rule);
     });
   }
   async getById(id: string): Promise<PayRule | null> { const row = await this.database.getFirstAsync<PayRuleRow>('SELECT * FROM pay_rules WHERE id = ?;', id); return row ? mapRule(row) : null; }
   async listForProfile(profileId: string): Promise<PayRule[]> { const rows = await this.database.getAllAsync<PayRuleRow>('SELECT * FROM pay_rules WHERE salary_profile_id = ? ORDER BY priority DESC, id ASC;', profileId); return rows.map(mapRule); }
   async delete(id: string): Promise<void> {
     await this.database.withTransactionAsync(async () => {
-      const previous = await this.getById(id);
-      const staleIds = await collectSpecialRuleAffectedShiftIds(this.database, previous);
-      await this.database.runAsync('DELETE FROM pay_rules WHERE id = ?;', id);
-      await markSalaryStaleMany(this.database, staleIds);
+      await deletePayRuleInTransaction(this.database, id);
     });
   }
+}
+
+export async function getPayRuleInTransaction(database: SQLiteDatabase, id: string): Promise<PayRule | null> {
+  const row = await database.getFirstAsync<PayRuleRow>('SELECT * FROM pay_rules WHERE id = ?;', id);
+  return row ? mapRule(row) : null;
+}
+
+export async function upsertPayRuleInTransaction(database: SQLiteDatabase, input: PayRule): Promise<void> {
+  const rule = payRuleSchema.parse(input);
+  const previous = await getPayRuleInTransaction(database, rule.id);
+  const staleIds = await collectSpecialRuleAffectedShiftIds(database, previous, rule);
+  await database.runAsync(`INSERT INTO pay_rules (id, salary_profile_id, name, priority, conditions_json, effect_json, can_stack, premium_family, is_enabled, effective_from, effective_to, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET salary_profile_id=excluded.salary_profile_id,
+    name=excluded.name, priority=excluded.priority, conditions_json=excluded.conditions_json, effect_json=excluded.effect_json,
+    can_stack=excluded.can_stack, premium_family=excluded.premium_family, is_enabled=excluded.is_enabled, effective_from=excluded.effective_from,
+    effective_to=excluded.effective_to, updated_at=excluded.updated_at;`, ...toRuleParams(rule));
+  await markSalaryStaleMany(database, staleIds);
+}
+
+export async function deletePayRuleInTransaction(database: SQLiteDatabase, id: string): Promise<void> {
+  const previous = await getPayRuleInTransaction(database, id);
+  const staleIds = await collectSpecialRuleAffectedShiftIds(database, previous);
+  await database.runAsync('DELETE FROM pay_rules WHERE id = ?;', id);
+  await markSalaryStaleMany(database, staleIds);
 }
 
 export class SqliteSalaryCalculationRepository implements SalaryCalculationRepository {
@@ -204,7 +225,8 @@ export async function collectSpecialRuleAffectedShiftIds(
   for (const rule of rules) {
     if (!rule) continue;
     const types = specialTypesForRule(rule);
-    if (!types.size && rule.premiumFamily !== 'special_interval') continue;
+    const exactIds = specialIntervalIdsForRule(rule);
+    if (!types.size && !exactIds.size && rule.premiumFamily !== 'special_interval') continue;
 
     const referenced = await database.getAllAsync<{ id: string }>(
       `SELECT shift_record.id
@@ -223,7 +245,7 @@ export async function collectSpecialRuleAffectedShiftIds(
       rule.id,
     );
     referenced.forEach((row) => affected.add(row.id));
-    if (!rule.isEnabled || !types.size) continue;
+    if (!rule.isEnabled || (!types.size && !exactIds.size)) continue;
 
     const profile = await database.getFirstAsync<{ workplace_id: string; timezone: string }>(
       'SELECT workplace_id, timezone FROM salary_profiles WHERE id = ?;',
@@ -280,7 +302,7 @@ export async function collectSpecialRuleAffectedShiftIds(
       if (!matchesSimpleStaticConditions(rule, candidate, localDate, profile.workplace_id)) continue;
       const start = Date.parse(candidate.start_at);
       const end = Date.parse(candidate.end_at);
-      const explicitOverlap = intervals.some((row) => types.has(row.interval_type)
+      const explicitOverlap = intervals.some((row) => (exactIds.has(row.id) || types.has(row.interval_type))
         && Date.parse(row.start_at) < end && Date.parse(row.end_at) > start);
       const scheduleOverlap = schedule
         ? resolveWeeklyRestOccurrences(schedule, candidate.start_at, candidate.end_at, profile.timezone).length > 0
@@ -298,6 +320,10 @@ function specialTypesForRule(rule: PayRule): Set<string> {
     if (condition.type === 'specialInterval') condition.intervalTypes.forEach((type) => types.add(type));
   }
   return types;
+}
+
+function specialIntervalIdsForRule(rule: PayRule): Set<string> {
+  return new Set(rule.conditions.flatMap((condition) => condition.type === 'specialIntervalId' ? [condition.intervalId] : []));
 }
 
 function matchesSimpleStaticConditions(

@@ -7,6 +7,7 @@ import type { RecurrenceScope, Shift, ShiftStatus } from '@/domain/entities';
 import { assertShiftStatusTransition, selectRecurrenceScopeOccurrences } from '@/domain/services';
 import { RecurrenceScopeChooser } from '@/features/shifts/components/recurrence-scope-chooser';
 import { ShiftDetailView } from '@/features/shifts/components/shift-detail-view';
+import { ShiftActions } from '@/features/shifts/components/shift-actions';
 import { useRepositories } from '@/features/shifts/hooks/use-repositories';
 import { useShift } from '@/features/shifts/hooks/use-shifts';
 import { useShiftTemplates } from '@/features/shifts/hooks/use-shift-templates';
@@ -103,15 +104,6 @@ export default function ShiftDetailsScreen() {
     {error ? <Text accessibilityRole="alert">{t('common.error')}</Text> : null}
     {!loading && !shift ? <EmptyState body={t('shift.notFound')} title={t('common.error')} /> : null}
     {shift ? <ShiftDetailView
-      onCancel={() => requestScoped('cancel')}
-      onDelete={() => requestScoped('delete')}
-      onDuplicate={() => router.push(`/shifts/new?mode=${shift.status === 'completed' ? 'completed' : 'scheduled'}&duplicate=${shift.id}`)}
-      onEdit={() => router.push(`/shifts/${shift.id}/edit`)}
-      onMarkMissed={() => void markMissed()}
-      onRestore={() => requestScoped('restore')}
-      onStart={() => shift.status === 'active' ? router.push('/shifts/active/end') : router.push(`/shifts/start?shiftId=${shift.id}`)}
-      onManageBreaks={() => router.push(`/shifts/${shift.id}/breaks`)}
-      onCancelTracking={() => router.push('/shifts/active/cancel')}
       roleName={roles.find((item) => item.id === shift.roleId)?.name}
       shift={shift}
       templateName={templates.find((item) => item.id === shift.shiftTemplateId)?.name}
@@ -122,6 +114,18 @@ export default function ShiftDetailsScreen() {
       onRecalculate={shift.status === 'completed' ? () => void recalculateSalary() : undefined}
       result={salary.summary?.resultsByShiftId[shift.id]}
       status={shift.status === 'scheduled' || shift.status === 'active' ? 'estimated' : shift.salaryCalculationStatus}
+    /> : null}
+    {shift ? <ShiftActions
+      onCancel={() => requestScoped('cancel')}
+      onDelete={() => requestScoped('delete')}
+      onDuplicate={() => router.push(`/shifts/new?mode=${shift.status === 'completed' ? 'completed' : 'scheduled'}&duplicate=${shift.id}`)}
+      onEdit={() => router.push(`/shifts/${shift.id}/edit`)}
+      onMarkMissed={() => void markMissed()}
+      onRestore={() => requestScoped('restore')}
+      onStart={() => shift.status === 'active' ? router.push('/shifts/active/end') : router.push(`/shifts/start?shiftId=${shift.id}`)}
+      onManageBreaks={() => router.push(`/shifts/${shift.id}/breaks`)}
+      onCancelTracking={() => router.push('/shifts/active/cancel')}
+      shift={shift}
     /> : null}
     <RecurrenceScopeChooser onChoose={(scope) => pendingAction ? void applyAction(pendingAction, scope) : undefined} onDismiss={() => setPendingAction(null)} visible={pendingAction !== null} />
   </AppScreen>;

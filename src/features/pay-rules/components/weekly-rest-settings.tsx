@@ -21,6 +21,10 @@ export interface WeeklyRestSettingsDraft {
   sourceTitle?: string;
   sourceUrl?: string;
   confirmed: boolean;
+  payChoice:
+    | { kind: 'managed_rate'; multiplierBasisPoints: number }
+    | { kind: 'tracking_only' }
+    | { kind: 'advanced_preserved' };
 }
 
 interface Props {
@@ -33,7 +37,6 @@ interface Props {
   salaryProfileId: string;
   previewFrom?: string;
   onSave: (draft: WeeklyRestSettingsDraft) => void | Promise<void>;
-  onSavePayRule?: (multiplierBasisPoints: number) => void | Promise<void>;
   onOpenAdvancedRules?: () => void;
 }
 
@@ -47,28 +50,28 @@ export function WeeklyRestSettings({
   salaryProfileId,
   previewFrom,
   onSave,
-  onSavePayRule,
   onOpenAdvancedRules,
 }: Props) {
   const { colors } = useAppTheme();
   const { formatDate, isRtl, locale, t } = useTranslation();
   const [enabled, setEnabled] = useState(schedule?.enabled ?? false);
-  const [label, setLabel] = useState(schedule?.label ?? t('salary.weeklyRestDefaultLabel'));
+  const [label] = useState(schedule?.label ?? t('salary.weeklyRestDefaultLabel'));
   const [startWeekday, setStartWeekday] = useState(schedule?.startWeekday ?? 5);
   const [startTime, setStartTime] = useState(schedule?.startTime ?? '18:00');
   const [endWeekday, setEndWeekday] = useState(schedule?.endWeekday ?? 6);
   const [endTime, setEndTime] = useState(schedule?.endTime ?? '18:00');
-  const [sourceTitle, setSourceTitle] = useState(schedule?.sourceTitle ?? '');
-  const [sourceUrl, setSourceUrl] = useState(schedule?.sourceUrl ?? '');
-  const [confirmed, setConfirmed] = useState(false);
-  const [scheduleDirty, setScheduleDirty] = useState(false);
+  const [confirmed, setConfirmed] = useState(Boolean(schedule?.enabled && schedule.confirmedAt));
+  const [payChoice, setPayChoice] = useState<'managed_rate' | 'tracking_only' | 'advanced_preserved' | undefined>(
+    managedRuleBlocked ? 'advanced_preserved' : managedPayRule ? 'managed_rate' : schedule?.enabled ? 'tracking_only' : undefined,
+  );
   const [multiplierPercent, setMultiplierPercent] = useState(
     managedPayRule?.effect.type === 'multiplier' ? String(managedPayRule.effect.basisPoints / 100) : '',
   );
+  const [isSaving, setIsSaving] = useState(false);
   const align = isRtl ? 'right' : 'left';
   const direction = isRtl ? 'row-reverse' : 'row';
   const invalidateConfirmation = () => setConfirmed(false);
-  const update = (operation: () => void) => { operation(); setScheduleDirty(true); invalidateConfirmation(); };
+  const update = (operation: () => void) => { operation(); invalidateConfirmation(); };
   const preview = useMemo(() => {
     if (!enabled || !label.trim()) return undefined;
     const now = previewFrom ?? new Date().toISOString();
@@ -89,13 +92,32 @@ export function WeeklyRestSettings({
       return undefined;
     }
   }, [enabled, endTime, endWeekday, label, previewFrom, salaryProfileId, schedule, startTime, startWeekday, timezone, workplaceId]);
-  const canSave = !enabled || Boolean(preview && confirmed);
   const payMultiplierBasisPoints = parsePayMultiplier(multiplierPercent);
-  const canSavePayRule = Boolean(schedule?.enabled
-    && !scheduleDirty
-    && !managedRuleBlocked
-    && payMultiplierBasisPoints !== undefined
-    && onSavePayRule);
+  const hasValidPayChoice = payChoice === 'tracking_only'
+    || payChoice === 'advanced_preserved'
+    || (payChoice === 'managed_rate' && payMultiplierBasisPoints !== undefined);
+  const canSave = !isSaving && (!enabled || Boolean(preview && confirmed && hasValidPayChoice));
+
+  const submit = async () => {
+    if (!canSave) return;
+    setIsSaving(true);
+    try {
+      await onSave({
+        enabled, label: label.trim(), startWeekday, startTime, endWeekday, endTime,
+        sourceKind: schedule?.sourceKind ?? 'manual',
+        sourceTitle: schedule?.sourceTitle,
+        sourceUrl: schedule?.sourceUrl,
+        confirmed,
+        payChoice: !enabled || payChoice === 'advanced_preserved'
+          ? { kind: 'advanced_preserved' }
+          : payChoice === 'tracking_only'
+            ? { kind: 'tracking_only' }
+            : { kind: 'managed_rate', multiplierBasisPoints: payMultiplierBasisPoints! },
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return <View testID="weekly-rest-settings" style={[styles.card, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
     <View testID="weekly-rest-switch-row" style={[styles.switchRow, { flexDirection: direction }]}>
@@ -114,22 +136,43 @@ export function WeeklyRestSettings({
     </View>
 
     {enabled ? <View testID="weekly-rest-fields" style={styles.fields}>
-      <FormField label={t('salary.weeklyRestLabel')} maxLength={120} value={label} onChangeText={(value) => update(() => setLabel(value))} />
       <WeekdayPicker label={t('salary.weeklyRestStartWeekday')} value={startWeekday} onChange={(value) => update(() => setStartWeekday(value))} />
       <TimeField label={t('salary.weeklyRestStartTime')} value={startTime} onChange={(value) => value && update(() => setStartTime(value))} />
       <WeekdayPicker label={t('salary.weeklyRestEndWeekday')} value={endWeekday} onChange={(value) => update(() => setEndWeekday(value))} />
       <TimeField label={t('salary.weeklyRestEndTime')} value={endTime} onChange={(value) => value && update(() => setEndTime(value))} />
-      <FormField label={t('salary.sourceTitle')} maxLength={240} value={sourceTitle} onChangeText={(value) => update(() => setSourceTitle(value))} />
-      <FormField
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="url"
-        label={t('salary.sourceUrl')}
-        maxLength={2_048}
-        style={styles.machineInput}
-        value={sourceUrl}
-        onChangeText={(value) => update(() => setSourceUrl(value))}
-      />
+      <View style={styles.fields}>
+        <Text style={[styles.previewTitle, { color: colors.text, textAlign: align }]}>{t('salary.weeklyRestPayChoice')}</Text>
+        {managedRuleBlocked ? <Text accessibilityRole="alert" style={[styles.body, { color: colors.warning, textAlign: align }]}>{t('salary.weeklyRestPayManagedConflict')}</Text> : <>
+          <PayChoice
+            checked={payChoice === 'managed_rate'}
+            direction={direction}
+            label={t('salary.weeklyRestUsePremium')}
+            onPress={() => setPayChoice('managed_rate')}
+          />
+          {payChoice === 'managed_rate' ? <>
+            <FormField
+              accessibilityLabel={t('salary.weeklyRestPayMultiplier')}
+              error={multiplierPercent && payMultiplierBasisPoints === undefined ? t('rules.invalidMultiplier') : undefined}
+              keyboardType="decimal-pad"
+              label={t('salary.weeklyRestPayMultiplier')}
+              onChangeText={setMultiplierPercent}
+              selectTextOnFocus
+              style={styles.machineInput}
+              testID="e2e-weekly-rest-pay-multiplier"
+              value={multiplierPercent}
+            />
+            <Text style={[styles.body, { color: colors.textMuted, textAlign: align }]}>{t('salary.weeklyRestPayMultiplierHelp')}</Text>
+          </> : null}
+          <PayChoice
+            checked={payChoice === 'tracking_only'}
+            direction={direction}
+            label={t('salary.weeklyRestTrackingOnly')}
+            onPress={() => setPayChoice('tracking_only')}
+          />
+          {payChoice === 'tracking_only' ? <Text style={[styles.body, { color: colors.textMuted, textAlign: align }]}>{t('salary.weeklyRestTrackingOnlyHelp')}</Text> : null}
+          {schedule?.enabled && !managedPayRule ? <Text accessibilityRole="alert" style={[styles.body, { color: colors.warning, textAlign: align }]}>{t('salary.weeklyRestPayMissing')}</Text> : null}
+        </>}
+      </View>
       <View style={[styles.preview, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Text style={[styles.previewTitle, { color: colors.text, textAlign: align }]}>{t('salary.weeklyRestPreview')}</Text>
         {preview ? <Text testID="weekly-rest-preview" style={[styles.machineText, { color: colors.text, textAlign: align }]}>
@@ -152,41 +195,12 @@ export function WeeklyRestSettings({
 
     <PrimaryButton
       disabled={!canSave}
-      label={enabled ? t('salary.weeklyRestSave') : t('salary.weeklyRestDisable')}
-      onPress={() => void onSave({
-        enabled, label: label.trim(), startWeekday, startTime, endWeekday, endTime,
-        sourceKind: schedule?.sourceKind ?? 'manual',
-        sourceTitle: sourceTitle.trim() || undefined,
-        sourceUrl: sourceUrl.trim() || undefined,
-        confirmed,
-      })}
+      label={t('salary.weeklyRestSave')}
+      onPress={() => void submit()}
       testID="e2e-weekly-rest-save"
     />
 
-    {schedule?.enabled ? <View testID="weekly-rest-pay-settings" style={[styles.payCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <Text style={[styles.title, { color: colors.text, textAlign: align }]}>{t('salary.weeklyRestPayTitle')}</Text>
-      <Text style={[styles.body, { color: colors.textMuted, textAlign: align }]}>{t('salary.weeklyRestPaySummary')}</Text>
-      {managedRuleBlocked ? <Text accessibilityRole="alert" style={[styles.body, { color: colors.warning, textAlign: align }]}>{t('salary.weeklyRestPayManagedConflict')}</Text> : <>
-        <FormField
-          accessibilityLabel={t('salary.weeklyRestPayMultiplier')}
-          keyboardType="decimal-pad"
-          label={t('salary.weeklyRestPayMultiplier')}
-          onChangeText={setMultiplierPercent}
-          selectTextOnFocus
-          style={styles.machineInput}
-          testID="e2e-weekly-rest-pay-multiplier"
-          value={multiplierPercent}
-        />
-        <Text style={[styles.body, { color: colors.textMuted, textAlign: align }]}>{t('salary.weeklyRestPayMultiplierHelp')}</Text>
-        {!managedPayRule ? <Text accessibilityRole="alert" style={[styles.body, { color: colors.warning, textAlign: align }]}>{t('salary.weeklyRestPayMissing')}</Text> : null}
-        {scheduleDirty ? <Text accessibilityRole="alert" style={[styles.body, { color: colors.warning, textAlign: align }]}>{t('salary.weeklyRestPayUnsavedWindow')}</Text> : null}
-        <PrimaryButton
-          disabled={!canSavePayRule}
-          label={managedPayRule ? t('salary.weeklyRestPayUpdate') : t('salary.weeklyRestPaySave')}
-          onPress={() => payMultiplierBasisPoints !== undefined && onSavePayRule ? void onSavePayRule(payMultiplierBasisPoints) : undefined}
-          testID="e2e-weekly-rest-pay-save"
-        />
-      </>}
+    {(advancedPayRules.length > 0 || onOpenAdvancedRules) ? <View testID="weekly-rest-advanced-settings" style={[styles.payCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       {advancedPayRules.length > 0 ? <View style={styles.advancedRules}>
         <Text style={[styles.previewTitle, { color: colors.text, textAlign: align }]}>{t('salary.weeklyRestAdvancedRules')}</Text>
         {advancedPayRules.map((rule) => <Text key={rule.id} style={[styles.body, { color: colors.textMuted, textAlign: align }]}>{formatRuleSummary(rule, t('rules.enabled'), t('rules.disabled'))}</Text>)}
@@ -195,6 +209,24 @@ export function WeeklyRestSettings({
       {onOpenAdvancedRules ? <SecondaryButton label={t('salary.weeklyRestOpenAdvancedRules')} onPress={onOpenAdvancedRules} /> : null}
     </View> : null}
   </View>;
+}
+
+function PayChoice({ checked, direction, label, onPress }: {
+  checked: boolean;
+  direction: 'row' | 'row-reverse';
+  label: string;
+  onPress: () => void;
+}) {
+  const { colors } = useAppTheme();
+  return <Pressable
+    accessibilityRole="radio"
+    accessibilityState={{ checked }}
+    onPress={onPress}
+    style={[styles.payChoice, { borderColor: checked ? colors.primary : colors.border, flexDirection: direction }]}
+  >
+    <View style={[styles.radio, { borderColor: colors.primary }]}>{checked ? <View style={[styles.radioDot, { backgroundColor: colors.primary }]} /> : null}</View>
+    <Text style={[styles.checkText, { color: colors.text }]}>{label}</Text>
+  </Pressable>;
 }
 
 type FormatDate = ReturnType<typeof useTranslation>['formatDate'];
@@ -230,6 +262,9 @@ const styles = StyleSheet.create({
   fields: { gap: spacing.md },
   preview: { borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, gap: spacing.xs, padding: spacing.md },
   payCard: { borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, gap: spacing.sm, padding: spacing.md },
+  payChoice: { alignItems: 'center', borderRadius: radius.md, borderWidth: 1, gap: spacing.sm, minHeight: 48, padding: spacing.sm },
+  radio: { alignItems: 'center', borderRadius: 10, borderWidth: 2, height: 20, justifyContent: 'center', width: 20 },
+  radioDot: { borderRadius: 5, height: 10, width: 10 },
   advancedRules: { gap: spacing.xs },
   previewTitle: { fontWeight: '800' },
   machineText: { fontVariant: ['tabular-nums'], lineHeight: 22, writingDirection: 'ltr' },

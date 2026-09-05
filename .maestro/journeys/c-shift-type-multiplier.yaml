@@ -9,7 +9,9 @@ tags:
 - tapOn:
     id: e2e-tab-settings
 - tapOn:
-    id: e2e-settings-shift-types
+    id: e2e-settings-workplaces
+- tapOn:
+    id: e2e-workplaces-shift-types
 - tapOn:
     id: e2e-shift-type-add
 - tapOn:

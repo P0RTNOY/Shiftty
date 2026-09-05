@@ -31,7 +31,7 @@ New evidence-aware rules use the generalized condition:
 }
 ```
 
-This is the canonical route for new holiday/rest/custom rules. It targets interval types rather than hard-coded weekdays. The optional `premiumFamily` field makes multiplier interaction explicit; Migration 9 leaves it `NULL` for legacy rules so their previous ordinary behavior is not reclassified during upgrade.
+This remains the generalized route for advanced holiday/rest/custom rules. It targets interval types rather than hard-coded weekdays. The simplified one-time interval flow uses the more specific `{ type: 'specialIntervalId', intervalId }` condition, so a rate saved for one holiday or custom interval cannot bleed into another interval of the same type. Both serialized forms are read without a migration. The optional `premiumFamily` field makes multiplier interaction explicit; Migration 9 leaves it `NULL` for legacy rules so their previous ordinary behavior is not reclassified during upgrade.
 
 ## Calendar evidence model
 
@@ -67,9 +67,9 @@ Local wall-clock boundaries are resolved in the salary profile's IANA timezone, 
 
 The weekly-rest schedule and the workweek used for weekly-overtime accumulation are intentionally separate. Choosing a rest interval does not change the workweek start or weekly threshold, and configuring a workweek does not create weekly-rest evidence.
 
-The settings flow keeps the schedule and its pay effect as two explicit save stages on the same card. First, the user selects and confirms the recurring local window. After that persisted window is active, the card exposes an optional total-rate percentage backed by a normal profile-scoped `specialInterval: weekly_rest` pay rule. For example, `150%` means a total 1.5-times base rate, not an additional 150% premium. The simple control owns only the enabled deterministic `weekly-rest-pay:<profile-id>` rule and never rewrites an incompatible, disabled, effective-dated, stacking, or otherwise advanced rule. Other matching rules remain visible by name/state and can be reviewed in the advanced editor. Effective-dated salary-profile versioning remaps the managed ID to the new profile so lowering a rate cannot leave a stronger cloned duplicate behind.
+The settings flow asks for the recurring window and its pay behavior together. The user explicitly chooses either a managed total-rate percentage or tracking only, reviews the exact local preview, and confirms once. For example, `150%` means a total 1.5-times base rate, not an additional 150% premium. One SQLite transaction then saves the schedule and creates, updates, removes, or preserves the deterministic `weekly-rest-pay:<profile-id>` rule. A failure rolls back both facts, preventing a newly confirmed paid interval from being left without its selected rate.
 
-This same-screen workflow does not couple the underlying records or imply an atomic combined save. A window can remain active with no pay effect, and the UI states that explicitly. Editing the window requires a new confirmation before its simple pay rule can be changed. Disabling the recurring window does not delete pay rules because they may also apply to separately confirmed manual `weekly_rest` intervals.
+The simple control never rewrites an incompatible, disabled, effective-dated, stacking, or otherwise advanced rule, and an ID collision fails safely. Other matching rules remain visible by name/state and can be reviewed in the advanced editor. Effective-dated salary-profile versioning remaps the managed ID to the new profile so lowering a rate cannot leave a stronger cloned duplicate behind. Tracking-only is an explicit neutral choice: the schedule remains available to the calculation explanation while the compatible managed rule is removed. Disabling the schedule preserves the rule because it can still apply to separately confirmed manual `weekly_rest` evidence; advanced rules are also preserved.
 
 ## Preset and source provenance
 
@@ -166,7 +166,7 @@ Replace restore writes active and archived evidence/schedules, including optiona
 
 ## Settings, reports, and exports
 
-Advanced Salary Settings exposes **חגים ומנוחה שבועית / Holidays & weekly rest** without changing the hourly-rate-first setup. The flow supports a disabled-by-default recurring schedule, an exact occurrence preview, explicit two-stage weekly-rest window/rate configuration, manual profile- or workplace-scoped intervals, source metadata, the reviewed representative preset, rule-effect status, direct navigation to the advanced type-scoped pay-rule editor, edit, archive/restore, and confirmed deletion.
+Salary & premiums starts with the current effective workplace profile and an hourly-rate-first overview. **חגים ומנוחה שבועית / Holidays & weekly rest** supports a disabled-by-default recurring schedule, an exact occurrence preview, atomic weekly-rest window/pay configuration, and one-step exact holiday/custom interval plus rate creation. Scope and source metadata remain under advanced options, while the reviewed representative preset, rule-effect status, advanced rule editor, edit, archive/restore, and confirmed deletion remain reachable.
 
 All copy is translated. Disclosure controls announce expanded/collapsed state, choices expose radio/checkbox/switch state, touch controls retain native roles, and logical layout follows RTL/LTR. Dates, times, percentages, and URLs use directionally isolated, wrapping text; evidence type/effect is stated in words and not represented by color alone.
 
@@ -178,7 +178,7 @@ ICS remains calendar-only. It exports no salary amount, evidence provenance, sou
 
 This foundation does not provide automatic calendar synchronization, a comprehensive Israeli or worldwide holiday dataset, religious-calendar calculations, sunset boundaries, employee or employer entitlement decisions, permit verification, agreement interpretation, night-work presets, taxes, National Insurance, pension, deductions, benefits, or net pay. Imported sources are user-confirmed inputs, not independently authenticated legal evidence.
 
-The included fixture demonstrates a safe versioned preset workflow; it is not a complete calendar. Users must review exact boundaries and explicitly save a separate pay rule—using the same weekly-rest card or the advanced editor—that reflects their own verified arrangement. Professional payroll or legal review remains necessary where correctness or entitlement matters.
+The included fixture demonstrates a safe versioned preset workflow; it is not a complete calendar. Users must review exact boundaries and explicitly choose the pay behavior that reflects their own verified arrangement. The simple forms can persist the evidence and their managed rule in one transaction, but that convenience does not authenticate the input or determine entitlement. Professional payroll or legal review remains necessary where correctness or entitlement matters.
 
 ## Verification recorded for this milestone
 
@@ -186,10 +186,10 @@ The 2026-08-25 repository gate passed type checking and linting; 131 Jest suites
 
 The current Debug development client built, installed, and launched on the booted iPhone 17 Pro simulator running iOS 26.5. A representative profile database upgraded to Migration 9, and the Holidays & weekly rest settings route was visually inspected in Hebrew and with English localized copy, including the disabled recurring-rest state and legal-safety disclosure. The dev-client connection did not remain stable enough to claim the complete manual interaction matrix. Manual interval creation, configured-rule results, Shift Details, Reports, Dynamic Type extremes, and the native accessibility tree remain automated-only for this milestone. Android and physical-device verification were not performed.
 
-## Dynamic weekly-rest configuration follow-up — 2026-08-29
+## Simple salary configuration follow-up — 2026-09-05
 
-The profile-scoped weekly-rest card now makes the existing evidence/rule separation actionable in one place. After the user saves and confirms an arbitrary recurring weekday/time window, a second explicit control can create or update a dedicated total-rate rule for `weekly_rest`. It starts empty rather than assuming 150%. Advanced matching rules are listed separately, incompatible managed-ID collisions are never overwritten, and changing an unsaved window blocks the simple rule update.
+The profile-scoped weekly-rest card now makes the existing evidence/rule separation actionable with one atomic save. The user configures an arbitrary recurring weekday/time window and explicitly chooses a total-rate rule or tracking only; no 150% value is assumed. Advanced matching rules are listed separately, incompatible managed-ID collisions are never overwritten, and a failed transaction leaves neither half of a new configuration behind. One-time holiday/custom forms similarly create an exact interval-ID rule, preventing rate bleed between two dates of the same type.
 
 Shift Details now exposes grouped effective rate tiers and premium pay before the expandable component list. Automated coverage fixes the reported workplace example: Friday 18:00 through Sunday 18:00 at a user-entered 150% total rate. The real completed Saturday 17:23 through Sunday 05:24 shift at ₪60/hour resolves to 480 minutes at 150%, 120 minutes at 175%, and 121 minutes at 200%, totaling ₪1,172. Without the explicit weekly-rest rule, the product-default overtime resolves to 480 minutes at 100%, 120 minutes at 125%, and 121 minutes at 150%, totaling ₪811.50. A disabled/unconfirmed weekly-rest schedule or a missing pay rule remains neutral rather than silently assuming Saturday entitlement.
 
-The complete source gate passed type checking, zero-warning lint, 141 Jest suites containing 718 tests, empty and v1–v9 migration validation, Expo export of 37 static routes, the accepted exact 12-notice SDK 57 compatibility baseline, public configuration, production iOS configuration/surface audits, and patch-whitespace validation. No migration, dependency, backup format, stored snapshot, or historical total changed.
+Verification for the 2026-09-05 follow-up is recorded in [`MILESTONE_9_SIMPLE_SALARY_UX.md`](MILESTONE_9_SIMPLE_SALARY_UX.md) and `PROJECT_STATUS.md`. No migration, dependency, backup format, stored snapshot, or historical total changed.

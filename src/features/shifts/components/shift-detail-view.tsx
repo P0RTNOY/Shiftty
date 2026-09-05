@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import type { Shift } from '@/domain/entities';
-import { calculateShiftDuration, canMarkShiftMissed } from '@/domain/services';
+import { calculateShiftDuration } from '@/domain/services';
 import { StatusBadge } from '@/features/shifts/components/status-badge';
-import { PrimaryButton, SecondaryButton } from '@/shared/components';
+import { SecondaryButton } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
 import { radius, spacing, typography, useAppTheme } from '@/shared/theme';
 import { formatDurationLong } from '@/shared/utils/duration-format';
@@ -15,27 +15,16 @@ interface Props {
   workplaceName: string;
   roleName?: string;
   templateName?: string;
-  now?: Date;
-  onEdit: () => void;
-  onDuplicate: () => void;
-  onCancel: () => void;
-  onMarkMissed: () => void;
-  onRestore: () => void;
-  onDelete: () => void;
-  onStart?: () => void;
-  onManageBreaks?: () => void;
-  onCancelTracking?: () => void;
 }
 
 type RangeKind = 'scheduled' | 'actual' | 'payable';
 
-export function ShiftDetailView({ shift, workplaceName, roleName, templateName, now = new Date(), ...actions }: Props) {
+export function ShiftDetailView({ shift, workplaceName, roleName, templateName }: Props) {
   const { colors } = useAppTheme();
   const { formatDate, isRtl, locale, t } = useTranslation();
   const [showMore, setShowMore] = useState(false);
   const align = isRtl ? 'right' : 'left';
   const baseDate = shift.actualStart ?? shift.scheduledStart ?? shift.payableStart!;
-  const eligibleForMissed = canMarkShiftMissed(shift, now);
   const primaryKind: RangeKind = shift.actualStart ? 'actual' : shift.scheduledStart ? 'scheduled' : 'payable';
   const primaryStart = shift[`${primaryKind}Start`];
   const primaryEnd = shift[`${primaryKind}End`];
@@ -49,10 +38,6 @@ export function ShiftDetailView({ shift, workplaceName, roleName, templateName, 
   const resolvedTypeName = shift.shiftTypeNameSnapshot ?? templateName;
   const displayTitle = shift.title || resolvedTypeName || workplaceName;
   const showWorkplaceMeta = displayTitle !== workplaceName || Boolean(roleName);
-  const confirmDelete = () => Alert.alert(t('shift.deleteTitle'), t('shift.deleteBody'), [
-    { text: t('common.cancel'), style: 'cancel' },
-    { text: t('common.delete'), style: 'destructive', onPress: actions.onDelete },
-  ]);
 
   return <View style={styles.container} testID="e2e-shift-details">
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -81,18 +66,6 @@ export function ShiftDetailView({ shift, workplaceName, roleName, templateName, 
         <Text style={[styles.timestamp, { color: colors.textMuted, textAlign: align }]}>{t('shift.updatedAt')}: {formatDate(shift.updatedAt, { dateStyle: 'short', timeStyle: 'short' })}</Text>
       </View> : null}
     </View>
-    {shift.status !== 'active' ? <>
-      <PrimaryButton label={t('common.edit')} onPress={actions.onEdit} />
-      <SecondaryButton label={t('common.duplicate')} onPress={actions.onDuplicate} />
-    </> : null}
-    {shift.status === 'scheduled' ? <PrimaryButton label={t('active.startScheduled')} onPress={() => actions.onStart?.()} /> : null}
-    {shift.status === 'active' ? <PrimaryButton label={t('active.endShift')} onPress={() => actions.onStart?.()} /> : null}
-    {showMore && (shift.status === 'active' || shift.status === 'completed') ? <SecondaryButton label={t('active.manageBreaks')} onPress={() => actions.onManageBreaks?.()} /> : null}
-    {shift.status === 'active' ? <SecondaryButton destructive label={t('active.cancelTracking')} onPress={() => actions.onCancelTracking?.()} /> : null}
-    {shift.status === 'scheduled' && !eligibleForMissed ? <SecondaryButton destructive label={t('shift.cancelAction')} onPress={actions.onCancel} /> : null}
-    {eligibleForMissed ? <SecondaryButton destructive label={t('shift.markMissed')} onPress={actions.onMarkMissed} /> : null}
-    {shift.status === 'cancelled' || shift.status === 'missed' ? <SecondaryButton label={t('shift.restore')} onPress={actions.onRestore} /> : null}
-    {shift.status !== 'active' ? <SecondaryButton destructive label={t('common.delete')} onPress={confirmDelete} /> : null}
   </View>;
 }
 

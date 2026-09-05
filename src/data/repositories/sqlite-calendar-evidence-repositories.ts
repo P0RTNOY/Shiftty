@@ -2,6 +2,7 @@ import type { SQLiteBindValue, SQLiteDatabase } from 'expo-sqlite';
 
 import {
   calendarEvidenceIntervalSchema,
+  payRuleSchema,
   weeklyRestScheduleSchema,
   type CalendarEvidenceInterval,
   type WeeklyRestSchedule,
@@ -10,9 +11,23 @@ import type {
   CalendarEvidenceIntervalRepository,
   EvidenceOverlapQuery,
   EvidenceScopeQuery,
+  SpecialIntervalConfigurationInput,
+  WeeklyRestConfigurationInput,
   WeeklyRestScheduleRepository,
 } from '@/domain/repositories';
 import { resolveWeeklyRestOccurrences } from '@/domain/services/weekly-rest-occurrence-service';
+import {
+  deletePayRuleInTransaction,
+  getPayRuleInTransaction,
+  upsertPayRuleInTransaction,
+} from '@/data/repositories/sqlite-salary-repositories';
+import {
+  isManagedWeeklyRestPayRule,
+  weeklyRestPayRuleId,
+} from '@/domain/services/weekly-rest-pay-rule-service';
+import {
+  isManagedSpecialIntervalPayRule,
+} from '@/domain/services/special-interval-pay-rule-service';
 
 interface EvidenceRow {
   id: string;
@@ -75,6 +90,43 @@ export class SqliteCalendarEvidenceIntervalRepository implements CalendarEvidenc
 
   async save(input: CalendarEvidenceInterval): Promise<void> {
     const interval = calendarEvidenceIntervalSchema.parse(input);
+    await this.database.withTransactionAsync(async () => {
+      await this.saveInTransaction(interval);
+    });
+  }
+
+  async saveConfiguration(input: SpecialIntervalConfigurationInput): Promise<void> {
+    const interval = calendarEvidenceIntervalSchema.parse(input.interval);
+    const rule = input.managedPayRule.action === 'upsert' ? payRuleSchema.parse(input.managedPayRule.rule) : undefined;
+    if (rule && !isManagedSpecialIntervalPayRule(rule, interval.id, rule.salaryProfileId)) {
+      throw new Error('Invalid managed special-interval pay rule.');
+    }
+    await this.database.withTransactionAsync(async () => {
+      if (rule) {
+        const profile = await this.database.getFirstAsync<{ workplace_id: string | null }>(
+          'SELECT workplace_id FROM salary_profiles WHERE id = ?;', rule.salaryProfileId,
+        );
+        if (profile?.workplace_id !== interval.workplaceId
+          || (interval.salaryProfileId && interval.salaryProfileId !== rule.salaryProfileId)) {
+          throw new Error('Managed special-interval rule must use a profile from the interval workplace.');
+        }
+      }
+      const managedId = rule?.id;
+      if (!managedId) {
+        await this.saveInTransaction(interval);
+        return;
+      }
+      const existing = await getPayRuleInTransaction(this.database, managedId);
+      if (existing && !isManagedSpecialIntervalPayRule(existing, interval.id, existing.salaryProfileId)
+        && input.managedPayRule.action !== 'preserve') {
+        throw new Error('The managed special-interval pay-rule ID is controlled by advanced settings.');
+      }
+      await this.saveInTransaction(interval);
+      if (input.managedPayRule.action === 'upsert') await upsertPayRuleInTransaction(this.database, rule!);
+    });
+  }
+
+  private async saveInTransaction(interval: CalendarEvidenceInterval): Promise<void> {
     await this.database.runAsync(
       `INSERT INTO calendar_evidence_intervals (
         id, schedule_id, workplace_id, salary_profile_id, interval_type, name, start_at, end_at, timezone,
@@ -147,26 +199,36 @@ export class SqliteWeeklyRestScheduleRepository implements WeeklyRestScheduleRep
   async save(input: WeeklyRestSchedule): Promise<void> {
     const schedule = weeklyRestScheduleSchema.parse(input);
     await this.database.withTransactionAsync(async () => {
-      const previous = await this.getById(schedule.id);
-      const staleIds = await this.resolveStaleShiftIds([previous, schedule]);
-      await this.database.runAsync(
-        `INSERT INTO weekly_rest_schedules (
-          id, workplace_id, salary_profile_id, label, start_weekday, start_time, end_weekday,
-          end_time, enabled, confirmed_at, source_kind, source_title, source_url, preset_id,
-          preset_version, is_archived, archived_at, created_at, updated_at
-        ) VALUES (${Array.from({ length: 19 }, () => '?').join(', ')})
-        ON CONFLICT(id) DO UPDATE SET workplace_id=excluded.workplace_id,
-          salary_profile_id=excluded.salary_profile_id, label=excluded.label,
-          start_weekday=excluded.start_weekday, start_time=excluded.start_time,
-          end_weekday=excluded.end_weekday, end_time=excluded.end_time,
-          enabled=excluded.enabled, confirmed_at=excluded.confirmed_at,
-          source_kind=excluded.source_kind, source_title=excluded.source_title,
-          source_url=excluded.source_url, preset_id=excluded.preset_id,
-          preset_version=excluded.preset_version, is_archived=excluded.is_archived,
-          archived_at=excluded.archived_at, updated_at=excluded.updated_at;`,
-        ...toScheduleParams(schedule),
-      );
-      await markStaleMany(this.database, staleIds);
+      await this.saveInTransaction(schedule);
+    });
+  }
+
+  async saveConfiguration(input: WeeklyRestConfigurationInput): Promise<void> {
+    const schedule = weeklyRestScheduleSchema.parse(input.schedule);
+    const managedChange = input.managedPayRule.action === 'upsert'
+      ? { action: 'upsert' as const, rule: input.managedPayRule.rule }
+      : input.managedPayRule;
+    const parsedRule = managedChange.action === 'upsert'
+      ? payRuleSchema.parse(managedChange.rule)
+      : undefined;
+    if (parsedRule && !isManagedWeeklyRestPayRule(parsedRule, schedule.salaryProfileId)) {
+      throw new Error('Invalid managed weekly-rest pay rule.');
+    }
+
+    await this.database.withTransactionAsync(async () => {
+      const managedId = weeklyRestPayRuleId(schedule.salaryProfileId);
+      const existing = await getPayRuleInTransaction(this.database, managedId);
+      if (existing && !isManagedWeeklyRestPayRule(existing, schedule.salaryProfileId)) {
+        if (managedChange.action !== 'preserve') {
+          throw new Error('The managed weekly-rest pay-rule ID is controlled by advanced settings.');
+        }
+      }
+      await this.saveInTransaction(schedule);
+      if (managedChange.action === 'upsert') {
+        await upsertPayRuleInTransaction(this.database, parsedRule!);
+      } else if (managedChange.action === 'remove' && existing) {
+        await deletePayRuleInTransaction(this.database, existing.id);
+      }
     });
   }
 
@@ -209,6 +271,29 @@ export class SqliteWeeklyRestScheduleRepository implements WeeklyRestScheduleRep
       await this.database.runAsync('DELETE FROM weekly_rest_schedules WHERE id = ?;', id);
       await markStaleMany(this.database, staleIds);
     });
+  }
+
+  private async saveInTransaction(schedule: WeeklyRestSchedule): Promise<void> {
+    const previous = await this.getById(schedule.id);
+    const staleIds = await this.resolveStaleShiftIds([previous, schedule]);
+    await this.database.runAsync(
+      `INSERT INTO weekly_rest_schedules (
+        id, workplace_id, salary_profile_id, label, start_weekday, start_time, end_weekday,
+        end_time, enabled, confirmed_at, source_kind, source_title, source_url, preset_id,
+        preset_version, is_archived, archived_at, created_at, updated_at
+      ) VALUES (${Array.from({ length: 19 }, () => '?').join(', ')})
+      ON CONFLICT(id) DO UPDATE SET workplace_id=excluded.workplace_id,
+        salary_profile_id=excluded.salary_profile_id, label=excluded.label,
+        start_weekday=excluded.start_weekday, start_time=excluded.start_time,
+        end_weekday=excluded.end_weekday, end_time=excluded.end_time,
+        enabled=excluded.enabled, confirmed_at=excluded.confirmed_at,
+        source_kind=excluded.source_kind, source_title=excluded.source_title,
+        source_url=excluded.source_url, preset_id=excluded.preset_id,
+        preset_version=excluded.preset_version, is_archived=excluded.is_archived,
+        archived_at=excluded.archived_at, updated_at=excluded.updated_at;`,
+      ...toScheduleParams(schedule),
+    );
+    await markStaleMany(this.database, staleIds);
   }
 
   private async resolveStaleShiftIds(

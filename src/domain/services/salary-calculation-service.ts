@@ -527,9 +527,11 @@ function intervalContains(interval: Pick<CalendarEvidenceInterval, 'start' | 'en
   return instant.getTime() >= Date.parse(interval.start) && instant.getTime() < Date.parse(interval.end);
 }
 function ruleTargetsInterval(rule: PayRule, interval: CalendarEvidenceInterval): boolean {
-  return rule.conditions.some((condition) => condition.type === 'specialInterval'
-    ? condition.intervalTypes.includes(interval.type)
-    : condition.type === 'holiday' && interval.type === 'holiday');
+  return rule.conditions.some((condition) => condition.type === 'specialIntervalId'
+    ? condition.intervalId === interval.id
+    : condition.type === 'specialInterval'
+      ? condition.intervalTypes.includes(interval.type)
+      : condition.type === 'holiday' && interval.type === 'holiday');
 }
 function createWorkIntervals(boundaries: readonly number[], unpaid: readonly TimeRange[]): WorkInterval[] {
   const output: WorkInterval[] = [];
@@ -560,6 +562,7 @@ function conditionsMatch(conditions: readonly PayRuleCondition[], instant: Date,
       case 'minimumDuration': return context.grossMinutes >= condition.minutes;
       case 'holiday': return context.holidayIntervals.some((item) => instant.getTime() >= Date.parse(item.start) && instant.getTime() < Date.parse(item.end))
         || context.specialIntervals.some((item) => item.type === 'holiday' && intervalContains(item, instant));
+      case 'specialIntervalId': return context.specialIntervals.some((item) => item.id === condition.intervalId && intervalContains(item, instant));
       case 'specialInterval': return context.specialIntervals.some((item) => condition.intervalTypes.includes(item.type) && intervalContains(item, instant));
       case 'timeWindow': return isTimeInWindow(time, condition.startTime, condition.endTime);
       case 'weekend': return isInWeekWindow(local.getDay(), time, condition.startWeekday, condition.startTime, condition.endWeekday, condition.endTime);
@@ -586,7 +589,7 @@ function isRuleEffectiveAt(rule: PayRule, instant: Date, timezone: string): bool
   return (!rule.effectiveFrom || date >= rule.effectiveFrom) && (!rule.effectiveTo || date <= rule.effectiveTo);
 }
 function compareRules(left: PayRule, right: PayRule): number { return right.priority - left.priority || specificity(right) - specificity(left) || left.id.localeCompare(right.id); }
-function specificity(rule: PayRule): number { return rule.conditions.reduce((score, condition) => score + ({ date: 100, role: 60, workplace: 50, holiday: 40, specialInterval: 40, weekend: 30, timeWindow: 20, weekday: 10, workedMinutes: 10, minimumDuration: 5 }[condition.type]), 0); }
+function specificity(rule: PayRule): number { return rule.conditions.reduce((score, condition) => score + ({ specialIntervalId: 120, date: 100, role: 60, workplace: 50, holiday: 40, specialInterval: 40, weekend: 30, timeWindow: 20, weekday: 10, workedMinutes: 10, minimumDuration: 5 }[condition.type]), 0); }
 function resolveMultiplier(
   rules: PayRule[],
   issues: PayCalculationIssue[],

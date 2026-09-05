@@ -1,52 +1,21 @@
 import { router } from 'expo-router';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { SettingsRow } from '@/features/settings/components/settings-row';
-import { useRepositories } from '@/features/shifts/hooks/use-repositories';
 import { AppScreen } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
-import { spacing, typography, useAppTheme } from '@/shared/theme';
+import { spacing } from '@/shared/theme';
 
 export default function SettingsScreen() {
-  const { colors } = useAppTheme();
-  const { isRtl, t } = useTranslation();
-  const repositories = useRepositories();
-  const headingStyle = [
-    styles.heading,
-    { color: colors.textMuted, textAlign: isRtl ? ('right' as const) : ('left' as const) },
-  ];
+  const { t } = useTranslation();
 
   return (
     <AppScreen title={t('settings.title')}>
       <View style={styles.section}>
         <SettingsRow icon="business-outline" label={t('settings.workplaces')} onPress={() => router.push('/settings/workplaces')} testID="e2e-settings-workplaces" />
-        <SettingsRow icon="cash-outline" label={t('settings.salary')} onPress={() => router.push('/settings/salary')} testID="e2e-settings-salary" />
-        <SettingsRow icon="time-outline" label={t('settings.templates')} onPress={() => router.push('/settings/templates')} testID="e2e-settings-shift-types" />
+        <SettingsRow icon="cash-outline" label={t('salary.settingsTitle')} onPress={() => router.push('/settings/salary')} testID="e2e-settings-salary" />
         <SettingsRow icon="notifications-outline" label={t('settings.notifications')} onPress={() => router.push('/settings/notifications')} testID="e2e-settings-notifications" />
-        <SettingsRow icon="download-outline" label={t('settings.exports')} onPress={() => router.push('/settings/exports')} testID="e2e-settings-exports" />
-        <SettingsRow icon="save-outline" label={t('settings.backupRestore')} onPress={() => router.push('/settings/data-management')} testID="e2e-settings-backup" />
-      </View>
-
-      <View style={styles.section}>
-        <Text style={headingStyle}>{t('settings.advanced')}</Text>
-        <SettingsRow icon="shield-checkmark-outline" label={t('settings.privacy')} onPress={() => router.push('/settings/privacy')} />
-        <SettingsRow
-          icon="trash-outline"
-          label={t('settings.clearPredictions')}
-          onPress={() => {
-            Alert.alert(t('settings.clearPredictions'), t('settings.clearPredictionsDesc'), [
-              { text: t('common.cancel'), style: 'cancel' },
-              {
-                text: t('common.delete'),
-                style: 'destructive',
-                onPress: async () => {
-                  await repositories.predictionFeedback.clearAll();
-                  Alert.alert('', t('settings.predictionsCleared'));
-                },
-              },
-            ]);
-          }}
-        />
+        <SettingsRow icon="folder-outline" label={t('settings.dataBackup')} onPress={() => router.push('/settings/data')} testID="e2e-settings-data" />
       </View>
     </AppScreen>
   );
@@ -54,5 +23,4 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   section: { gap: spacing.sm },
-  heading: { fontSize: typography.caption, fontWeight: '700', paddingHorizontal: spacing.xs },
 });

@@ -46,7 +46,7 @@ describe('SQLite salary repositories', () => {
     expect(database.withTransactionAsync).toHaveBeenCalledTimes(1);
     expect(database.runAsync).toHaveBeenCalledTimes(5);
     expect(database.runAsync.mock.calls[2]?.[0]).toContain('INSERT INTO pay_rules');
-    expect(database.runAsync.mock.calls[2]?.[0]).toContain('CASE WHEN id = ? THEN ?');
+    expect(database.runAsync.mock.calls[2]?.[0]).toContain('WHEN id = ? THEN ?');
     expect(database.runAsync.mock.calls[2]?.slice(1)).toEqual(expect.arrayContaining([
       weeklyRestPayRuleId(previous.id), weeklyRestPayRuleId(next.id),
     ]));

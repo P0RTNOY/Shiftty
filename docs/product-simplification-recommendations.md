@@ -23,6 +23,17 @@ Recommendations are ordered by likely worker impact divided by implementation an
 | Remove the Reports & Backup navigation hop | Settings opened an intermediate screen containing only Export and Backup destinations. | Link both clearly named tasks directly from Settings; retain the old route as a compatibility redirect. | One fewer navigation tap without conflating report files and full-data backups. | Low | Small | **Yes — done 2026-08-23** |
 | Simplify fallback clock-in | The fallback unscheduled-start route exposed optional planning metadata before clock-in. | Keep workplace and Start visible; put role, template, expected end, title, and notes behind **אפשרויות נוספות**. | Multiple-workplace/fallback clock-in stays focused and fast. | Low | Small | **Yes — done 2026-08-23** |
 
+## Implemented in the six-phase simplification — 2026-09-05
+
+- Salary & premiums now opens on the current effective workplace overview; profile editing, history, and raw rules are explicit secondary actions.
+- Weekly-rest setup saves its reviewed window and explicit rate-or-tracking choice atomically.
+- A holiday/custom interval and its exact interval-specific rate save with one confirmation; advanced scope/source fields remain available.
+- Shift Details is information-first, salary detail is collapsed, and secondary/destructive actions share one state-aware menu.
+- Settings has four destinations: Workplaces, Salary & premiums, Notifications, and Data & backup. Shift types live under Workplaces, while reports/backup/privacy live under Data & backup.
+- Hebrew/English interaction coverage and explicit LTR time rendering preserve bilingual/RTL usability.
+
+These changes implement recommendations 1 and 3 and supersede the older six-row Settings proposal without removing advanced calculation capability. Native usability/accessibility verification remains the next evidence step.
+
 ## Top 10 Next Simplifications
 
 ### 1. Make salary setup “hourly rate first, advanced rules second”
@@ -33,7 +44,7 @@ Recommendations are ordered by likely worker impact divided by implementation an
 - **User benefit:** Most workers can trust salary setup after one obvious value.
 - **Risk:** Must preserve effective-dated history and never rewrite finalized snapshots.
 - **Effort:** Medium.
-- **Implement now?** No; requires dedicated salary migration/interaction testing.
+- **Implement now?** **Completed 2026-09-05 without a schema migration; effective-dated interaction tests preserve history.**
 
 ### 2. Move Workplace row actions into one detail screen or overflow
 
@@ -53,7 +64,7 @@ Recommendations are ordered by likely worker impact divided by implementation an
 - **User benefit:** A completed record reads as information first, actions second.
 - **Risk:** Destructive action discoverability and accessible-menu behavior need care.
 - **Effort:** Small–medium.
-- **Implement now?** No; add/shared menu primitive and native accessibility test first.
+- **Implement now?** **Completed 2026-09-05 with an accessible state-aware action sheet; native accessibility verification remains pending.**
 
 ### 4. Replace separate entry/exit rows with one human time range on Shift Details
 

@@ -11,6 +11,8 @@ const mockDelete = jest.fn().mockResolvedValue(undefined);
 const mockListForScope = jest.fn().mockResolvedValue([interval]);
 const mockGetProfile = jest.fn().mockResolvedValue(createSalaryProfile({ name: 'שכר קיץ' }));
 const mockSavePayRule = jest.fn().mockResolvedValue(undefined);
+const mockSaveWeeklyRestConfiguration = jest.fn().mockResolvedValue(undefined);
+const mockSaveIntervalConfiguration = jest.fn().mockResolvedValue(undefined);
 let mockSchedule: ReturnType<typeof createWeeklyRestSchedule> | null = null;
 let mockFocusInvoked = false;
 
@@ -22,8 +24,12 @@ jest.mock('expo-router', () => ({
 jest.mock('@/features/shifts/hooks/use-repositories', () => ({
   useRepositories: () => ({
     salaryProfiles: { getById: mockGetProfile },
-    calendarEvidenceIntervals: { listForScope: mockListForScope, save: jest.fn(), archive: jest.fn(), delete: mockDelete },
-    weeklyRestSchedules: { getForProfile: jest.fn().mockImplementation(() => Promise.resolve(mockSchedule)), save: jest.fn() },
+    calendarEvidenceIntervals: { listForScope: mockListForScope, save: jest.fn(), saveConfiguration: mockSaveIntervalConfiguration, archive: jest.fn(), delete: mockDelete },
+    weeklyRestSchedules: {
+      getForProfile: jest.fn().mockImplementation(() => Promise.resolve(mockSchedule)),
+      save: jest.fn(),
+      saveConfiguration: mockSaveWeeklyRestConfiguration,
+    },
     payRules: { listForProfile: jest.fn().mockResolvedValue([]), save: mockSavePayRule },
   }),
 }));
@@ -59,27 +65,64 @@ describe('HolidaysRestScreen', () => {
     alert.mockRestore();
   });
 
-  it('saves an explicit weekly-rest multiplier and links to the preselected advanced editor', async () => {
+  it('saves the weekly-rest window and rate atomically and links to the preselected advanced editor', async () => {
     mockSchedule = createWeeklyRestSchedule({
       startWeekday: 5, startTime: '18:00', endWeekday: 0, endTime: '18:00',
       enabled: true, confirmedAt: '2026-08-28T17:00:00+03:00',
     });
     renderApp(<HolidaysRestScreen />);
 
-    await screen.findByTestId('weekly-rest-pay-settings');
+    await screen.findByTestId('weekly-rest-fields');
+    fireEvent.press(screen.getByRole('radio', { name: 'תשלום בתעריף מיוחד' }));
     fireEvent.changeText(screen.getByLabelText('תעריף כולל במנוחה השבועית (%)'), '150');
-    fireEvent.press(screen.getByRole('button', { name: 'שמירת תעריף מנוחה שבועית' }));
+    fireEvent.press(screen.getByRole('button', { name: 'שמירת הגדרות המנוחה השבועית' }));
 
-    await waitFor(() => expect(mockSavePayRule).toHaveBeenCalledWith(expect.objectContaining({
-      id: 'weekly-rest-pay:profile-1',
-      salaryProfileId: 'profile-1',
-      conditions: [{ type: 'specialInterval', intervalTypes: ['weekly_rest'] }],
-      effect: { type: 'multiplier', basisPoints: 15_000 },
-      premiumFamily: 'special_interval',
-      canStack: false,
-    })));
+    await waitFor(() => expect(mockSaveWeeklyRestConfiguration).toHaveBeenCalledWith({
+      schedule: expect.objectContaining({
+        salaryProfileId: 'profile-1',
+        startWeekday: 5,
+        startTime: '18:00',
+        endWeekday: 0,
+        endTime: '18:00',
+        enabled: true,
+      }),
+      managedPayRule: {
+        action: 'upsert',
+        rule: expect.objectContaining({
+          id: 'weekly-rest-pay:profile-1',
+          salaryProfileId: 'profile-1',
+          conditions: [{ type: 'specialInterval', intervalTypes: ['weekly_rest'] }],
+          effect: { type: 'multiplier', basisPoints: 15_000 },
+          premiumFamily: 'special_interval',
+          canStack: false,
+        }),
+      },
+    }));
 
     fireEvent.press(screen.getByRole('button', { name: 'פתיחת כללי תשלום מתקדמים' }));
     expect(router.push).toHaveBeenCalledWith('/settings/salary/rules?profileId=profile-1&kind=specialInterval&intervalType=weekly_rest');
+  });
+
+  it('saves a special date with an exact managed rate in one repository operation', async () => {
+    renderApp(<HolidaysRestScreen />);
+    await screen.findByText('שכר קיץ');
+    fireEvent.press(screen.getByRole('button', { name: 'הוספת חג או זמן מיוחד' }));
+    fireEvent.changeText(screen.getByLabelText('שם הטווח'), 'חג חברה');
+    fireEvent.changeText(screen.getByLabelText('תעריף כולל בזמן המיוחד (%)'), '175');
+    fireEvent.press(screen.getByRole('button', { name: 'שמירה ואישור' }));
+
+    await waitFor(() => expect(mockSaveIntervalConfiguration).toHaveBeenCalledWith({
+      interval: expect.objectContaining({ name: 'חג חברה', type: 'holiday', salaryProfileId: undefined, workplaceId: 'workplace-1' }),
+      managedPayRule: {
+        action: 'upsert',
+        rule: expect.objectContaining({
+          salaryProfileId: 'profile-1',
+          conditions: [{ type: 'specialIntervalId', intervalId: expect.any(String) }],
+          effect: { type: 'multiplier', basisPoints: 17_500 },
+          premiumFamily: 'special_interval',
+          canStack: false,
+        }),
+      },
+    }));
   });
 });

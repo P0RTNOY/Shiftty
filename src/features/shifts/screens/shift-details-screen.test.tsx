@@ -71,6 +71,7 @@ describe('ShiftDetailsScreen deletion', () => {
     jest.spyOn(Alert, 'alert').mockImplementation((_title, _body, buttons) => buttons?.[1]?.onPress?.());
     renderApp(<ShiftDetailsScreen />);
 
+    fireEvent.press(screen.getByRole('button', { name: 'פעולות נוספות' }));
     fireEvent.press(screen.getByRole('button', { name: 'מחיקה' }));
 
     await waitFor(() => expect(mockDeleteMany).toHaveBeenCalledWith([completedShift.id]));
@@ -84,6 +85,7 @@ describe('ShiftDetailsScreen deletion', () => {
     expect(screen.getByRole('header', { name: 'הערכת שכר למשמרת' })).toBeTruthy();
     expect(screen.getByText('שכר משוער')).toBeTruthy();
     expect(screen.queryByText('שכר סופי')).toBeNull();
+    fireEvent.press(screen.getByRole('button', { name: 'איך חושב הסכום?' }));
     fireEvent.press(screen.getByRole('button', { name: 'פתיחת הגדרות שכר' }));
     expect(router.push).toHaveBeenCalledWith('/settings/salary');
   });
@@ -102,7 +104,8 @@ describe('ShiftDetailsScreen deletion', () => {
 
     expect(screen.getByTestId('e2e-salary-total').props.accessibilityLabel).toBe('81000');
     expect(screen.getByText(/8 שעות × 100%.*2 שעות × 125%.*2 שעות × 150%/)).toBeTruthy();
-    expect(screen.getByText('הערכת שכר בסיסית')).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: 'איך חושב הסכום?' }));
+    expect(screen.getByText('הערכה בסיסית')).toBeTruthy();
     expect(screen.queryByText('הערכת השכר אינה זמינה')).toBeNull();
   });
 

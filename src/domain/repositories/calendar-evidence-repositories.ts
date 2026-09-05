@@ -1,4 +1,4 @@
-import type { CalendarEvidenceInterval, WeeklyRestSchedule } from '@/domain/entities';
+import type { CalendarEvidenceInterval, PayRule, WeeklyRestSchedule } from '@/domain/entities';
 
 export interface EvidenceScopeQuery {
   workplaceId: string;
@@ -13,6 +13,7 @@ export interface EvidenceOverlapQuery extends EvidenceScopeQuery {
 
 export interface CalendarEvidenceIntervalRepository {
   save(interval: CalendarEvidenceInterval): Promise<void>;
+  saveConfiguration(input: SpecialIntervalConfigurationInput): Promise<void>;
   getById(id: string): Promise<CalendarEvidenceInterval | null>;
   listForScope(query: EvidenceScopeQuery): Promise<CalendarEvidenceInterval[]>;
   listOverlapping(query: EvidenceOverlapQuery): Promise<CalendarEvidenceInterval[]>;
@@ -20,11 +21,27 @@ export interface CalendarEvidenceIntervalRepository {
   delete(id: string): Promise<void>;
 }
 
+export interface SpecialIntervalConfigurationInput {
+  interval: CalendarEvidenceInterval;
+  managedPayRule: { action: 'upsert'; rule: PayRule } | { action: 'preserve' };
+}
+
 export interface WeeklyRestScheduleRepository {
   save(schedule: WeeklyRestSchedule): Promise<void>;
+  saveConfiguration(input: WeeklyRestConfigurationInput): Promise<void>;
   getById(id: string): Promise<WeeklyRestSchedule | null>;
   getForProfile(profileId: string): Promise<WeeklyRestSchedule | null>;
   listForWorkplace(workplaceId: string, includeArchived?: boolean): Promise<WeeklyRestSchedule[]>;
   archive(id: string, archivedAt: string): Promise<void>;
   delete(id: string): Promise<void>;
+}
+
+export type ManagedWeeklyRestPayRuleChange =
+  | { action: 'upsert'; rule: PayRule }
+  | { action: 'remove' }
+  | { action: 'preserve' };
+
+export interface WeeklyRestConfigurationInput {
+  schedule: WeeklyRestSchedule;
+  managedPayRule: ManagedWeeklyRestPayRuleChange;
 }

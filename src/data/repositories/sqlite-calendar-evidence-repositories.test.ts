@@ -12,6 +12,7 @@ import {
   classifyWeeklyRestPayRules,
   weeklyRestPayRuleId,
 } from '@/domain/services/weekly-rest-pay-rule-service';
+import { buildManagedSpecialIntervalPayRule, isManagedSpecialIntervalPayRule, specialIntervalPayRuleId } from '@/domain/services/special-interval-pay-rule-service';
 import { createRealSqliteDb } from '@/test-utils/real-sqlite';
 import { createPayRule, createSalaryProfile } from '@/test/fixtures';
 
@@ -75,6 +76,34 @@ describe('SQLite calendar-evidence repositories', () => {
     await schedules.delete(recurringSchedule.id);
     expect(await intervals.getById(occurrence.id)).toEqual({ ...occurrence, scheduleId: undefined });
     expect(await db.getAllAsync('PRAGMA foreign_key_check')).toEqual([]);
+  });
+
+  it('saves an exact special interval and managed rate atomically', async () => {
+    const interval = evidence({ id: 'company-holiday', salaryProfileId: undefined });
+    const rule = buildManagedSpecialIntervalPayRule({
+      intervalId: interval.id, salaryProfileId: 'profile', multiplierBasisPoints: 17_500,
+      name: interval.name, timestamp,
+    });
+    await intervals.saveConfiguration({ interval, managedPayRule: { action: 'upsert', rule } });
+
+    expect(await intervals.getById(interval.id)).toEqual(interval);
+    expect(await new SqlitePayRuleRepository(db).getById(rule.id)).toEqual(rule);
+  });
+
+  it('rolls back a special interval when its managed rate cannot be persisted', async () => {
+    const interval = evidence({ id: 'atomic-holiday' });
+    const rule = buildManagedSpecialIntervalPayRule({
+      intervalId: interval.id, salaryProfileId: 'profile', multiplierBasisPoints: 15_000,
+      name: interval.name, timestamp,
+    });
+    await db.execAsync(`CREATE TRIGGER fail_managed_special_interval
+      BEFORE INSERT ON pay_rules WHEN NEW.id LIKE 'special-interval-pay:%'
+      BEGIN SELECT RAISE(ABORT, 'forced special-interval rule failure'); END;`);
+
+    await expect(intervals.saveConfiguration({ interval, managedPayRule: { action: 'upsert', rule } }))
+      .rejects.toThrow('forced special-interval rule failure');
+    expect(await intervals.getById(interval.id)).toBeNull();
+    expect(await new SqlitePayRuleRepository(db).getById(rule.id)).toBeNull();
   });
 
   it('keeps a disabled schedule neutral and targets staleness when it becomes enabled', async () => {
@@ -144,6 +173,81 @@ describe('SQLite calendar-evidence repositories', () => {
       .toEqual(snapshotsBefore);
     expect(await db.getAllAsync('PRAGMA foreign_key_check')).toEqual([]);
     expect(await db.getFirstAsync('PRAGMA integrity_check')).toEqual({ integrity_check: 'ok' });
+  });
+
+  it('saves a weekly-rest schedule and its managed rate in one transaction', async () => {
+    const configured = schedule({
+      enabled: true,
+      confirmedAt: timestamp,
+      endWeekday: 0,
+      updatedAt: '2026-08-25T00:00:00Z',
+    });
+    const rule = buildManagedWeeklyRestPayRule({
+      salaryProfileId: 'profile',
+      multiplierBasisPoints: 15_000,
+      name: 'Weekly-rest rate',
+      timestamp: '2026-08-25T00:00:00Z',
+    });
+
+    await schedules.saveConfiguration({
+      schedule: configured,
+      managedPayRule: { action: 'upsert', rule },
+    });
+
+    expect(await schedules.getForProfile('profile')).toEqual(configured);
+    expect(await new SqlitePayRuleRepository(db).getById(rule.id)).toEqual(rule);
+    expect(await db.getAllAsync('PRAGMA foreign_key_check')).toEqual([]);
+  });
+
+  it('removes only the exact basic weekly-rest rate for an explicit tracking-only choice', async () => {
+    const configured = schedule({ enabled: true, confirmedAt: timestamp });
+    const rules = new SqlitePayRuleRepository(db);
+    const managed = buildManagedWeeklyRestPayRule({
+      salaryProfileId: 'profile', multiplierBasisPoints: 15_000,
+      name: 'Weekly-rest rate', timestamp,
+    });
+    const advanced = createPayRule({
+      id: 'advanced-weekly-rest', salaryProfileId: 'profile',
+      conditions: [{ type: 'specialInterval', intervalTypes: ['weekly_rest'] }],
+      effect: { type: 'multiplier', basisPoints: 17_500 }, premiumFamily: 'special_interval',
+    });
+    await schedules.save(configured);
+    await rules.save(managed);
+    await rules.save(advanced);
+
+    await schedules.saveConfiguration({
+      schedule: { ...configured, updatedAt: '2026-08-25T00:00:00Z' },
+      managedPayRule: { action: 'remove' },
+    });
+
+    expect(await rules.getById(managed.id)).toBeNull();
+    expect(await rules.getById(advanced.id)).toEqual(advanced);
+  });
+
+  it('rolls back the schedule, rule, and staleness when the second atomic write fails', async () => {
+    await seedFinalizedShift(db, 'atomic-target', 'profile', '2026-08-28T16:00:00Z', '2026-08-28T20:00:00Z', {});
+    const snapshotsBefore = await db.getAllAsync<{ id: string; result_json: string }>(
+      'SELECT id, result_json FROM salary_calculation_snapshots ORDER BY id',
+    );
+    await db.execAsync(`CREATE TRIGGER fail_managed_weekly_rest
+      BEFORE INSERT ON pay_rules WHEN NEW.id LIKE 'weekly-rest-pay:%'
+      BEGIN SELECT RAISE(ABORT, 'forced managed-rule failure'); END;`);
+    const configured = schedule({ enabled: true, confirmedAt: timestamp });
+    const rule = buildManagedWeeklyRestPayRule({
+      salaryProfileId: 'profile', multiplierBasisPoints: 15_000,
+      name: 'Weekly-rest rate', timestamp,
+    });
+
+    await expect(schedules.saveConfiguration({
+      schedule: configured,
+      managedPayRule: { action: 'upsert', rule },
+    })).rejects.toThrow('forced managed-rule failure');
+
+    expect(await schedules.getForProfile('profile')).toBeNull();
+    expect(await new SqlitePayRuleRepository(db).getById(rule.id)).toBeNull();
+    expect(await shiftStatus(db, 'atomic-target')).toBe('finalized');
+    expect(await db.getAllAsync('SELECT id, result_json FROM salary_calculation_snapshots ORDER BY id'))
+      .toEqual(snapshotsBefore);
   });
 
   it('invalidates an exact evidence overlap when a special-interval pay rule is added', async () => {
@@ -273,6 +377,26 @@ describe('SQLite calendar-evidence repositories', () => {
     const lowered = await payRules.listForProfile(next.id);
     expect(lowered).toHaveLength(1);
     expect(lowered[0]).toMatchObject({ effect: { type: 'multiplier', basisPoints: 12_500 } });
+  });
+
+  it('remaps exact special-date rates to an effective-dated profile version', async () => {
+    const interval = evidence({ id: 'shared-company-holiday', salaryProfileId: undefined });
+    await intervals.save(interval);
+    const payRules = new SqlitePayRuleRepository(db);
+    await payRules.save(buildManagedSpecialIntervalPayRule({
+      intervalId: interval.id, salaryProfileId: 'profile', multiplierBasisPoints: 17_500,
+      name: interval.name, timestamp,
+    }));
+    const profiles = new SqliteSalaryProfileRepository(db);
+    const previous = createSalaryProfile({ id: 'profile', workplaceId: 'wp', effectiveFrom: '2026-01-01', effectiveTo: '2026-08-31', createdAt: timestamp, updatedAt: timestamp });
+    const next = createSalaryProfile({ id: 'profile-next', workplaceId: 'wp', effectiveFrom: '2026-09-01', createdAt: '2026-08-25T00:00:00Z', updatedAt: '2026-08-25T00:00:00Z' });
+
+    await profiles.createVersion(previous, next);
+
+    const cloned = await payRules.listForProfile(next.id);
+    expect(cloned).toHaveLength(1);
+    expect(cloned[0]?.id).toBe(specialIntervalPayRuleId(next.id, interval.id));
+    expect(isManagedSpecialIntervalPayRule(cloned[0]!, interval.id, next.id)).toBe(true);
   });
 });
 

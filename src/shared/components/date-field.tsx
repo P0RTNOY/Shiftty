@@ -73,7 +73,18 @@ export function DateTimeField({ value, onChange, mode, label, error, disabled, o
         }}
         style={({ pressed }) => [styles.input, { backgroundColor: pressed ? colors.surfaceMuted : colors.surface, borderColor: colors.border, opacity: disabled ? 0.5 : 1 }]}
       >
-        <Text style={[styles.inputValue, { color: colors.text, textAlign: align }]}>{displayValue}</Text>
+        <Text
+          style={[
+            styles.inputValue,
+            {
+              color: colors.text,
+              textAlign: mode === 'time' ? 'left' : align,
+              writingDirection: mode === 'time' ? 'ltr' : isRtl ? 'rtl' : 'ltr',
+            },
+          ]}
+        >
+          {displayValue}
+        </Text>
       </Pressable>
 
       {optional && value !== undefined && !disabled ? (

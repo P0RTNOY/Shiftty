@@ -47,6 +47,25 @@ describe('special-interval salary calculation', () => {
       .toMatchObject({ name: 'Configured holiday', appliedRuleIds: ['holiday-pay'] });
   });
 
+  it('applies an interval-ID rate only to its exact holiday and never to another holiday', () => {
+    const first = createCalendarEvidenceInterval({ id: 'holiday-first', start: '2026-07-15T09:00:00+03:00', end: '2026-07-15T10:00:00+03:00' });
+    const second = createCalendarEvidenceInterval({ id: 'holiday-second', start: '2026-07-15T10:00:00+03:00', end: '2026-07-15T11:00:00+03:00' });
+    const exact = specialRule({
+      id: 'special-interval-pay:profile-1:holiday-first',
+      conditions: [{ type: 'specialIntervalId', intervalId: first.id }],
+      effect: { type: 'multiplier', basisPoints: 17_500 },
+    });
+
+    const result = calculate([exact], [first, second]);
+    expect(result.segments.map((segment) => [segment.minutes, segment.multiplierBasisPoints])).toEqual([
+      [60, 10_000], [60, 17_500], [60, 10_000], [60, 10_000],
+    ]);
+    expect(result.specialIntervalEvaluations).toEqual([
+      expect.objectContaining({ intervalId: first.id, appliedRuleIds: [exact.id], contributedToEstimate: true }),
+      expect.objectContaining({ intervalId: second.id, appliedRuleIds: [], contributedToEstimate: false }),
+    ]);
+  });
+
   it('supports the legacy holiday condition against new holiday evidence', () => {
     const legacy = createPayRule({ id: 'legacy-holiday', conditions: [{ type: 'holiday' }], effect: { type: 'multiplier', basisPoints: 15_000 } });
     expect(calculate([legacy]).totalGrossPayMinor).toBe(30_000);

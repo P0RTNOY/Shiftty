@@ -37,6 +37,7 @@ export default function WorkplacesScreen() {
   const archive = async (workplace: (typeof workplaces)[number]) => { await repository.save({ ...workplace, isArchived: true, updatedAt: new Date().toISOString() }); await refresh(); };
   return <AppScreen title={t('workplaces.title')}>
     <SecondaryButton label={t('common.back')} onPress={() => router.back()} />
+    <SecondaryButton label={t('settings.templates')} onPress={() => router.push('/settings/templates')} testID="e2e-workplaces-shift-types" />
     <View style={[styles.form, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <FormField label={t('workplaces.name')} onChangeText={setName} value={name} />
       <FormField label={t('workplaces.address')} onChangeText={setAddress} value={address} />

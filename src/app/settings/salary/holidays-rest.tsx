@@ -22,6 +22,11 @@ import {
   buildManagedWeeklyRestPayRule,
   classifyWeeklyRestPayRules,
 } from '@/domain/services/weekly-rest-pay-rule-service';
+import {
+  buildManagedSpecialIntervalPayRule,
+  isManagedSpecialIntervalPayRule,
+  specialIntervalPayRuleId,
+} from '@/domain/services/special-interval-pay-rule-service';
 import { useRepositories } from '@/features/shifts/hooks/use-repositories';
 import { AppScreen, EmptyState, SecondaryButton } from '@/shared/components';
 import { useTranslation } from '@/shared/i18n';
@@ -42,6 +47,9 @@ export default function HolidaysRestScreen() {
   const [error, setError] = useState(false);
   const align = isRtl ? 'right' : 'left';
   const weeklyRestPayRules = classifyWeeklyRestPayRules(rules, profileId);
+  const weeklyRestRateBasisPoints = weeklyRestPayRules.managed?.effect.type === 'multiplier'
+    ? weeklyRestPayRules.managed.effect.basisPoints
+    : undefined;
 
   const refresh = useCallback(async () => {
     if (!profileId) { setProfile(null); return; }
@@ -83,7 +91,21 @@ export default function HolidaysRestScreen() {
         createdAt: editing?.createdAt ?? timestamp,
         updatedAt: timestamp,
       });
-      await repositories.calendarEvidenceIntervals.save(interval);
+      const existingManagedCandidate = rules.find((rule) => rule.id === specialIntervalPayRuleId(profile.id, interval.id));
+      const managedPayRule = draft.payChoice.kind === 'advanced_preserved'
+        ? { action: 'preserve' as const }
+        : {
+          action: 'upsert' as const,
+          rule: buildManagedSpecialIntervalPayRule({
+            existing: existingManagedCandidate,
+            intervalId: interval.id,
+            multiplierBasisPoints: draft.payChoice.multiplierBasisPoints,
+            name: interval.name,
+            salaryProfileId: profile.id,
+            timestamp,
+          }),
+        };
+      await repositories.calendarEvidenceIntervals.saveConfiguration({ interval, managedPayRule });
       setEditing(undefined);
       setFormExpanded(false);
       await refresh();
@@ -96,7 +118,7 @@ export default function HolidaysRestScreen() {
     if (!profile) return;
     const timestamp = new Date().toISOString();
     try {
-      await repositories.weeklyRestSchedules.save(weeklyRestScheduleSchema.parse({
+      const nextSchedule = weeklyRestScheduleSchema.parse({
         id: schedule?.id ?? createId('weekly-rest'),
         workplaceId: profile.workplaceId,
         salaryProfileId: profile.id,
@@ -115,24 +137,22 @@ export default function HolidaysRestScreen() {
         isArchived: false,
         createdAt: schedule?.createdAt ?? timestamp,
         updatedAt: timestamp,
-      }));
-      await refresh();
-    } catch {
-      setError(true);
-    }
-  };
-
-  const saveWeeklyRestPayRule = async (multiplierBasisPoints: number) => {
-    if (!profile) return;
-    const timestamp = new Date().toISOString();
-    try {
-      await repositories.payRules.save(buildManagedWeeklyRestPayRule({
-        salaryProfileId: profile.id,
-        multiplierBasisPoints,
-        name: t('salary.weeklyRestPayRuleName'),
-        timestamp,
-        existing: weeklyRestPayRules.managed,
-      }));
+      });
+      const managedPayRule = !draft.enabled || draft.payChoice.kind === 'advanced_preserved'
+        ? { action: 'preserve' as const }
+        : draft.payChoice.kind === 'tracking_only'
+          ? { action: 'remove' as const }
+          : {
+            action: 'upsert' as const,
+            rule: buildManagedWeeklyRestPayRule({
+              salaryProfileId: profile.id,
+              multiplierBasisPoints: draft.payChoice.multiplierBasisPoints,
+              name: t('salary.weeklyRestPayRuleName'),
+              timestamp,
+              existing: weeklyRestPayRules.managed,
+            }),
+          };
+      await repositories.weeklyRestSchedules.saveConfiguration({ schedule: nextSchedule, managedPayRule });
       await refresh();
     } catch {
       setError(true);
@@ -198,7 +218,6 @@ export default function HolidaysRestScreen() {
       workplaceId={profile.workplaceId}
       onOpenAdvancedRules={() => router.push(`/settings/salary/rules?profileId=${profile.id}&kind=specialInterval&intervalType=weekly_rest`)}
       onSave={saveSchedule}
-      onSavePayRule={saveWeeklyRestPayRule}
     />
     <CalendarEvidencePresetPreview preset={IL_CIVIL_SERVICE_INDEPENDENCE_DAY_2026_PRESET} onApply={applyPreset} />
     <View style={styles.section}>
@@ -209,7 +228,16 @@ export default function HolidaysRestScreen() {
         onPress={() => { setEditing(undefined); setFormExpanded((value) => !value); }}
         style={({ pressed }) => [styles.disclosure, { borderColor: colors.border, opacity: pressed ? 0.75 : 1 }]}
       ><Text style={[styles.disclosureText, { color: colors.primary, textAlign: align }]}>{t(formExpanded ? 'salary.hideIntervalForm' : 'salary.addInterval')}</Text></Pressable>
-      {formExpanded ? <SpecialPayIntervalForm key={editing?.id ?? 'new'} interval={editing} timezone={profile.timezone} onSave={saveInterval} /> : null}
+      {formExpanded ? <SpecialPayIntervalForm
+        key={editing?.id ?? 'new'}
+        interval={editing}
+        managedPayRule={editing ? rules.find((rule) => isManagedSpecialIntervalPayRule(rule, editing.id, profile.id)) : undefined}
+        managedRuleBlocked={Boolean(editing && rules.some((rule) => rule.id === specialIntervalPayRuleId(profile.id, editing.id))
+          && !rules.some((rule) => isManagedSpecialIntervalPayRule(rule, editing.id, profile.id)))}
+        timezone={profile.timezone}
+        weeklyRestRateBasisPoints={weeklyRestRateBasisPoints}
+        onSave={saveInterval}
+      /> : null}
       {!intervals.length ? <Text style={[styles.body, { color: colors.textMuted, textAlign: align }]}>{t('salary.intervalsEmpty')}</Text> : intervals.map((interval) => <SpecialPayIntervalCard
         interval={interval}
         key={interval.id}

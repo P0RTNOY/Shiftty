@@ -1,6 +1,16 @@
 # Shiftty Project Status
 
-Last updated: 2026-08-30
+Last updated: 2026-09-05
+
+## Simple Salary UX — 2026-09-05
+
+The six-phase simplification is implemented on `codex/simple-salary-ux`. Weekly-rest setup now confirms the exact recurring window and an explicit managed-rate or tracking-only choice once, with schedule and compatible managed rule written atomically. The common holiday/custom flow likewise saves a bounded interval and exact interval-ID rate in one transaction, preventing a rate from bleeding into another date of the same type. Advanced, disabled, stacking, effective-dated, or colliding rules are preserved rather than overwritten.
+
+Salary & premiums now opens on each workplace's current effective profile overview—hourly rate, overtime, weekly rest, and holiday readiness—before exposing editing, history, and raw rules. Shift Details is information-first: compact salary status/total/tiers/premium/warnings precede one expandable assumptions/provenance view, and secondary or destructive actions live in a state-aware More actions sheet. Settings now has exactly four destinations: Workplaces, Salary & premiums, Notifications, and Data & backup; Shift types moved under Workplaces, while exports, backup/restore, privacy, and suggestion-history clearing are grouped under Data & backup. Existing routes remain compatible.
+
+Hebrew and English interaction tests cover the new overview, special-date form, action hierarchy, and Settings structure. Time values are explicitly left-to-right inside Hebrew UI. Trust states, report/PDF/CSV estimate semantics, strictly calendar-only ICS, stale/missing/incomplete/finalized-zero behavior, explicit recalculation, and frozen historical snapshots remain unchanged. This milestone adds no migration, dependency, or Backup V1 format change and does not claim legal compliance.
+
+The final release preflight passed release configuration/assets, type checking, zero-warning lint, **145/145 Jest suites and 736/736 tests**, Migration 9 smoke upgrades for empty and v1–v9 databases, Expo web export of **38 static routes**, the reviewed exact **12-notice** SDK 57 patch baseline, public Expo configuration, production iOS surface/configuration audits, and `git diff --check`. Expo's live expected patch versions advanced during verification, so the exact allowlist was refreshed without changing installed dependencies. Expected SQLite constraint messages came from passing rollback and negative-integrity tests. No native build, Simulator/emulator interaction, or physical-device verification was performed for this milestone.
 
 ## Continuous Long-Shift Estimates and Real Weekly-Rest Recovery — 2026-08-30
 

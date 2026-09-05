@@ -1,4 +1,3 @@
-import { Alert } from 'react-native';
 import { fireEvent, screen } from '@testing-library/react-native';
 
 import { ShiftDetailView } from '@/features/shifts/components/shift-detail-view';
@@ -20,7 +19,7 @@ describe('ShiftDetailView', () => {
       shiftTypeNameSnapshot: 'לילה',
       shiftTypePayMultiplierBasisPoints: 15_000,
     });
-    renderApp(<ShiftDetailView onCancel={jest.fn()} onDelete={jest.fn()} onDuplicate={jest.fn()} onEdit={jest.fn()} onMarkMissed={jest.fn()} onRestore={jest.fn()} shift={shift} workplaceName="בית קפה" />);
+    renderApp(<ShiftDetailView shift={shift} workplaceName="בית קפה" />);
 
     expect(screen.getByText('כניסה')).toBeTruthy();
     expect(screen.getByText('יציאה')).toBeTruthy();
@@ -52,7 +51,7 @@ describe('ShiftDetailView', () => {
       payableSource: 'manual',
       completedAt: '2026-07-15T21:30:00+03:00',
     });
-    renderApp(<ShiftDetailView onCancel={jest.fn()} onDelete={jest.fn()} onDuplicate={jest.fn()} onEdit={jest.fn()} onMarkMissed={jest.fn()} onRestore={jest.fn()} shift={shift} workplaceName="בית קפה" />);
+    renderApp(<ShiftDetailView shift={shift} workplaceName="בית קפה" />);
 
     expect(screen.getByText('שעות לדיווח')).toBeTruthy();
   });
@@ -67,23 +66,10 @@ describe('ShiftDetailView', () => {
       actualBreakMinutes: 1,
       payableBreakMinutes: 1,
     });
-    renderApp(<ShiftDetailView onCancel={jest.fn()} onDelete={jest.fn()} onDuplicate={jest.fn()} onEdit={jest.fn()} onMarkMissed={jest.fn()} onRestore={jest.fn()} shift={shift} workplaceName="בית קפה" />);
+    renderApp(<ShiftDetailView shift={shift} workplaceName="בית קפה" />);
 
     expect(screen.getByText('דקה אחת')).toBeTruthy();
     expect(screen.queryByText('1 דקות')).toBeNull();
   });
 
-  it('shows only valid scheduled-shift actions', () => {
-    renderApp(<ShiftDetailView now={new Date('2026-07-16T12:00:00+03:00')} onCancel={jest.fn()} onDelete={jest.fn()} onDuplicate={jest.fn()} onEdit={jest.fn()} onMarkMissed={jest.fn()} onRestore={jest.fn()} shift={createShift()} workplaceName="בית קפה" />);
-    expect(screen.getByRole('button', { name: 'סימון כלא בוצעה' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'שחזור כמתוכננת' })).toBeNull();
-  });
-
-  it('requires confirmation before permanent deletion', () => {
-    const onDelete = jest.fn();
-    jest.spyOn(Alert, 'alert').mockImplementation((_title, _body, buttons) => buttons?.[1]?.onPress?.());
-    renderApp(<ShiftDetailView onCancel={jest.fn()} onDelete={onDelete} onDuplicate={jest.fn()} onEdit={jest.fn()} onMarkMissed={jest.fn()} onRestore={jest.fn()} shift={createShift()} workplaceName="בית קפה" />);
-    fireEvent.press(screen.getByRole('button', { name: 'מחיקה' }));
-    expect(onDelete).toHaveBeenCalledTimes(1);
-  });
 });

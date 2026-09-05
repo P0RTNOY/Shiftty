@@ -23,6 +23,7 @@ export * from './rate-resolution-service';
 export * from './salary-calculation-service';
 export * from './salary-forecast-service';
 export * from './salary-trust-service';
+export * from './special-interval-pay-rule-service';
 export * from './holiday-provider';
 export * from './week-calendar-service';
 export * from './weekly-rest-occurrence-service';

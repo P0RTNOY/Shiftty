@@ -73,7 +73,7 @@ describe('Expo Router route tree', () => {
     const p = require('path');
     const source = fs.readFileSync(p.join(p.resolve('.'), 'src', 'app', 'settings', 'reports-backup.tsx'), 'utf8');
 
-    expect(source).toContain('<Redirect href="/settings" />');
+    expect(source).toContain('<Redirect href="/settings/data" />');
   });
 
   it('does not expose caught native or database messages from hardened routes', () => {

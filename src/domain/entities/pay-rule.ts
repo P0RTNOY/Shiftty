@@ -10,6 +10,7 @@ export const payRuleConditionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('role'), roleId: z.string().min(1) }),
   z.object({ type: z.literal('minimumDuration'), minutes: z.number().int().positive() }),
   z.object({ type: z.literal('holiday') }),
+  z.object({ type: z.literal('specialIntervalId'), intervalId: z.string().trim().min(1).max(160) }),
   z.object({
     type: z.literal('specialInterval'),
     intervalTypes: z.array(z.enum(['holiday', 'weekly_rest', 'custom'])).min(1)
@@ -64,7 +65,7 @@ export const payRuleSchema = z.object({
     context.addIssue({ code: 'custom', path: ['premiumFamily'], message: 'Overtime-family rules require a worked-minute condition.' });
   }
   if (rule.premiumFamily === 'special_interval' && !rule.conditions.some((condition) => (
-    condition.type === 'specialInterval' || condition.type === 'holiday' || condition.type === 'weekend'
+    condition.type === 'specialInterval' || condition.type === 'specialIntervalId' || condition.type === 'holiday' || condition.type === 'weekend'
   ))) {
     context.addIssue({ code: 'custom', path: ['premiumFamily'], message: 'Special-interval-family rules require a special interval condition.' });
   }

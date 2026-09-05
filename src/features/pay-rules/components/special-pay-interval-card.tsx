@@ -71,9 +71,11 @@ function ruleTargetsIntervalType(rule: PayRule, interval: CalendarEvidenceInterv
   const endDate = formatLocalDateKey(interval.end, interval.timezone);
   if (rule.effectiveFrom && endDate < rule.effectiveFrom) return false;
   if (rule.effectiveTo && startDate > rule.effectiveTo) return false;
-  return rule.conditions.some((condition) => condition.type === 'specialInterval'
-    ? condition.intervalTypes.includes(interval.type)
-    : condition.type === 'holiday' && interval.type === 'holiday');
+  return rule.conditions.some((condition) => condition.type === 'specialIntervalId'
+    ? condition.intervalId === interval.id
+    : condition.type === 'specialInterval'
+      ? condition.intervalTypes.includes(interval.type)
+      : condition.type === 'holiday' && interval.type === 'holiday');
 }
 
 function typeKey(type: CalendarEvidenceInterval['type']) {
