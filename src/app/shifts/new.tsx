@@ -1,7 +1,7 @@
 import { addDays, format } from 'date-fns';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Text } from 'react-native';
 
 import type { RecurrenceSeries, Shift } from '@/domain/entities';
 import { assertShiftDurationWithinLimit, calculateShiftDuration, generateRecurrenceOccurrences, getEffectiveShiftRange, isCompletedShiftFutureDated } from '@/domain/services';
@@ -24,13 +24,14 @@ export default function NewShiftScreen() {
   const mode = params.mode === 'completed' ? 'completed' : params.mode === 'scheduled' ? 'scheduled' : 'auto';
   const repositories = useRepositories(); const { shifts: shiftRepository, recurrence: recurrenceRepository } = repositories;
   const salaryCoordinator = useMemo(() => new SalaryCalculationCoordinator(repositories), [repositories]);
-  const { shift: duplicateSource } = useShift(params.duplicate);
+  const { shift: duplicateSource, loading: duplicateLoading, error: duplicateError } = useShift(params.duplicate);
   const { workplaces, roles } = useWorkplaces();
   const { templates } = useShiftTemplates();
   const active = useActiveShift();
   const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const isDuplicate = Boolean(params.duplicate);
   const duplicateInitial = useMemo(() => duplicateSource ? {
     ...duplicateSource,
     id: createId('shift'),
@@ -46,6 +47,7 @@ export default function NewShiftScreen() {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   } : undefined, [duplicateSource]);
+  const canRenderForm = !isDuplicate || (!duplicateLoading && Boolean(duplicateInitial));
   const goBack = async () => {
     if (!dirty || await confirmAlert(t('form.unsavedTitle'), t('form.unsavedBody'), t('common.cancel'), t('common.confirm'), true)) router.back();
   };
@@ -97,8 +99,10 @@ export default function NewShiftScreen() {
 
   return <AppScreen title={mode === 'auto' ? t('addShift.title') : mode === 'completed' ? t('addShift.completed') : t('addShift.future')}>
     <SecondaryButton label={t('common.back')} onPress={() => void goBack()} />
-    <ShiftForm initialDate={params.date} initialShift={duplicateInitial} mode={mode} onCurrentShift={promptCurrentShift} onDirtyChange={setDirty} onSave={save} roles={roles} saving={saving || active.busy} templates={templates} workplaces={workplaces} />
-    {!workplaces.length ? <SecondaryButton label={t('form.manageWorkplaces')} onPress={() => router.push('/settings/workplaces')} /> : null}
+    {isDuplicate && duplicateLoading ? <Text>{t('common.loading')}</Text> : null}
+    {isDuplicate && !duplicateLoading && !duplicateInitial ? <Text accessibilityRole="alert">{t(duplicateError ? 'common.error' : 'shift.notFound')}</Text> : null}
+    {canRenderForm ? <ShiftForm initialDate={params.date} initialShift={duplicateInitial} mode={mode} onCurrentShift={promptCurrentShift} onDirtyChange={setDirty} onSave={save} roles={roles} saving={saving || active.busy} templates={templates} workplaces={workplaces} /> : null}
+    {canRenderForm && !workplaces.length ? <SecondaryButton label={t('form.manageWorkplaces')} onPress={() => router.push('/settings/workplaces')} /> : null}
   </AppScreen>;
 }
 
